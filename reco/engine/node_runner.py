@@ -127,14 +127,19 @@ class NodeRunner:
 
         # Prepare tool input parameters
         tool_inputs: Dict[str, Any] = {}
-        if "dataset" in inputs:
-            tool_inputs["dataset"] = inputs["dataset"]
-        else:
-            # Check upstream inputs for dataset
-            for val in inputs.values():
-                if isinstance(val, dict) and "dataset" in val:
-                    tool_inputs["dataset"] = val["dataset"]
-                    break
+        for k, v in inputs.items():
+            if k != "input_node":
+                tool_inputs[k] = v
+            elif isinstance(v, dict):
+                for sub_k, sub_v in v.items():
+                    tool_inputs[sub_k] = sub_v
+
+        # Fallback: check nested dictionaries in inputs
+        for val in inputs.values():
+            if isinstance(val, dict):
+                for sub_k, sub_v in val.items():
+                    if sub_k not in tool_inputs:
+                        tool_inputs[sub_k] = sub_v
 
         # Pass any additional node config parameters
         for k, v in node.config.items():
@@ -273,10 +278,19 @@ class NodeRunner:
         reasoning = state.get_output("reasoning_node")
         verification = state.get_output("verifier_node")
 
-        return {
+        output_payload: Dict[str, Any] = {
             "summary": summary or {},
             "distributions": distributions,
             "anomalies": anomalies,
             "reasoning": reasoning or {},
             "verification": verification or {"verified": False}
         }
+
+        # Also merge domain/tool outputs (e.g., reconciliation, analysis)
+        for dep_id, out in state.data.items():
+            if dep_id.startswith("tool_") and isinstance(out, dict):
+                for k, v in out.items():
+                    if k not in output_payload:
+                        output_payload[k] = v
+
+        return output_payload

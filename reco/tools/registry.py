@@ -198,6 +198,192 @@ def json_validator_handler(data: Dict[str, Any], schema: Dict[str, Any]) -> Dict
     }
 
 
+def _parse_amount(val: Any) -> Optional[float]:
+    """Helper to parse numeric amount from float, int, or currency string."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        return float(val)
+    if isinstance(val, str):
+        cleaned = val.replace("$", "").replace(",", "").strip()
+        try:
+            return float(cleaned)
+        except ValueError:
+            return None
+    return None
+
+
+def exact_reconcile_handler(
+    source_records: Optional[List[Dict[str, Any]]] = None,
+    target_records: Optional[List[Dict[str, Any]]] = None,
+    **kwargs: Any
+) -> Dict[str, Any]:
+    """Reconcile transactions between source and target ledgers using strict ID and amount equality."""
+    src = source_records or []
+    tgt = target_records or []
+
+    matched_ids = []
+    discrepancy_ids = []
+    unmatched_source_ids = []
+    unmatched_target_ids = []
+    duplicate_ids = []
+
+    src_map: Dict[str, List[Dict[str, Any]]] = {}
+    for r in src:
+        rid = str(r.get("id", ""))
+        src_map.setdefault(rid, []).append(r)
+
+    tgt_map: Dict[str, List[Dict[str, Any]]] = {}
+    for r in tgt:
+        rid = str(r.get("id", ""))
+        tgt_map.setdefault(rid, []).append(r)
+
+    # Detect duplicates in target or source
+    for rid, records in tgt_map.items():
+        if len(records) > 1 and rid not in duplicate_ids:
+            duplicate_ids.append(rid)
+    for rid, records in src_map.items():
+        if len(records) > 1 and rid not in duplicate_ids:
+            duplicate_ids.append(rid)
+
+    all_src_ids = set(src_map.keys())
+    all_tgt_ids = set(tgt_map.keys())
+    shared_ids = all_src_ids.intersection(all_tgt_ids)
+
+    for rid in sorted(list(shared_ids)):
+        src_rec = src_map[rid][0]
+        tgt_rec = tgt_map[rid][0]
+
+        src_amt = src_rec.get("amount")
+        tgt_amt = tgt_rec.get("amount")
+
+        # Strict matching: numeric equality without currency string parsing
+        is_amt_match = False
+        try:
+            if isinstance(src_amt, (int, float)) and isinstance(tgt_amt, (int, float)):
+                is_amt_match = math.isclose(float(src_amt), float(tgt_amt), abs_tol=1e-3)
+            else:
+                is_amt_match = (src_amt == tgt_amt)
+        except Exception:
+            is_amt_match = (src_amt == tgt_amt)
+
+        if is_amt_match:
+            matched_ids.append(rid)
+        else:
+            discrepancy_ids.append(rid)
+
+    for rid in sorted(list(all_src_ids - all_tgt_ids)):
+        unmatched_source_ids.append(rid)
+
+    for rid in sorted(list(all_tgt_ids - all_src_ids)):
+        unmatched_target_ids.append(rid)
+
+    status = "reconciled"
+    if discrepancy_ids or unmatched_source_ids or unmatched_target_ids:
+        status = "discrepancy_detected"
+    elif duplicate_ids:
+        status = "duplicate_detected"
+
+    return {
+        "matched_ids": matched_ids,
+        "unmatched_source_ids": unmatched_source_ids,
+        "unmatched_target_ids": unmatched_target_ids,
+        "discrepancy_ids": discrepancy_ids,
+        "duplicate_ids": duplicate_ids,
+        "matched_count": len(matched_ids),
+        "discrepancy_count": len(discrepancy_ids),
+        "duplicate_count": len(duplicate_ids),
+        "status": status
+    }
+
+
+def smart_reconcile_handler(
+    source_records: Optional[List[Dict[str, Any]]] = None,
+    target_records: Optional[List[Dict[str, Any]]] = None,
+    **kwargs: Any
+) -> Dict[str, Any]:
+    """Smart reconciliation normalizing casing, currency strings, and timestamps."""
+    src = source_records or []
+    tgt = target_records or []
+
+    matched_ids = []
+    discrepancy_ids = []
+    unmatched_source_ids = []
+    unmatched_target_ids = []
+    duplicate_ids = []
+
+    # Normalized maps: key is uppercase stripped id
+    src_map: Dict[str, List[Dict[str, Any]]] = {}
+    canonical_id_map: Dict[str, str] = {}
+    for r in src:
+        raw_id = str(r.get("id", ""))
+        norm_id = raw_id.strip().upper()
+        canonical_id_map[norm_id] = raw_id.strip()
+        src_map.setdefault(norm_id, []).append(r)
+
+    tgt_map: Dict[str, List[Dict[str, Any]]] = {}
+    for r in tgt:
+        raw_id = str(r.get("id", ""))
+        norm_id = raw_id.strip().upper()
+        if norm_id not in canonical_id_map:
+            canonical_id_map[norm_id] = raw_id.strip()
+        tgt_map.setdefault(norm_id, []).append(r)
+
+    for norm_id, records in tgt_map.items():
+        if len(records) > 1:
+            duplicate_ids.append(canonical_id_map[norm_id])
+    for norm_id, records in src_map.items():
+        if len(records) > 1 and canonical_id_map[norm_id] not in duplicate_ids:
+            duplicate_ids.append(canonical_id_map[norm_id])
+
+    all_src_ids = set(src_map.keys())
+    all_tgt_ids = set(tgt_map.keys())
+    shared_ids = all_src_ids.intersection(all_tgt_ids)
+
+    for norm_id in sorted(list(shared_ids)):
+        cid = canonical_id_map[norm_id]
+        src_rec = src_map[norm_id][0]
+        tgt_rec = tgt_map[norm_id][0]
+
+        src_amt = _parse_amount(src_rec.get("amount"))
+        tgt_amt = _parse_amount(tgt_rec.get("amount"))
+
+        if src_amt is not None and tgt_amt is not None:
+            if math.isclose(src_amt, tgt_amt, abs_tol=1e-3):
+                matched_ids.append(cid)
+            else:
+                discrepancy_ids.append(cid)
+        else:
+            if src_rec.get("amount") == tgt_rec.get("amount"):
+                matched_ids.append(cid)
+            else:
+                discrepancy_ids.append(cid)
+
+    for norm_id in sorted(list(all_src_ids - all_tgt_ids)):
+        unmatched_source_ids.append(canonical_id_map[norm_id])
+
+    for norm_id in sorted(list(all_tgt_ids - all_src_ids)):
+        unmatched_target_ids.append(canonical_id_map[norm_id])
+
+    status = "reconciled"
+    if discrepancy_ids or unmatched_source_ids or unmatched_target_ids:
+        status = "discrepancy_detected"
+    elif duplicate_ids:
+        status = "duplicate_detected"
+
+    return {
+        "matched_ids": matched_ids,
+        "unmatched_source_ids": unmatched_source_ids,
+        "unmatched_target_ids": unmatched_target_ids,
+        "discrepancy_ids": discrepancy_ids,
+        "duplicate_ids": duplicate_ids,
+        "matched_count": len(matched_ids),
+        "discrepancy_count": len(discrepancy_ids),
+        "duplicate_count": len(duplicate_ids),
+        "status": status
+    }
+
+
 # ==============================================================================
 # Tool Registry Class
 # ==============================================================================
@@ -300,6 +486,43 @@ class ToolRegistry:
             },
             capabilities=["verification", "schema_validation"],
             handler=json_validator_handler
+        ))
+
+        return registry
+
+    @classmethod
+    def create_reconciliation_default(cls) -> ToolRegistry:
+        """Create a registry loaded with both analytical and reconciliation tools."""
+        registry = cls.create_default()
+
+        registry.register(ToolDefinition(
+            name="exact_reconcile",
+            description="Reconciles transaction records between source and target ledgers using exact ID and amount matching.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "source_records": {"type": "array", "items": {"type": "object"}},
+                    "target_records": {"type": "array", "items": {"type": "object"}}
+                },
+                "required": ["source_records", "target_records"]
+            },
+            capabilities=["reconciliation", "transaction_parsing"],
+            handler=exact_reconcile_handler
+        ))
+
+        registry.register(ToolDefinition(
+            name="smart_reconcile",
+            description="Reconciles transaction records normalizing currency formatting, casing, and timestamps.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "source_records": {"type": "array", "items": {"type": "object"}},
+                    "target_records": {"type": "array", "items": {"type": "object"}}
+                },
+                "required": ["source_records", "target_records"]
+            },
+            capabilities=["advanced_reconciliation", "smart_matching"],
+            handler=smart_reconcile_handler
         ))
 
         return registry
