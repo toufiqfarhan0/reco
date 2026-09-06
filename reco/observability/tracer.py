@@ -225,20 +225,28 @@ class SpanContext:
         self.end()
 
 
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
+try:
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
+    HAS_OPENTELEMETRY = True
+except ImportError:
+    HAS_OPENTELEMETRY = False
+    SimpleSpanProcessor = object  # type: ignore
+    SpanExportResult = None  # type: ignore
 
 
-class SafeSpanProcessor(SimpleSpanProcessor):
+class SafeSpanProcessor(SimpleSpanProcessor):  # type: ignore
     """Span processor that intercepts exporter failures and safely tracks them in tracer stats."""
 
     def __init__(self, span_exporter: Any, tracer: "NeatlogsTracer"):
-        super().__init__(span_exporter)
+        if HAS_OPENTELEMETRY:
+            super().__init__(span_exporter)
+        self.span_exporter = span_exporter
         self.tracer = tracer
 
     def on_end(self, span: Any) -> None:
         try:
             res = self.span_exporter.export((span,))
-            if res == SpanExportResult.FAILURE:
+            if SpanExportResult is not None and res == SpanExportResult.FAILURE:
                 self.tracer.stats["errors"] += 1
                 self.tracer.stats["last_error"] = "OTLP export returned failure"
         except Exception as exc:
