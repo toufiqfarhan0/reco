@@ -2,12 +2,14 @@
 
 from reco.optimization.controller import (
     OptimizationController,
-    OptimizationResult,
     OptimizationIteration,
+    OptimizationResult,
+    TournamentOptimizationResult,
 )
 
 __all__ = [
     "OptimizationController",
-    "OptimizationResult",
     "OptimizationIteration",
+    "OptimizationResult",
+    "TournamentOptimizationResult",
 ]

@@ -20,7 +20,15 @@ from reco.engine.generator import ArchitectureGenerator
 from reco.engine.models import AgentArchitecture
 from reco.engine.runtime import AgentRuntime
 from reco.evaluators.scorecard import Scorecard, ScorecardComparison, ScorecardEvaluator
+from reco.evaluators.comparison import (
+    HeldOutValidationGate,
+    HeldOutValidationResult,
+    PromotionDecision,
+    TournamentEvaluator,
+    TournamentResult,
+)
 from reco.mutation.engine import MutationEngine, MutationResult
+from reco.mutation.generator import CandidatePool, CandidatePoolGenerator, CandidateVariant
 from reco.mutation.validator import CandidateDiff, CandidateValidator
 from reco.tools.registry import ToolRegistry
 
@@ -84,8 +92,37 @@ class OptimizationResult(BaseModel):
         return "\n".join(lines)
 
 
+class TournamentOptimizationResult(BaseModel):
+    """Aggregated outcome of multi-candidate tournament exploration and held-out promotion gate."""
+
+    baseline_architecture: AgentArchitecture
+    candidate_pool: CandidatePool
+    tournament_result: TournamentResult
+    held_out_result: HeldOutValidationResult
+    champion_architecture: AgentArchitecture
+    status: str
+    accuracy_gain_opt: float
+    accuracy_gain_held_out: float
+    summary: str
+
+    def to_markdown(self) -> str:
+        """Render a comprehensive markdown report of tournament and held-out gate results."""
+        lines = [
+            "# Autonomous Tournament Optimization & Promotion Report (Track 1)",
+            f"**Gate Status:** `{self.status}` | **Opt Gain:** `{self.accuracy_gain_opt * 100:+.1f}%` | **Held-Out Gain:** `{self.accuracy_gain_held_out * 100:+.1f}%`",
+            "",
+            "## 1. Multi-Candidate Pool & Tournament Outcome",
+            self.tournament_result.to_markdown(),
+            "",
+            "## 2. Air-Gapped Held-Out Promotion Gate",
+            self.held_out_result.to_markdown(),
+            ""
+        ]
+        return "\n".join(lines)
+
+
 class OptimizationController:
-    """Orchestrates closed-loop architecture optimization via diagnostics and targeted mutations."""
+    """Orchestrates closed-loop architecture optimization via diagnostics, tournaments, and promotion gates."""
 
     def __init__(
         self,
@@ -94,7 +131,10 @@ class OptimizationController:
         evaluator: Optional[ScorecardEvaluator] = None,
         analyzer: Optional[FailureAnalyzer] = None,
         mutation_engine: Optional[MutationEngine] = None,
-        validator: Optional[CandidateValidator] = None
+        validator: Optional[CandidateValidator] = None,
+        pool_generator: Optional[CandidatePoolGenerator] = None,
+        tournament_evaluator: Optional[TournamentEvaluator] = None,
+        held_out_gate: Optional[HeldOutValidationGate] = None,
     ):
         self.tool_registry = tool_registry or ToolRegistry.create_reconciliation_default()
         self.runtime = runtime or AgentRuntime(tool_registry=self.tool_registry)
@@ -104,6 +144,18 @@ class OptimizationController:
         self.mutation_engine = mutation_engine or MutationEngine(
             tool_registry=self.tool_registry,
             validator=self.validator
+        )
+        self.pool_generator = pool_generator or CandidatePoolGenerator(
+            tool_registry=self.tool_registry,
+            validator=self.validator
+        )
+        self.tournament_evaluator = tournament_evaluator or TournamentEvaluator(
+            runtime=self.runtime,
+            evaluator=self.evaluator
+        )
+        self.held_out_gate = held_out_gate or HeldOutValidationGate(
+            runtime=self.runtime,
+            evaluator=self.evaluator
         )
 
     def run_optimization_cycle(
@@ -274,6 +326,91 @@ class OptimizationController:
             has_improved=has_improved,
             accuracy_gain=round(acc_gain, 4),
             status=status,
+            summary=summary
+        )
+
+    def run_tournament_cycle(
+        self,
+        baseline_architecture: Optional[AgentArchitecture] = None,
+        suite: Optional[BenchmarkSuite] = None,
+        opt_split: Union[BenchmarkSplit, str] = BenchmarkSplit.OPTIMIZATION,
+    ) -> TournamentOptimizationResult:
+        """Execute multi-candidate tournament exploration & held-out promotion gate.
+
+        Steps:
+            1. Evaluate Baseline V0 on optimization split.
+            2. Run failure diagnostics to classify error patterns.
+            3. Synthesize 3 competing candidates (Prompt, Verifier, Topology/Tool Specialists).
+            4. Validate all candidates with CandidateValidator.
+            5. Run tournament evaluation across candidates on optimization split.
+            6. Compute Pareto frontier and select non-dominated tournament winner.
+            7. Air-gapped Held-Out Validation Gate on winner against unseen test data.
+            8. Apply formal Promotion Policy (PROMOTED / REQUIRES_REVIEW / REJECTED).
+        """
+        benchmark_suite = suite or get_reconciliation_benchmark_suite()
+        current_arch = baseline_architecture or self._create_default_baseline()
+        baseline_arch = current_arch
+
+        # 1. Evaluate baseline on optimization split
+        baseline_opt_scorecard = self.evaluator.evaluate(
+            architecture=baseline_arch,
+            suite_or_cases=benchmark_suite,
+            split=opt_split,
+            name=f"{baseline_arch.name}_OptScorecard"
+        )
+
+        # 2. Failure Diagnostics
+        diag_report = self.analyzer.analyze_scorecard(
+            scorecard=baseline_opt_scorecard,
+            suite_or_cases=benchmark_suite,
+            architecture=baseline_arch
+        )
+
+        # 3. Synthesize competing candidate pool
+        pool = self.pool_generator.generate_pool(
+            baseline_architecture=baseline_arch,
+            diagnostic_report=diag_report
+        )
+
+        # 4. Tournament Evaluation on Optimization Split
+        tournament_res = self.tournament_evaluator.evaluate_tournament(
+            baseline_architecture=baseline_arch,
+            candidates=pool,
+            suite=benchmark_suite,
+            split=opt_split,
+            baseline_scorecard=baseline_opt_scorecard
+        )
+
+        # 5. Air-Gapped Held-Out Validation Gate on Tournament Winner
+        winner = tournament_res.winner
+        held_out_res = self.held_out_gate.validate(
+            candidate=winner,
+            baseline=baseline_arch,
+            suite=benchmark_suite,
+            candidate_opt_scorecard=winner.scorecard
+        )
+
+        acc_gain_opt = round(winner.scorecard.accuracy - baseline_opt_scorecard.accuracy, 4)
+        acc_gain_held = round(held_out_res.candidate_scorecard.accuracy - held_out_res.baseline_scorecard.accuracy, 4)
+
+        summary = (
+            f"Tournament optimization cycle completed. "
+            f"Winner: Candidate {winner.id} ('{winner.name}') with {winner.scorecard.accuracy * 100:.1f}% opt accuracy "
+            f"({acc_gain_opt * 100:+.1f}% vs baseline). "
+            f"Held-out gate: {held_out_res.candidate_scorecard.accuracy * 100:.1f}% accuracy "
+            f"({acc_gain_held * 100:+.1f}% vs baseline). "
+            f"Promotion Decision: `{held_out_res.promotion_decision.value}`."
+        )
+
+        return TournamentOptimizationResult(
+            baseline_architecture=baseline_arch,
+            candidate_pool=pool,
+            tournament_result=tournament_res,
+            held_out_result=held_out_res,
+            champion_architecture=held_out_res.champion_architecture,
+            status=held_out_res.promotion_decision.value,
+            accuracy_gain_opt=acc_gain_opt,
+            accuracy_gain_held_out=acc_gain_held,
             summary=summary
         )
 

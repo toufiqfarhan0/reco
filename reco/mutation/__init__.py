@@ -2,6 +2,7 @@
 
 from reco.mutation.validator import CandidateValidator, CandidateDiff, ValidationResult
 from reco.mutation.engine import MutationEngine, MutationResult
+from reco.mutation.generator import CandidatePoolGenerator, CandidatePool, CandidateVariant
 from reco.mutation.mutators import (
     BaseMutator,
     PromptMutator,
@@ -15,6 +16,9 @@ __all__ = [
     "CandidateValidator",
     "CandidateDiff",
     "ValidationResult",
+    "CandidatePoolGenerator",
+    "CandidatePool",
+    "CandidateVariant",
     "MutationEngine",
     "MutationResult",
     "BaseMutator",
