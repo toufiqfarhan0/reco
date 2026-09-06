@@ -87,7 +87,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       if (onOpenAuth) {
         onOpenAuth();
       } else {
-        setErrorMessage("A Supabase account is required to link and manage your Pro subscription.");
+        setErrorMessage("Please sign in with Supabase or use 1-Click Judge Demo to link your subscription.");
       }
       return;
     }
@@ -97,10 +97,9 @@ export const BillingModal: React.FC<BillingModalProps> = ({
     setErrorMessage(null);
     setSuccessUrl(null);
 
-
     try {
       const checkoutBody: Record<string, any> = {
-        user_id: userId,
+        user_id: userId || "00000000-0000-0000-0000-000000000001",
       };
       if (productId && productId !== "prod_pro_monthly") {
         checkoutBody.product_id = productId;
@@ -117,6 +116,9 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Please sign in with Supabase or use 1-Click Judge Demo to link your subscription.");
+        }
         throw new Error(data.detail || data.error || "Failed to generate checkout session");
       }
 
@@ -126,7 +128,17 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         onTierChange?.("pro");
       }
     } catch (err: any) {
-      setErrorMessage(err.message || "Network error contacting Dodo Payments.");
+      const msg = err.message || "Network error contacting Dodo Payments.";
+      if (
+        msg.includes("401") ||
+        msg.includes("Authentication required") ||
+        msg.includes("valid Supabase access token") ||
+        msg.includes("Unauthorized")
+      ) {
+        setErrorMessage("Please sign in with Supabase or use 1-Click Judge Demo to link your subscription.");
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
       setLoadingAction(null);
@@ -139,7 +151,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       if (onOpenAuth) {
         onOpenAuth();
       } else {
-        setErrorMessage("A Supabase account is required to manage your subscription.");
+        setErrorMessage("Please sign in with Supabase or use 1-Click Judge Demo to link your subscription.");
       }
       return;
     }
@@ -149,7 +161,6 @@ export const BillingModal: React.FC<BillingModalProps> = ({
     setErrorMessage(null);
     setSuccessUrl(null);
 
-
     try {
       const headers = await getAuthHeaders();
 
@@ -157,13 +168,16 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         method: "POST",
         headers,
         body: JSON.stringify({
-          user_id: userId,
+          user_id: userId || "00000000-0000-0000-0000-000000000001",
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Please sign in with Supabase or use 1-Click Judge Demo to link your subscription.");
+        }
         throw new Error(data.detail || data.error || "Failed to open customer portal");
       }
 
@@ -172,7 +186,17 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         window.open(data.portal_url, "_blank", "noopener,noreferrer");
       }
     } catch (err: any) {
-      setErrorMessage(err.message || "Network error contacting customer portal.");
+      const msg = err.message || "Network error contacting customer portal.";
+      if (
+        msg.includes("401") ||
+        msg.includes("Authentication required") ||
+        msg.includes("valid Supabase access token") ||
+        msg.includes("Unauthorized")
+      ) {
+        setErrorMessage("Please sign in with Supabase or use 1-Click Judge Demo to link your subscription.");
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
       setLoadingAction(null);
@@ -286,9 +310,23 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
         {/* Error / Success Feedback Banner */}
         {errorMessage && (
-          <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">
-            <WarningCircle size={16} weight="fill" className="shrink-0 text-red-600" />
-            <span className="flex-1">{errorMessage}</span>
+          <div className="mx-6 mt-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
+            <div className="flex items-center gap-2">
+              <WarningCircle size={16} weight="fill" className="shrink-0 text-amber-600" />
+              <span className="flex-1">{errorMessage}</span>
+            </div>
+            {onOpenAuth && (
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage(null);
+                  onOpenAuth();
+                }}
+                className="shrink-0 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3 py-1 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         )}
 
