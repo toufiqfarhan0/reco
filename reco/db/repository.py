@@ -16,6 +16,7 @@ from reco.db.models import (
     ImmutabilityError,
     MutationRecord,
     TraceRecord,
+    UserEntitlementRecord,
     UserIsolationError,
 )
 from reco.engine.models import AgentArchitecture
@@ -148,6 +149,16 @@ class ExperimentRepository(ABC):
         """Retrieve distributed traces for an experiment."""
         pass
 
+    @abstractmethod
+    def save_user_entitlement(self, entitlement: UserEntitlementRecord) -> UserEntitlementRecord:
+        """Persist or update a user's subscription entitlement tier."""
+        pass
+
+    @abstractmethod
+    def get_user_entitlement(self, user_id: str) -> Optional[UserEntitlementRecord]:
+        """Fetch the current entitlement tier for a user."""
+        pass
+
 
 class InMemoryRepository(ExperimentRepository):
     """Thread-safe in-memory repository implementing historical immutability & user isolation.
@@ -163,6 +174,7 @@ class InMemoryRepository(ExperimentRepository):
         self._evaluations: Dict[str, EvaluationRecord] = {}
         self._mutations: Dict[str, MutationRecord] = {}
         self._traces: Dict[str, TraceRecord] = {}
+        self._entitlements: Dict[str, UserEntitlementRecord] = {}
 
     def _verify_experiment_ownership(self, experiment_id: str, user_id: str) -> ExperimentRecord:
         """Ensure experiment exists and belongs to the requested user."""
@@ -439,3 +451,13 @@ class InMemoryRepository(ExperimentRepository):
             if architecture_id:
                 traces = [t for t in traces if t.architecture_id == architecture_id]
             return traces
+
+    def save_user_entitlement(self, entitlement: UserEntitlementRecord) -> UserEntitlementRecord:
+        with self._lock:
+            self._entitlements[entitlement.user_id] = entitlement
+            return entitlement
+
+    def get_user_entitlement(self, user_id: str) -> Optional[UserEntitlementRecord]:
+        with self._lock:
+            return self._entitlements.get(user_id)
+

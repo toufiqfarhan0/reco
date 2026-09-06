@@ -22,6 +22,7 @@ from reco.db.models import (
     ImmutabilityError,
     MutationRecord,
     TraceRecord,
+    UserEntitlementRecord,
     UserIsolationError,
 )
 from reco.db.repository import ExperimentRepository, InMemoryRepository
@@ -500,6 +501,25 @@ class SupabaseRepository(ExperimentRepository):
             query = query.eq("architecture_id", architecture_id)
         res = query.order("created_at", desc=False).execute()
         return [TraceRecord(**row) for row in res.data or []]
+
+    def save_user_entitlement(self, entitlement: UserEntitlementRecord) -> UserEntitlementRecord:
+        row = entitlement.model_dump()
+        res = self.client.table("user_entitlements").upsert(row).execute()
+        if res.data:
+            return UserEntitlementRecord(**res.data[0])
+        return entitlement
+
+    def get_user_entitlement(self, user_id: str) -> Optional[UserEntitlementRecord]:
+        res = (
+            self.client.table("user_entitlements")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .execute()
+        )
+        if res.data:
+            return UserEntitlementRecord(**res.data[0])
+        return None
+
 
 
 def get_repository(
