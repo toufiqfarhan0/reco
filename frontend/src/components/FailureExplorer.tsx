@@ -60,19 +60,19 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
     filteredDiagnostics[0];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-[#f4f4f3] px-2 py-0.5 text-xs font-mono font-semibold text-[#525250] border border-[#e4e4e3]">
+          <div className="flex items-center gap-2.5">
+            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-mono font-bold text-zinc-700 border border-zinc-200">
               STAGE 03
             </span>
-            <h2 className="text-xl font-bold tracking-tight text-[#0a0a0a]">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-950">
               UNDERSTAND: 12-Category Failure Diagnostics Taxonomy
             </h2>
           </div>
-          <p className="text-sm text-[#525250] mt-1">
+          <p className="text-xs text-zinc-500 mt-1 max-w-2xl">
             Isolate underlying root causes from intermediate observable symptoms to prescribe targeted autonomous mutations.
           </p>
         </div>
@@ -80,39 +80,45 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
         <button
           type="button"
           onClick={onProceedToImprove}
-          className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-[#1a1a1a] cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-zinc-800 active:scale-[0.98] cursor-pointer"
         >
-          Synthesize Mutations (Stage 04)
-          <ArrowRight className="h-4 w-4" />
+          <span>Synthesize Mutations (Stage 04)</span>
+          <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* 12-Category Taxonomy Interactive Pills Matrix */}
-      <div className="rounded-xl border border-[#e4e4e3] bg-white p-5 shadow-xs">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-[#525250]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#0a0a0a]">
+            <Filter className="h-3.5 w-3.5 text-zinc-500" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
               Root-Cause Taxonomy Classification Matrix (12 Categories)
             </h3>
           </div>
-          <span className="text-[11px] font-mono text-[#8a8a88]">
+          <span className="text-[10px] font-mono text-zinc-400">
             Active Failures: {diagnostics.length}
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
             onClick={() => setSelectedCategory("all")}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition-all cursor-pointer ${
               selectedCategory === "all"
-                ? "bg-[#0a0a0a] text-white font-medium"
-                : "border border-[#e4e4e3] bg-[#f9f9f8] text-[#525250] hover:border-[#d1d1cf] hover:text-[#0a0a0a]"
+                ? "bg-zinc-950 text-white font-medium shadow-2xs"
+                : "border border-zinc-200/80 bg-zinc-50/50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
             }`}
           >
             <span>All Categories</span>
-            <span className={`rounded px-1 py-0.2 text-[10px] ${selectedCategory === "all" ? "bg-white/20 text-white" : "bg-[#e4e4e3] text-[#525250]"}`}>
+            <span
+              className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
+                selectedCategory === "all"
+                  ? "bg-white/20 text-white"
+                  : "bg-zinc-200 text-zinc-700"
+              }`}
+            >
               {diagnostics.length}
             </span>
           </button>
@@ -125,18 +131,24 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition-all cursor-pointer ${
                   isSelected
-                    ? "bg-[#0a0a0a] text-white font-medium"
+                    ? "bg-zinc-950 text-white font-medium shadow-2xs"
                     : count > 0
-                    ? "border border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400"
-                    : "border border-[#e4e4e3] bg-[#f9f9f8] text-[#8a8a88] hover:text-[#0a0a0a]"
+                    ? "border border-amber-300/80 bg-amber-50 text-amber-800 hover:border-amber-400"
+                    : "border border-zinc-200/70 bg-zinc-50/50 text-zinc-400 hover:text-zinc-700"
                 }`}
                 title={cat.description}
               >
                 <span>{cat.name}</span>
                 {count > 0 && (
-                  <span className={`rounded px-1 text-[10px] font-bold ${isSelected ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"}`}>
+                  <span
+                    className={`rounded px-1 text-[10px] font-bold ${
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
                     {count}
                   </span>
                 )}
@@ -147,23 +159,23 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
       </div>
 
       {/* Main Breakdown: Left list of cases, Right deep root-cause vs symptom breakdown */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* Left Column: Diagnostics List & Search */}
         <div className="space-y-3 lg:col-span-5">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#8a8a88]" />
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search failures, symptoms, causes..."
-              className="w-full rounded-lg border border-[#e4e4e3] bg-white py-2 pl-9 pr-3 text-xs text-[#0a0a0a] placeholder-[#8a8a88] focus:border-[#0a0a0a] focus:outline-none"
+              className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-3 text-xs text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs font-mono"
             />
           </div>
 
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
             {filteredDiagnostics.length === 0 ? (
-              <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-6 text-center text-xs text-[#8a8a88]">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-6 text-center text-xs text-zinc-400 font-mono">
                 No failures match the selected category filter.
               </div>
             ) : (
@@ -173,32 +185,32 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
                   <div
                     key={diag.case_id}
                     onClick={() => setActiveDiagnosticId(diag.case_id)}
-                    className={`cursor-pointer rounded-lg border p-3.5 transition-all ${
+                    className={`cursor-pointer rounded-xl border p-3.5 transition-all shadow-2xs ${
                       isActive
-                        ? "border-[#0a0a0a] bg-white shadow-md ring-1 ring-[#0a0a0a]"
-                        : "border-[#e4e4e3] bg-white hover:border-[#d1d1cf] shadow-xs"
+                        ? "border-zinc-950 bg-white shadow-xs ring-1 ring-zinc-950"
+                        : "border-zinc-200/90 bg-white hover:border-zinc-300"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs font-semibold text-[#0a0a0a] truncate">
+                      <span className="font-mono text-xs font-semibold text-zinc-950 truncate">
                         {diag.case_id}
                       </span>
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-mono text-amber-700 border border-amber-200">
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-700 border border-amber-200">
                         {diag.category}
                       </span>
                     </div>
 
-                    <h4 className="mt-1 text-xs font-medium text-[#0a0a0a] line-clamp-1">
+                    <h4 className="mt-1 text-xs font-semibold text-zinc-950 line-clamp-1">
                       {diag.case_name}
                     </h4>
 
-                    <p className="mt-1.5 text-[11px] text-[#525250] line-clamp-2">
+                    <p className="mt-1.5 text-[11px] text-zinc-500 line-clamp-2 leading-relaxed">
                       {diag.root_cause}
                     </p>
 
-                    <div className="mt-2.5 flex items-center justify-between border-t border-[#e4e4e3] pt-2 text-[10px] font-mono text-[#8a8a88]">
+                    <div className="mt-2.5 flex items-center justify-between border-t border-zinc-100 pt-2 text-[10px] font-mono text-zinc-400">
                       <span>Mutator: {diag.recommended_mutator}</span>
-                      <span className="text-[#0a0a0a] font-semibold">
+                      <span className="text-zinc-950 font-semibold">
                         {(diag.confidence * 100).toFixed(0)}% conf
                       </span>
                     </div>
@@ -212,24 +224,24 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
         {/* Right Column: Deep Symptom vs Root Cause Card */}
         <div className="space-y-4 lg:col-span-7">
           {activeDiagnostic ? (
-            <div className="rounded-xl border border-[#e4e4e3] bg-white p-6 shadow-xs space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e4e4e3] pb-3">
+            <div className="rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-2xs space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-[#8a8a88]">
+                    <span className="font-mono text-xs text-zinc-400">
                       CASE ID:
                     </span>
-                    <span className="font-mono text-sm font-bold text-[#0a0a0a]">
+                    <span className="font-mono text-sm font-bold text-zinc-950">
                       {activeDiagnostic.case_id}
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold text-[#0a0a0a] mt-0.5">
+                  <h3 className="text-base font-semibold text-zinc-950 mt-0.5">
                     {activeDiagnostic.case_name}
                   </h3>
                 </div>
 
                 <div className="text-right">
-                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-mono font-bold text-amber-700 border border-amber-200">
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-mono font-bold text-amber-800 border border-amber-200">
                     {activeDiagnostic.category}
                   </span>
                 </div>
@@ -238,19 +250,19 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
               {/* Symptom vs Cause Comparison Panels */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* Panel 1: Observable Symptoms */}
-                <div className="rounded-lg border border-red-200 bg-red-50/40 p-4 space-y-2">
+                <div className="rounded-xl border border-red-200/80 bg-red-50/30 p-4 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-red-700">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Observable Symptoms
                   </div>
-                  <p className="text-[11px] text-[#525250]">
+                  <p className="text-[11px] text-zinc-500">
                     External test failure artifacts & visible discrepancies:
                   </p>
-                  <ul className="space-y-1.5 pt-1">
+                  <ul className="space-y-1.5 pt-1 font-mono text-xs">
                     {activeDiagnostic.symptoms.map((sym, idx) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2 text-xs text-[#0a0a0a]"
+                        className="flex items-start gap-2 text-zinc-900"
                       >
                         <span className="text-red-500 font-bold">•</span>
                         <span>{sym}</span>
@@ -260,25 +272,25 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
                 </div>
 
                 {/* Panel 2: Isolated Root Cause */}
-                <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4 space-y-2">
+                <div className="rounded-xl border border-blue-200/80 bg-blue-50/30 p-4 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-blue-700">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Isolated Root Cause
                   </div>
-                  <p className="text-[11px] text-[#525250]">
+                  <p className="text-[11px] text-zinc-500">
                     Underlying architectural defect or configuration gap:
                   </p>
-                  <p className="text-xs text-[#0a0a0a] pt-1 leading-relaxed">
+                  <p className="text-xs text-zinc-900 pt-1 leading-relaxed font-mono">
                     {activeDiagnostic.root_cause}
                   </p>
                 </div>
               </div>
 
               {/* Prescribed Targeted Remedy & Mutator */}
-              <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-4 space-y-3">
+              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0a0a0a]">
-                    <Wrench className="h-4 w-4 text-[#525250]" />
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-950">
+                    <Wrench className="h-3.5 w-3.5 text-zinc-500" />
                     Targeted Autonomous Remedy
                   </div>
                   <span className="font-mono text-xs font-semibold text-emerald-700">
@@ -286,20 +298,20 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
                   </span>
                 </div>
 
-                <p className="text-xs text-[#525250] leading-relaxed">
+                <p className="text-xs text-zinc-600 leading-relaxed">
                   {activeDiagnostic.remedy_suggestion}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 border-t border-[#e4e4e3] pt-3 text-xs font-mono">
+                <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200/70 pt-3 text-xs font-mono">
                   <div>
-                    <span className="text-[#8a8a88]">Target Node: </span>
-                    <span className="text-[#0a0a0a] font-medium">
+                    <span className="text-zinc-400">Target Node: </span>
+                    <span className="text-zinc-950 font-semibold">
                       {activeDiagnostic.target_node_id || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#8a8a88]">Recommended Mutator: </span>
-                    <span className="rounded bg-white px-2 py-0.5 text-[#0a0a0a] border border-[#e4e4e3] font-medium">
+                    <span className="text-zinc-400">Recommended Mutator: </span>
+                    <span className="rounded-md bg-white px-2 py-0.5 text-zinc-950 border border-zinc-200 font-semibold shadow-2xs">
                       {activeDiagnostic.recommended_mutator}
                     </span>
                   </div>
@@ -307,7 +319,7 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
               </div>
             </div>
           ) : (
-            <div className="flex h-64 items-center justify-center rounded-xl border border-[#e4e4e3] bg-white p-6 text-sm text-[#8a8a88]">
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-400 font-mono">
               Select a failure case from the left list to view root-cause diagnostics.
             </div>
           )}

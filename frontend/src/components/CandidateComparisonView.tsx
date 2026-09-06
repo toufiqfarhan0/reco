@@ -33,19 +33,19 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
     candidates.find((c) => c.id === selectedCandidateId) || candidates[2];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-[#f4f4f3] px-2 py-0.5 text-xs font-mono font-semibold text-[#525250] border border-[#e4e4e3]">
+          <div className="flex items-center gap-2.5">
+            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-mono font-bold text-zinc-700 border border-zinc-200">
               STAGE 04
             </span>
-            <h2 className="text-xl font-bold tracking-tight text-[#0a0a0a]">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-950">
               IMPROVE: Multi-Candidate Tournament & Prompt Diff Inspector
             </h2>
           </div>
-          <p className="text-sm text-[#525250] mt-1">
+          <p className="text-xs text-zinc-500 mt-1 max-w-2xl">
             Autonomous tournament evaluating mutated candidates (A, B, C) against the 4-axis empirical benchmark.
           </p>
         </div>
@@ -53,10 +53,10 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
         <button
           type="button"
           onClick={onProceedToValidate}
-          className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-[#1a1a1a] cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-zinc-800 active:scale-[0.98] cursor-pointer"
         >
-          Validate on Held-Out (Stage 05)
-          <ArrowRight className="h-4 w-4" />
+          <span>Validate on Held-Out (Stage 05)</span>
+          <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -69,21 +69,21 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
             <div
               key={cand.id}
               onClick={() => setSelectedCandidateId(cand.id)}
-              className={`relative flex flex-col justify-between rounded-xl border p-5 transition-all cursor-pointer shadow-xs ${
+              className={`relative flex flex-col justify-between rounded-2xl border p-5 transition-all cursor-pointer shadow-2xs ${
                 isSelected
-                  ? "border-[#0a0a0a] bg-white shadow-md ring-1 ring-[#0a0a0a]"
+                  ? "border-zinc-950 bg-white shadow-xs ring-1 ring-zinc-950"
                   : isChampion
-                  ? "border-emerald-300 bg-white hover:border-emerald-500"
-                  : "border-[#e4e4e3] bg-white hover:border-[#d1d1cf]"
+                  ? "border-emerald-300/80 bg-white hover:border-emerald-400"
+                  : "border-zinc-200/90 bg-white hover:border-zinc-300"
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#0a0a0a] font-mono text-xs font-bold text-white">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-zinc-950 font-mono text-xs font-bold text-white shadow-2xs">
                       {cand.id}
                     </span>
-                    <h3 className="text-sm font-semibold text-[#0a0a0a]">
+                    <h3 className="text-sm font-semibold text-zinc-950">
                       {cand.name}
                     </h3>
                   </div>
@@ -98,20 +98,20 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
                       PARETO
                     </span>
                   ) : (
-                    <span className="rounded-full bg-[#f4f4f3] px-2 py-0.5 text-[10px] font-mono text-[#525250] border border-[#e4e4e3]">
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-500 border border-zinc-200">
                       BASELINE
                     </span>
                   )}
                 </div>
 
-                <p className="mt-2 text-xs text-[#525250] line-clamp-2">
+                <p className="mt-2 text-xs text-zinc-500 line-clamp-2 leading-relaxed">
                   {cand.description}
                 </p>
 
                 {/* Scorecard Matrix Metrics */}
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3 text-xs font-mono">
+                <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3 text-xs font-mono">
                   <div>
-                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
+                    <span className="text-[10px] text-zinc-400 uppercase block font-medium">
                       Accuracy
                     </span>
                     <span className="text-sm font-bold text-emerald-700">
@@ -119,37 +119,37 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
+                    <span className="text-[10px] text-zinc-400 uppercase block font-medium">
                       Reliability
                     </span>
-                    <span className="text-sm font-bold text-[#0a0a0a]">
+                    <span className="text-sm font-bold text-zinc-950">
                       {(cand.scorecard.reliability * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
+                    <span className="text-[10px] text-zinc-400 uppercase block font-medium">
                       Cost
                     </span>
-                    <span className="text-xs text-[#525250]">
+                    <span className="text-xs text-zinc-600">
                       ${cand.scorecard.cost_usd.toFixed(4)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
+                    <span className="text-[10px] text-zinc-400 uppercase block font-medium">
                       Latency
                     </span>
-                    <span className="text-xs text-[#525250]">
+                    <span className="text-xs text-zinc-600">
                       {cand.scorecard.latency_ms.toFixed(1)} ms
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-[#e4e4e3] pt-3 text-[11px]">
-                <span className="text-[#525250] font-mono">
-                  Win Rate: <strong className="text-[#0a0a0a]">{cand.win_rate}%</strong>
+              <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3 text-[11px]">
+                <span className="text-zinc-500 font-mono">
+                  Win Rate: <strong className="text-zinc-950">{cand.win_rate}%</strong>
                 </span>
-                <span className="text-[#0a0a0a] font-medium hover:underline">
+                <span className="text-zinc-900 font-semibold hover:underline">
                   Inspect Diff →
                 </span>
               </div>

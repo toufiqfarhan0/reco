@@ -122,11 +122,11 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
   onSelectStage,
 }) => {
   return (
-    <div className="min-h-[85dvh] flex flex-col justify-between py-4 sm:py-8">
-      {/* Hero Stack (Max 4 text elements per tasteskill guidelines) */}
-      <div className="mx-auto w-full max-w-5xl text-center space-y-6">
-        {/* Element 1: Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#e4e4e3] bg-white px-3.5 py-1 text-xs font-mono font-medium text-[#525250] shadow-xs">
+    <div className="min-h-[85dvh] flex flex-col justify-between py-4 sm:py-8 space-y-8">
+      {/* Hero Stack */}
+      <div className="mx-auto w-full max-w-4xl text-center space-y-6">
+        {/* Eyebrow Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3.5 py-1 text-xs font-mono font-medium text-zinc-600 shadow-2xs">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
@@ -134,22 +134,22 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
           <span>TRACK 1: AUTOMATED AGENT ENGINEERING • SYNDICATE BY MAXIMOR</span>
         </div>
 
-        {/* Element 2: Headline */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0a0a0a] leading-tight">
+        {/* Headline */}
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-zinc-950 leading-tight">
           Autonomous Agent Engineering System
         </h1>
 
-        {/* Element 3: Subheadline (Exactly 20 words per tasteskill brief) */}
-        <p className="mx-auto max-w-3xl text-base sm:text-lg text-[#525250] leading-relaxed font-normal">
+        {/* Subheadline */}
+        <p className="mx-auto max-w-2xl text-base sm:text-lg text-zinc-500 leading-relaxed font-normal">
           From high-level natural language goals to self-improving, Pareto-optimized agent DAGs with closed-loop failure diagnostics, self-reflection memory, and air-gapped held-out verification.
         </p>
 
-        {/* Element 4: Primary & Secondary Action CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+        {/* CTAs */}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <button
             type="button"
             onClick={onLaunchConsole}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#0a0a0a] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#1a1a1a] active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-xs transition-all hover:bg-zinc-800 active:scale-[0.98] cursor-pointer"
           >
             <Terminal className="h-4 w-4" />
             <span>Launch Interactive Console</span>
@@ -159,32 +159,32 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
           <button
             type="button"
             onClick={onExploreLineage}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4e3] bg-white px-6 py-3 text-sm font-semibold text-[#0a0a0a] shadow-xs transition-all hover:bg-[#f4f4f3] active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-950 shadow-2xs transition-all hover:bg-zinc-50 active:scale-[0.98] cursor-pointer"
           >
-            <GitBranch className="h-4 w-4 text-[#525250]" />
+            <GitBranch className="h-4 w-4 text-zinc-500" />
             <span>Explore Evolution Lineage</span>
           </button>
         </div>
       </div>
 
       {/* 5-Stage Closed-Loop Pipeline Interactive Grid */}
-      <div className="mx-auto w-full max-w-7xl pt-10 pb-8">
+      <div className="mx-auto w-full max-w-7xl pt-4">
         <div className="mb-4 flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#525250]">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-600">
               5-Stage Closed-Loop Architecture
             </span>
-            <span className="h-1 w-1 rounded-full bg-[#d1d1cf]" />
-            <span className="text-xs text-[#8a8a88]">
+            <span className="h-1 w-1 rounded-full bg-zinc-300" />
+            <span className="text-xs text-zinc-400">
               Select any stage to inspect live artifacts
             </span>
           </div>
-          <span className="font-mono text-xs font-semibold text-[#0a0a0a]">
+          <span className="font-mono text-xs font-semibold text-zinc-950">
             Self-Improving DAG Loop
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
           {PIPELINE_STAGES.map((stage) => {
             const Icon = stage.icon;
             return (
@@ -197,37 +197,37 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
                     onLaunchConsole();
                   }
                 }}
-                className="group relative flex flex-col justify-between rounded-xl border border-[#e4e4e3] bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-[#0a0a0a] hover:shadow-md cursor-pointer shadow-xs"
+                className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200/90 bg-white p-4.5 transition-all hover:-translate-y-0.5 hover:border-zinc-400 hover:shadow-xs cursor-pointer shadow-2xs"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f4f4f3] text-[#0a0a0a] border border-[#e4e4e3] group-hover:bg-[#0a0a0a] group-hover:text-white transition-colors">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200 group-hover:bg-zinc-950 group-hover:text-white transition-colors">
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="font-mono text-xs font-bold text-[#8a8a88] group-hover:text-[#0a0a0a] transition-colors">
+                    <span className="font-mono text-xs font-bold text-zinc-400 group-hover:text-zinc-950 transition-colors">
                       {stage.num}
                     </span>
                   </div>
 
-                  <div className="mt-3">
+                  <div className="mt-3.5">
                     <div className="flex items-center gap-1.5">
-                      <h2 className="text-sm font-semibold text-[#0a0a0a] group-hover:text-[#0a0a0a] transition-colors">
+                      <h2 className="text-sm font-semibold text-zinc-950">
                         {stage.title}
                       </h2>
-                      <span className="rounded bg-[#f4f4f3] px-1.5 py-0.5 text-[10px] font-mono text-[#525250]">
+                      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
                         {stage.tag}
                       </span>
                     </div>
-                    <p className="mt-1 font-mono text-[11px] text-[#525250] leading-snug">
+                    <p className="mt-1 font-mono text-[11px] text-zinc-500 leading-snug">
                       {stage.subtitle}
                     </p>
-                    <p className="mt-2 text-xs text-[#8a8a88] leading-relaxed">
+                    <p className="mt-2 text-xs text-zinc-400 leading-relaxed">
                       {stage.summary}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-[#f4f4f3] pt-2 text-[11px] text-[#8a8a88] group-hover:text-[#0a0a0a] transition-colors font-mono">
+                <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-2.5 text-[11px] text-zinc-400 group-hover:text-zinc-950 transition-colors font-mono font-medium">
                   <span>Enter Stage</span>
                   <ArrowRight className="h-3.5 w-3.5 transform group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -238,11 +238,11 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
       </div>
 
       {/* Live Production Tech Rail */}
-      <div className="mx-auto w-full max-w-7xl border-t border-[#e4e4e3] pt-6">
+      <div className="mx-auto w-full max-w-7xl border-t border-zinc-200/80 pt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-xs font-mono text-[#525250]">
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span className="font-semibold uppercase tracking-wider text-[#0a0a0a]">
+            <span className="font-semibold uppercase tracking-wider text-zinc-950">
               Live Production Stack:
             </span>
           </div>
@@ -253,17 +253,17 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
               return (
                 <div
                   key={tech.label}
-                  className="flex items-center gap-2 rounded-lg border border-[#e4e4e3] bg-white px-3 py-1.5 text-xs shadow-xs"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-1.5 text-xs shadow-2xs"
                 >
-                  <Icon className="h-3.5 w-3.5 text-[#525250]" />
+                  <Icon className="h-3.5 w-3.5 text-zinc-500" />
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[#8a8a88] font-mono text-[11px]">
+                    <span className="text-zinc-400 font-mono text-[11px]">
                       {tech.label}:
                     </span>
-                    <span className="font-medium text-[#0a0a0a]">
+                    <span className="font-medium text-zinc-950">
                       {tech.provider}
                     </span>
-                    <span className="rounded bg-[#f4f4f3] px-1 py-0.5 font-mono text-[10px] text-[#525250] border border-[#e4e4e3]">
+                    <span className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[10px] text-zinc-600 border border-zinc-200">
                       {tech.detail}
                     </span>
                   </div>

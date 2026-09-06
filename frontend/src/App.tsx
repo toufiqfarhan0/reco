@@ -91,7 +91,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9f8] text-[#0a0a0a] flex flex-col">
+    <div className="min-h-screen bg-[#fafafa] text-zinc-950 flex flex-col font-sans selection:bg-zinc-950 selection:text-white">
       {/* Landing Page -- full screen, no header/footer */}
       {page === "landing" && (
         <LandingPage
@@ -125,7 +125,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
           />
 
           {/* Main Container */}
-          <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 bg-[#f9f9f8]">
+          <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 bg-[#fafafa]">
             {/* Overview Landing View */}
             {viewMode === "overview" && (
               <HeroLandingView
@@ -205,7 +205,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
           </main>
 
           {/* Footer / Telemetry status line */}
-          <footer className="w-full border-t border-[#e4e4e3] bg-white py-3 text-xs text-[#8a8a88] font-mono">
+          <footer className="w-full border-t border-zinc-200/80 bg-white py-3.5 text-xs text-zinc-400 font-mono">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <span>TRACK 1: AUTONOMOUS AGENT ENGINEERING</span>
@@ -221,7 +221,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
                   TIER: {tier.toUpperCase()}
                 </span>
                 <span>•</span>
-                <span className="text-emerald-600">SUPABASE: SYNCED</span>
+                <span className="text-emerald-700 font-medium">SUPABASE: SYNCED</span>
               </div>
             </div>
           </footer>
