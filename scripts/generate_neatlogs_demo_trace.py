@@ -82,6 +82,11 @@ def generate_demo_trace() -> int:
         "strategy": "failure_driven",
         "benchmark_dataset": "reconciliation",
         "max_generations": 1,
+        "reco.experiment_id": exp_id,
+        "reco.total_generations": 1,
+        "reco.final_accuracy": 0.95,
+        "reco.baseline_accuracy": 0.80,
+        "reco.accuracy_lift_pct": 18.75,
     }):
         # Generation 0: Baseline Evaluation
         with tracer.start_span("generation_0", attributes={
@@ -169,7 +174,18 @@ def generate_demo_trace() -> int:
                 "candidate_id": v1_id,
                 "parent_version_id": v0_id,
                 "generation_number": 1,
-            }):
+            }) as cand_span:
+                cand_span.set_attributes({
+                    "eval.accuracy": 0.95,
+                    "eval.reliability": 1.0,
+                    "eval.cost_usd": 0.0031,
+                    "eval.latency_ms": 312.0,
+                    "eval.decision": "PROMOTE",
+                    "eval.domain": "reconciliation",
+                    "eval.generation": 1,
+                    "eval.candidate_id": v1_id,
+                    "reco.pareto_dominant": True,
+                })
                 with tracer.start_span("benchmark_run.optimization", attributes={"split": "optimization"}):
                     with tracer.trace_benchmark_case(
                         case_code="REC-OPT-02",

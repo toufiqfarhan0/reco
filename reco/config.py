@@ -109,6 +109,11 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    @property
+    def OBSERVABILITY_ENABLED(self) -> bool:
+        return self.observability_enabled
+
+
 
 @lru_cache
 def get_settings() -> Settings:

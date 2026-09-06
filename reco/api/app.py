@@ -555,9 +555,12 @@ def format_live_optimization_result(
         "candidates": candidates_list,
         "evolution_timeline": evolution_timeline,
         "promotion_assessment": promo_dict,
+        "neatlogs_trace_url": getattr(opt_result, "neatlogs_trace_url", None) or f"https://app.neatlogs.com/traces/{getattr(opt_result, 'trace_id', None) or f'nl_trace_live_{exp_id[:16]}'}",
+        "trace_id": getattr(opt_result, "trace_id", None) or f"nl_trace_live_{exp_id[:16]}",
         "neatlogs": {
-            "trace_id": f"nl_trace_live_{exp_id[:16]}",
-            "trace_url": f"https://app.neatlogs.com/traces/nl_trace_live_{exp_id[:16]}",
+            "trace_id": getattr(opt_result, "trace_id", None) or f"nl_trace_live_{exp_id[:16]}",
+            "trace_url": getattr(opt_result, "neatlogs_trace_url", None) or f"https://app.neatlogs.com/traces/{getattr(opt_result, 'trace_id', None) or f'nl_trace_live_{exp_id[:16]}'}",
+            "neatlogs_trace_url": getattr(opt_result, "neatlogs_trace_url", None) or f"https://app.neatlogs.com/traces/{getattr(opt_result, 'trace_id', None) or f'nl_trace_live_{exp_id[:16]}'}",
             "spans_recorded": opt_result.total_model_calls + 4,
             "available": True,
             "root_span": "live_optimization_run",
@@ -895,6 +898,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
+    @app.post("/experiments/run", response_model=OptimizationResult, tags=["Optimization"])
+    @app.post("/api/experiments/run", response_model=OptimizationResult, tags=["Optimization"])
     @app.post("/optimize/run", response_model=OptimizationResult, tags=["Optimization"])
     @app.post("/api/optimize/run", response_model=OptimizationResult, tags=["Optimization"])
     @app.post("/api/run-optimization", response_model=OptimizationResult, tags=["Optimization"])

@@ -112,6 +112,7 @@ class OptimizationController:
         init_id = initial_version_id or uuid4()
         cfg = config or OptimizationConfig()
         tracer = get_tracer()
+        domain_name = getattr(cfg, "benchmark_dataset", "reconciliation")
 
         with tracer.start_span(
             "optimization_run",
@@ -120,9 +121,14 @@ class OptimizationController:
                 "initial_version_id": str(init_id),
                 "max_generations": cfg.max_generations,
                 "strategy": getattr(cfg, "strategy", "failure_driven"),
-                "dataset": getattr(cfg, "benchmark_dataset", "reconciliation"),
+                "dataset": domain_name,
+                "eval.domain": domain_name,
             },
-        ):
+        ) as opt_span:
+            trace_id = format(opt_span.get_span_context().trace_id, "032x")
+            neatlogs_trace_url = f"https://app.neatlogs.com/traces/{trace_id}"
+            tracer.current_trace_id = trace_id
+
             res = await self._run_optimization_loop(
                 graph=graph,
                 benchmark=benchmark,
@@ -134,6 +140,43 @@ class OptimizationController:
                 cfg=cfg,
                 baseline_scorecard=baseline_scorecard,
             )
+
+            # Surface trace ID and deep-link URL in optimization result
+            res.trace_id = trace_id
+            res.neatlogs_trace_url = neatlogs_trace_url
+
+            # On the root optimization_run span, also add:
+            # reco.experiment_id as a string
+            # reco.total_generations as an integer
+            # reco.final_accuracy as a float
+            # reco.baseline_accuracy as a float
+            # reco.accuracy_lift_pct as a float representing the percentage improvement
+            base_acc = float(
+                res.baseline_scorecard.accuracy
+                if res.baseline_scorecard
+                else (baseline_scorecard.accuracy if baseline_scorecard else 0.0)
+            )
+            final_card = (
+                res.held_out_result
+                or res.optimization_scorecard
+                or res.baseline_scorecard
+                or baseline_scorecard
+            )
+            final_acc = float(final_card.accuracy if final_card else base_acc)
+            lift_pct = (
+                round(((final_acc - base_acc) / base_acc) * 100.0, 2)
+                if base_acc > 0
+                else 0.0
+            )
+
+            opt_span.set_attributes({
+                "reco.experiment_id": str(exp_id),
+                "reco.total_generations": int(len(res.generations)),
+                "reco.final_accuracy": float(final_acc),
+                "reco.baseline_accuracy": float(base_acc),
+                "reco.accuracy_lift_pct": float(lift_pct),
+            })
+
             try:
                 import os
                 os.makedirs("scratch", exist_ok=True)
@@ -561,6 +604,31 @@ class OptimizationController:
                     cand_span.set_attribute("accuracy", cand_card.accuracy)
                     cand_span.set_attribute("cost_usd", cand_card.total_cost_usd)
                     cand_span.set_attribute("relationship", comparison.relationship)
+
+                    is_pareto_dominant = (
+                        comparison.relationship in ("strictly_better", "dominant")
+                        or (len(comparison.improved_dimensions) > 0 and len(comparison.regressed_dimensions) == 0)
+                    )
+                    if is_pareto_dominant:
+                        promotion_decision = "PROMOTE"
+                    elif comparison.relationship == "tradeoff":
+                        promotion_decision = "REVIEW"
+                    else:
+                        promotion_decision = "REJECT"
+
+                    domain_dataset = getattr(cfg, "benchmark_dataset", "reconciliation")
+
+                    cand_span.set_attributes({
+                        "eval.accuracy": float(cand_card.accuracy),
+                        "eval.reliability": float(cand_card.reliability),
+                        "eval.cost_usd": float(cand_card.total_cost_usd),
+                        "eval.latency_ms": float(cand_card.total_latency_ms),
+                        "eval.decision": promotion_decision,
+                        "eval.domain": str(domain_dataset),
+                        "eval.generation": int(gen_num),
+                        "eval.candidate_id": str(cand_meta.candidate_id),
+                        "reco.pareto_dominant": bool(is_pareto_dominant),
+                    })
 
                 self.event_dispatcher.emit(OptimizationEvent(
                     event_type=OptimizationEventType.CANDIDATE_BENCHMARKED,

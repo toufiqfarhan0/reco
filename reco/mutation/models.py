@@ -168,5 +168,9 @@ class OptimizationResult(BaseModel):
     held_out_scorecard: Optional[Scorecard] = Field(default=None)
     summary: str = Field(default="", description="Human-readable optimization outcome narrative")
 
+    # Neatlogs Cloud Observability Telemetry
+    trace_id: Optional[str] = Field(default=None, description="Neatlogs 32-character hex trace ID")
+    neatlogs_trace_url: Optional[str] = Field(default=None, description="Direct URL to inspect live trace on Neatlogs Cloud")
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

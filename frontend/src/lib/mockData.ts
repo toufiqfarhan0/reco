@@ -824,6 +824,8 @@ export const HELD_OUT_VALIDATION_DATA: HeldOutValidationData = {
 
 export const NEATLOGS_TRACE: NeatlogsTrace = {
   trace_id: "tr_neat_984f7e21a08b",
+  trace_url: "https://app.neatlogs.com/traces/tr_neat_984f7e21a08b",
+  neatlogs_trace_url: "https://app.neatlogs.com/traces/tr_neat_984f7e21a08b",
   architecture_id: "Agent_Reconciliation_V2_Candidate_C",
   status: "success",
   total_duration_ms: 91.2,
@@ -844,6 +846,15 @@ export const NEATLOGS_TRACE: NeatlogsTrace = {
         split: "held-out",
         nodes_executed: 5,
         acyclic: true,
+        "eval.accuracy": 0.942,
+        "eval.reliability": 0.995,
+        "eval.cost_usd": 0.0042,
+        "eval.latency_ms": 91.2,
+        "eval.decision": "PROMOTE",
+        "eval.domain": "reconciliation",
+        "eval.generation": 3,
+        "eval.candidate_id": "Agent_Reconciliation_V2_Candidate_C",
+        "reco.pareto_dominant": true,
       },
     },
     {
