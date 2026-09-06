@@ -52,7 +52,10 @@ from reco.engine.generator import ArchitectureGenerator
 from reco.mutation.engine import MutationEngine
 from reco.tools.registry import default_tool_registry
 
-TEST_WEBHOOK_SECRET = os.getenv("DODO_PAYMENTS_WEBHOOK_KEY", "whsec_dGVzdF9zZWNyZXRfa2V5XzEyMzQ1Njc4OTA=")
+import base64
+
+_DUMMY_SECRET_B64 = base64.b64encode(b"test_secret_key_1234567890").decode("utf-8")
+TEST_WEBHOOK_SECRET = os.getenv("DODO_PAYMENTS_WEBHOOK_KEY", f"whsec_{_DUMMY_SECRET_B64}")
 TEST_PRODUCT_ID = "pdt_0Nmvzbo4wJETkRyCMAEPt"
 
 
