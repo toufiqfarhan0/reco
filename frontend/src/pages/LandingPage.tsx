@@ -24,7 +24,7 @@ export const LandingPage: React.FC = () => {
   };
 
   const handleExploreLineage = () => {
-    navigate("/console?stage=4");
+    navigate("/console?stage=4&preset=financial_reconciliation");
   };
 
   const handleSelectStage = (stage: StageType) => {

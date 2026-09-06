@@ -16,22 +16,26 @@ import {
 interface RunProgressTrackerProps {
   architecture: DAGArchitecture;
   onExecutionComplete?: () => void;
+  onExecutionStart?: () => void;
   autoStart?: boolean;
 }
 
 export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
   architecture,
   onExecutionComplete,
+  onExecutionStart,
   autoStart = false,
 }) => {
-  const [nodes, setNodes] = useState<DAGNode[]>(architecture.nodes);
+  const [nodes, setNodes] = useState<DAGNode[]>(() =>
+    architecture.nodes.map((n) => ({ ...n, status: "pending" }))
+  );
   const [activeNodeIndex, setActiveNodeIndex] = useState<number>(-1);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [totalElapsedMs, setTotalElapsedMs] = useState<number>(0);
 
   // Sync with architecture changes
   useEffect(() => {
-    setNodes(architecture.nodes);
+    setNodes(architecture.nodes.map((n) => ({ ...n, status: "pending" })));
     setActiveNodeIndex(-1);
     setIsRunning(false);
     setTotalElapsedMs(0);
@@ -42,21 +46,17 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
     setIsRunning(true);
     setActiveNodeIndex(0);
     setTotalElapsedMs(0);
+    onExecutionStart?.();
 
     // Reset all nodes to pending
-    setNodes((prev) =>
-      prev.map((n) => ({
-        ...n,
-        status: "pending",
-      }))
-    );
+    setNodes(architecture.nodes.map((n) => ({ ...n, status: "pending" })));
   };
 
   const handleResetRun = () => {
     setIsRunning(false);
     setActiveNodeIndex(-1);
     setTotalElapsedMs(0);
-    setNodes(architecture.nodes);
+    setNodes(architecture.nodes.map((n) => ({ ...n, status: "pending" })));
   };
 
   useEffect(() => {
@@ -72,6 +72,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
 
     if (activeNodeIndex >= nodes.length) {
       setIsRunning(false);
+      setNodes((prev) => prev.map((n) => ({ ...n, status: "completed" })));
       if (onExecutionComplete) {
         onExecutionComplete();
       }
@@ -89,7 +90,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
       )
     );
 
-    const stepLatency = nodes[activeNodeIndex].latency_ms || 25;
+    const stepLatency = nodes[activeNodeIndex]?.latency_ms || 25;
     const timer = setTimeout(() => {
       setTotalElapsedMs((prev) => prev + stepLatency);
       setNodes((prev) =>
@@ -101,7 +102,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
     }, Math.max(stepLatency * 15, 250)); // Scaled for visible visualization
 
     return () => clearTimeout(timer);
-  }, [isRunning, activeNodeIndex, nodes, onExecutionComplete]);
+  }, [isRunning, activeNodeIndex, nodes.length, onExecutionComplete]);
 
   const getStatusBadge = (status: NodeExecutionStatus) => {
     switch (status) {
@@ -233,7 +234,9 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
               <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2 text-[10px] font-mono text-zinc-400">
                 <span>Latency</span>
                 <span className="text-zinc-950 font-semibold">
-                  {node.latency_ms ? `${node.latency_ms} ms` : "0.0 ms"}
+                  {node.status === "completed" && node.latency_ms
+                    ? `${node.latency_ms} ms`
+                    : "0.0 ms"}
                 </span>
               </div>
             </div>
