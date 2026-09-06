@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import EngineeringConsolePage from "@/app/page";
+import EngineeringConsolePage from "@/App";
 
 describe("Console Integration: 5-Stage Engineering Navigator", () => {
   it("navigates across all 5 stages from BUILD to VALIDATE", () => {
