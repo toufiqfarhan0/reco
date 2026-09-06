@@ -27,7 +27,13 @@ dev = [
     "pytest-cov>=4.0.0"
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["reco*"]
+exclude = ["frontend*", "supabase*", "tests*", "docs*", "scratch*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-v"
+
