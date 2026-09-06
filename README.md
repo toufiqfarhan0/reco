@@ -369,6 +369,9 @@ Reco deeply integrates all hackathon sponsor technologies into its core architec
   - **Pro Tier ($29/mo)**: Max 5 evolution generations, 5 candidates per pool, 100 total runs.
 - **Isolation**: Evaluation benchmarks and Demo Mode remain 100% free and unthrottled.
 
+> [!NOTE]
+> **Live Evaluation Notice**: If Dodo Payments hosted checkout does not work on the live hosted URL due to sandbox environment/CORS restrictions, please try it out locally via the local server (`http://127.0.0.1:8000`) or test mode sandbox credentials.
+
 ---
 
 ## 10. Demo Mode vs. Live Mode
@@ -452,6 +455,10 @@ In the [Dodo Payments Dashboard](https://app.dodopayments.com) (in **Test Mode**
 ### Step 3: Test Card Credentials (Test Mode)
 - **Card Number**: `4242 4242 4242 4242`
 - **Expiry**: `12/28` | **CVC**: `123` | **ZIP**: `90210`
+
+> [!TIP]
+> **Live Deployment Note**: If Dodo Payments hosted checkout or customer portal does not trigger on the live deployed URL (e.g., due to cloud sandbox environment/CORS restrictions), please test Dodo Payments locally via `uvicorn reco.api.app:app` (see [Quickstart & Local Setup Guide](#15-quickstart--local-setup-guide)) or use the built-in **"⚡ 1-Click Instant Payment (Auto-Fill & Activate Pro)"** button in the billing modal.
+
 
 ---
 
