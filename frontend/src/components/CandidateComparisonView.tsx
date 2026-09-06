@@ -38,14 +38,14 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-mono font-semibold text-purple-400 ring-1 ring-purple-500/30">
+            <span className="rounded-md bg-[#f4f4f3] px-2 py-0.5 text-xs font-mono font-semibold text-[#525250] border border-[#e4e4e3]">
               STAGE 04
             </span>
-            <h2 className="text-xl font-bold tracking-tight text-white">
+            <h2 className="text-xl font-bold tracking-tight text-[#0a0a0a]">
               IMPROVE: Multi-Candidate Tournament & Prompt Diff Inspector
             </h2>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[#525250] mt-1">
             Autonomous tournament evaluating mutated candidates (A, B, C) against the 4-axis empirical benchmark.
           </p>
         </div>
@@ -53,7 +53,7 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
         <button
           type="button"
           onClick={onProceedToValidate}
-          className="flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-cyan-500 cursor-pointer"
+          className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-[#1a1a1a] cursor-pointer"
         >
           Validate on Held-Out (Stage 05)
           <ArrowRight className="h-4 w-4" />
@@ -69,87 +69,87 @@ export const CandidateComparisonView: React.FC<CandidateComparisonViewProps> = (
             <div
               key={cand.id}
               onClick={() => setSelectedCandidateId(cand.id)}
-              className={`relative flex flex-col justify-between rounded-xl border p-5 transition-all cursor-pointer ${
+              className={`relative flex flex-col justify-between rounded-xl border p-5 transition-all cursor-pointer shadow-xs ${
                 isSelected
-                  ? "border-cyan-500 bg-slate-900/90 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/50"
+                  ? "border-[#0a0a0a] bg-white shadow-md ring-1 ring-[#0a0a0a]"
                   : isChampion
-                  ? "border-emerald-500/40 bg-slate-900/60 hover:border-emerald-500/60"
-                  : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+                  ? "border-emerald-300 bg-white hover:border-emerald-500"
+                  : "border-[#e4e4e3] bg-white hover:border-[#d1d1cf]"
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-800 font-mono text-xs font-bold text-cyan-300">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#0a0a0a] font-mono text-xs font-bold text-white">
                       {cand.id}
                     </span>
-                    <h3 className="text-sm font-semibold text-white">
+                    <h3 className="text-sm font-semibold text-[#0a0a0a]">
                       {cand.name}
                     </h3>
                   </div>
 
                   {isChampion ? (
-                    <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-400 ring-1 ring-emerald-500/40">
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-700 border border-emerald-200">
                       <Trophy className="h-3 w-3" />
                       CHAMPION
                     </span>
                   ) : cand.status === "pareto_dominant" ? (
-                    <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-400">
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-mono font-bold text-blue-700 border border-blue-200">
                       PARETO
                     </span>
                   ) : (
-                    <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-500">
+                    <span className="rounded-full bg-[#f4f4f3] px-2 py-0.5 text-[10px] font-mono text-[#525250] border border-[#e4e4e3]">
                       BASELINE
                     </span>
                   )}
                 </div>
 
-                <p className="mt-2 text-xs text-slate-400 line-clamp-2">
+                <p className="mt-2 text-xs text-[#525250] line-clamp-2">
                   {cand.description}
                 </p>
 
                 {/* Scorecard Matrix Metrics */}
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs font-mono">
+                <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3 text-xs font-mono">
                   <div>
-                    <span className="text-[10px] text-slate-500 uppercase block">
+                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
                       Accuracy
                     </span>
-                    <span className="text-sm font-bold text-emerald-400">
+                    <span className="text-sm font-bold text-emerald-700">
                       {(cand.scorecard.accuracy * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 uppercase block">
+                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
                       Reliability
                     </span>
-                    <span className="text-sm font-bold text-slate-200">
+                    <span className="text-sm font-bold text-[#0a0a0a]">
                       {(cand.scorecard.reliability * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 uppercase block">
+                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
                       Cost
                     </span>
-                    <span className="text-xs text-slate-300">
+                    <span className="text-xs text-[#525250]">
                       ${cand.scorecard.cost_usd.toFixed(4)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 uppercase block">
+                    <span className="text-[10px] text-[#8a8a88] uppercase block font-medium">
                       Latency
                     </span>
-                    <span className="text-xs text-slate-300">
+                    <span className="text-xs text-[#525250]">
                       {cand.scorecard.latency_ms.toFixed(1)} ms
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3 text-[11px]">
-                <span className="text-slate-400 font-mono">
-                  Win Rate: <strong className="text-white">{cand.win_rate}%</strong>
+              <div className="mt-4 flex items-center justify-between border-t border-[#e4e4e3] pt-3 text-[11px]">
+                <span className="text-[#525250] font-mono">
+                  Win Rate: <strong className="text-[#0a0a0a]">{cand.win_rate}%</strong>
                 </span>
-                <span className="text-cyan-400 hover:underline">
+                <span className="text-[#0a0a0a] font-medium hover:underline">
                   Inspect Diff →
                 </span>
               </div>

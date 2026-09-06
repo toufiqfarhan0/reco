@@ -107,28 +107,28 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
     switch (status) {
       case "running":
         return (
-          <span className="flex items-center gap-1 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-mono font-medium text-cyan-300 ring-1 ring-cyan-500/40">
-            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-cyan-400" />
+          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-mono font-medium text-blue-700 border border-blue-200">
+            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-blue-500" />
             RUNNING
           </span>
         );
       case "completed":
         return (
-          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+          <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="h-3 w-3" />
             COMPLETED
           </span>
         );
       case "failed":
         return (
-          <span className="flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-rose-400 ring-1 ring-rose-500/30">
+          <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-mono font-medium text-red-700 border border-red-200">
             <AlertCircle className="h-3 w-3" />
             FAILED
           </span>
         );
       default:
         return (
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+          <span className="rounded-full bg-[#f4f4f3] px-2 py-0.5 text-[10px] font-mono text-[#8a8a88] border border-[#e4e4e3]">
             PENDING
           </span>
         );
@@ -136,25 +136,25 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-xs">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+    <div className="rounded-xl border border-[#e4e4e3] bg-white p-5 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e4e3] pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f4f4f3] text-[#0a0a0a] border border-[#e4e4e3]">
             <Cpu className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-tight text-white">
+            <h3 className="text-sm font-semibold tracking-tight text-[#0a0a0a]">
               DAG Execution Progress & Topological Traversal
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#525250]">
               Topological node progression: {architecture.name}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950 px-3 py-1 font-mono text-xs text-slate-300">
-            <Clock className="h-3.5 w-3.5 text-cyan-400" />
+          <div className="flex items-center gap-1.5 rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] px-3 py-1 font-mono text-xs text-[#0a0a0a]">
+            <Clock className="h-3.5 w-3.5 text-[#525250]" />
             <span>{totalElapsedMs.toFixed(1)} ms</span>
           </div>
 
@@ -162,7 +162,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
             type="button"
             onClick={handleStartRun}
             disabled={isRunning}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-500 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-1.5 rounded-lg bg-[#0a0a0a] px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#1a1a1a] disabled:opacity-50 cursor-pointer"
           >
             <Play className="h-3.5 w-3.5" />
             {isRunning ? "Executing..." : "Execute DAG"}
@@ -171,7 +171,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
           <button
             type="button"
             onClick={handleResetRun}
-            className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-slate-700 hover:text-white cursor-pointer"
+            className="rounded-lg border border-[#e4e4e3] bg-white px-2.5 py-1.5 text-xs text-[#525250] transition hover:bg-[#f4f4f3] hover:text-[#0a0a0a] cursor-pointer shadow-xs"
             title="Reset DAG Execution"
             aria-label="Reset DAG Execution"
           >
@@ -189,45 +189,45 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
               key={node.id}
               className={`relative flex flex-col justify-between rounded-lg border p-3.5 transition-all ${
                 isCurrent
-                  ? "border-cyan-500 bg-cyan-950/20 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-500/50"
+                  ? "border-[#0a0a0a] bg-white shadow-md ring-1 ring-[#0a0a0a]"
                   : node.status === "completed"
-                  ? "border-slate-800 bg-slate-950/90"
-                  : "border-slate-850 bg-slate-950/40 opacity-70"
+                  ? "border-[#e4e4e3] bg-white shadow-xs"
+                  : "border-[#e4e4e3] bg-[#f9f9f8] opacity-75"
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-[10px] text-slate-500">
+                  <span className="font-mono text-[10px] text-[#8a8a88]">
                     STEP 0{index + 1}
                   </span>
                   {getStatusBadge(node.status)}
                 </div>
 
-                <h4 className="mt-2 text-xs font-semibold text-slate-200">
+                <h4 className="mt-2 text-xs font-semibold text-[#0a0a0a]">
                   {node.name}
                 </h4>
 
                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                  <span className="rounded bg-slate-800/90 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
+                  <span className="rounded bg-[#f4f4f3] px-1.5 py-0.5 text-[10px] font-mono text-[#525250] border border-[#e4e4e3]">
                     {node.type}
                   </span>
                   {node.tool_name && (
-                    <span className="rounded bg-cyan-950 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300">
+                    <span className="rounded bg-[#f4f4f3] px-1.5 py-0.5 text-[10px] font-mono text-[#0a0a0a] border border-[#e4e4e3]">
                       {node.tool_name}
                     </span>
                   )}
                 </div>
 
                 {node.outputSummary && (
-                  <p className="mt-2 text-[11px] text-slate-400 line-clamp-2">
+                  <p className="mt-2 text-[11px] text-[#525250] line-clamp-2">
                     {node.outputSummary}
                   </p>
                 )}
               </div>
 
-              <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2 text-[10px] font-mono text-slate-500">
+              <div className="mt-3 flex items-center justify-between border-t border-[#e4e4e3] pt-2 text-[10px] font-mono text-[#8a8a88]">
                 <span>Latency</span>
-                <span className="text-slate-300">
+                <span className="text-[#0a0a0a] font-medium">
                   {node.latency_ms ? `${node.latency_ms} ms` : "0.0 ms"}
                 </span>
               </div>

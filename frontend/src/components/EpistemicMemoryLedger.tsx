@@ -129,50 +129,50 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
 
   return (
     <div
-      className={`rounded-xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg shadow-black/20 space-y-5 ${className}`}
+      className={`rounded-xl border border-[#e4e4e3] bg-white p-5 shadow-xs space-y-5 ${className}`}
     >
       {/* Header Section: Clear response to Judge Question */}
-      <div className="border-b border-slate-800/80 pb-4">
+      <div className="border-b border-[#e4e4e3] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f4f4f3] text-[#0a0a0a] border border-[#e4e4e3]">
               <BrainCircuit className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white tracking-tight">
+                <h3 className="text-base font-bold text-[#0a0a0a] tracking-tight">
                   Epistemic Memory Ledger: Generational Self-Reflection
                 </h3>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-emerald-400 ring-1 ring-emerald-500/30">
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-mono font-semibold text-emerald-700 border border-emerald-200">
                   +25.0% Accuracy Impact
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-[#525250] mt-0.5">
                 Verifiable proof of agent self-reflection: failure diagnostics codify persistent epistemic rules across generations.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-1.5 font-mono text-xs text-slate-300">
-            <BookmarkCheck className="h-3.5 w-3.5 text-cyan-400" />
-            <span>3 Active Rules Codified</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-emerald-400 font-semibold">Zero Regressions</span>
+          <div className="flex items-center gap-2 rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] px-3 py-1.5 font-mono text-xs text-[#525250]">
+            <BookmarkCheck className="h-3.5 w-3.5 text-[#0a0a0a]" />
+            <span className="text-[#0a0a0a] font-medium">3 Active Rules Codified</span>
+            <span className="text-[#d1d1cf]">•</span>
+            <span className="text-emerald-700 font-semibold">Zero Regressions</span>
           </div>
         </div>
 
         {/* Judge Query & System Response Callout */}
-        <div className="mt-3.5 rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3 text-xs leading-relaxed text-slate-300">
+        <div className="mt-3.5 rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3 text-xs leading-relaxed text-[#0a0a0a]">
           <div className="flex items-start gap-2">
-            <span className="font-mono font-bold text-cyan-400 shrink-0">
+            <span className="font-mono font-bold text-[#0a0a0a] shrink-0">
               JUDGE QUERY:
             </span>
-            <span className="italic text-slate-200">
+            <span className="italic text-[#525250]">
               "Can you show the outputs of the agent getting better over time through its own self-reflection and memory growing?"
             </span>
           </div>
-          <div className="mt-1.5 flex items-start gap-2 pt-1 border-t border-cyan-900/30 text-[11px] text-slate-400">
-            <span className="font-mono font-semibold text-emerald-400 shrink-0">
+          <div className="mt-1.5 flex items-start gap-2 pt-1 border-t border-[#e4e4e3] text-[11px] text-[#525250]">
+            <span className="font-mono font-semibold text-emerald-700 shrink-0">
               EPISTEMIC PROOF:
             </span>
             <span>
@@ -184,57 +184,57 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
 
       {/* 4 Summary Scorecard Metrics */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">
+        <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8a8a88] block font-medium">
             Measured Accuracy Impact
           </span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-emerald-400">
+            <span className="text-xl font-bold font-mono text-emerald-700">
               +25.0%
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-[11px] text-[#525250] font-mono">
               (60% to 85%)
             </span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">
+        <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8a8a88] block font-medium">
             Learned Invariants
           </span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-cyan-400">
+            <span className="text-xl font-bold font-mono text-[#0a0a0a]">
               3 Rules
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-[11px] text-[#525250] font-mono">
               V0 to V2
             </span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">
+        <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8a8a88] block font-medium">
             Failure Taxonomies Handled
           </span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-amber-400">
+            <span className="text-xl font-bold font-mono text-amber-700">
               3 Types
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-[11px] text-[#525250] font-mono">
               Auto-isolated
             </span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">
+        <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8a8a88] block font-medium">
             Held-Out Verification
           </span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-white">
+            <span className="text-xl font-bold font-mono text-[#0a0a0a]">
               0.0%
             </span>
-            <span className="text-[11px] text-emerald-400 font-mono">
+            <span className="text-[11px] text-emerald-700 font-mono font-medium">
               Zero Drift
             </span>
           </div>
@@ -249,8 +249,8 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
             onClick={() => setSelectedFilter("all")}
             className={`rounded-md px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
               selectedFilter === "all"
-                ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40"
-                : "border border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200"
+                ? "bg-[#0a0a0a] text-white"
+                : "border border-[#e4e4e3] bg-white text-[#525250] hover:bg-[#f4f4f3] hover:text-[#0a0a0a]"
             }`}
           >
             All Lessons (3)
@@ -260,8 +260,8 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
             onClick={() => setSelectedFilter("V0 -> V1")}
             className={`rounded-md px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
               selectedFilter === "V0 -> V1"
-                ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40"
-                : "border border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200"
+                ? "bg-[#0a0a0a] text-white"
+                : "border border-[#e4e4e3] bg-white text-[#525250] hover:bg-[#f4f4f3] hover:text-[#0a0a0a]"
             }`}
           >
             V0 to V1 (Lesson 01)
@@ -271,15 +271,15 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
             onClick={() => setSelectedFilter("V1 -> V2")}
             className={`rounded-md px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
               selectedFilter === "V1 -> V2"
-                ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40"
-                : "border border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200"
+                ? "bg-[#0a0a0a] text-white"
+                : "border border-[#e4e4e3] bg-white text-[#525250] hover:bg-[#f4f4f3] hover:text-[#0a0a0a]"
             }`}
           >
             V1 to V2 (Lessons 02 & 03)
           </button>
         </div>
 
-        <span className="font-mono text-[11px] text-slate-500">
+        <span className="font-mono text-[11px] text-[#8a8a88]">
           Showing {filteredLessons.length} of {EPISTEMIC_LESSONS.length} Epistemic Records
         </span>
       </div>
@@ -291,24 +291,24 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           return (
             <div
               key={lesson.id}
-              className="rounded-xl border border-slate-800 bg-slate-950 p-4 transition-all hover:border-slate-700 space-y-3"
+              className="rounded-xl border border-[#e4e4e3] bg-white p-4 transition-all hover:border-[#d1d1cf] shadow-xs space-y-3"
             >
               {/* Top Row: Lesson Number, Generation, Target Node, and Impact */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e4e4e3] pb-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-bold text-cyan-300">
+                  <span className="rounded bg-[#0a0a0a] px-2 py-0.5 font-mono text-xs font-bold text-white">
                     {lesson.lessonNumber}
                   </span>
-                  <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs font-semibold text-slate-300 ring-1 ring-slate-800">
+                  <span className="rounded bg-[#f4f4f3] px-2 py-0.5 font-mono text-xs font-semibold text-[#525250] border border-[#e4e4e3]">
                     Generation: {lesson.generationTransition}
                   </span>
-                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-400 ring-1 ring-amber-500/20">
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-700 border border-amber-200">
                     Source Failure: {lesson.sourceCategory}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 font-mono text-xs font-semibold text-emerald-400">
+                  <div className="flex items-center gap-1 font-mono text-xs font-semibold text-emerald-700">
                     <TrendingUp className="h-3.5 w-3.5" />
                     <span>{lesson.accuracyDelta}</span>
                   </div>
@@ -317,7 +317,7 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
                     onClick={() =>
                       setExpandedLessonId(isExpanded ? null : lesson.id)
                     }
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-300 font-mono transition-colors cursor-pointer"
+                    className="flex items-center gap-1 text-xs text-[#525250] hover:text-[#0a0a0a] font-mono transition-colors cursor-pointer"
                   >
                     <span>{isExpanded ? "Hide Code" : "Inspect Invariant"}</span>
                     {isExpanded ? (
@@ -332,51 +332,51 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
               {/* 4 Required Technical Metrics Grid */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-1">
                 {/* Metric 1: Source Failure Category */}
-                <div className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5">
-                  <span className="text-[10px] font-mono text-slate-500 uppercase block">
+                <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-2.5">
+                  <span className="text-[10px] font-mono text-[#8a8a88] uppercase block font-medium">
                     Source Failure Category
                   </span>
-                  <span className="font-mono text-xs font-semibold text-amber-300 mt-1 block">
+                  <span className="font-mono text-xs font-semibold text-amber-800 mt-1 block">
                     {lesson.sourceCategory}
                   </span>
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  <span className="text-[10px] text-[#8a8a88] mt-0.5 block">
                     Observed in {lesson.generationFrom} baseline
                   </span>
                 </div>
 
                 {/* Metric 2: Extracted Epistemic Rule */}
-                <div className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5 sm:col-span-2">
-                  <span className="text-[10px] font-mono text-slate-500 uppercase block">
+                <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-2.5 sm:col-span-2">
+                  <span className="text-[10px] font-mono text-[#8a8a88] uppercase block font-medium">
                     Extracted Epistemic Rule
                   </span>
-                  <p className="text-xs text-cyan-200 mt-1 leading-snug font-medium">
+                  <p className="text-xs text-[#0a0a0a] mt-1 leading-snug font-medium">
                     "{lesson.epistemicRule}"
                   </p>
                 </div>
 
                 {/* Metric 3: Target Node & Impact */}
-                <div className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5">
-                  <span className="text-[10px] font-mono text-slate-500 uppercase block">
+                <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-2.5">
+                  <span className="text-[10px] font-mono text-[#8a8a88] uppercase block font-medium">
                     Target DAG Node
                   </span>
-                  <span className="font-mono text-xs font-semibold text-slate-200 mt-1 block">
+                  <span className="font-mono text-xs font-semibold text-[#0a0a0a] mt-1 block">
                     {lesson.targetNode}
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono mt-0.5 block">
+                  <span className="text-[10px] text-emerald-700 font-mono mt-0.5 block font-medium">
                     Impact: {lesson.accuracyDelta}
                   </span>
                 </div>
               </div>
 
               {/* Derivation Context & Empirical Outcome */}
-              <div className="rounded-lg border border-slate-800/60 bg-slate-900/40 p-3 text-xs space-y-1">
-                <div className="flex items-start gap-1.5 text-slate-300">
-                  <span className="font-mono font-semibold text-slate-500 shrink-0">
+              <div className="rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3 text-xs space-y-1">
+                <div className="flex items-start gap-1.5 text-[#525250]">
+                  <span className="font-mono font-semibold text-[#0a0a0a] shrink-0">
                     Self-Reflection Derivation:
                   </span>
-                  <span className="text-slate-300">{lesson.derivationContext}</span>
+                  <span className="text-[#525250]">{lesson.derivationContext}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px] pt-1">
+                <div className="flex items-center gap-1.5 text-emerald-700 font-mono text-[11px] pt-1 font-medium">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   <span>Empirical Outcome: {lesson.impactVerdict}</span>
                 </div>
@@ -384,15 +384,15 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
 
               {/* Expandable Synthesized Guardrail Code Snippet */}
               {isExpanded && (
-                <div className="rounded-lg border border-slate-800 bg-slate-900/90 p-3 font-mono text-xs space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-1.5">
-                    <div className="flex items-center gap-1.5 text-cyan-400">
+                <div className="rounded-lg border border-[#e4e4e3] bg-[#f4f4f3] p-3 font-mono text-xs space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-[#525250] border-b border-[#e4e4e3] pb-1.5">
+                    <div className="flex items-center gap-1.5 text-[#0a0a0a] font-semibold">
                       <Code2 className="h-3.5 w-3.5" />
                       <span>Synthesized Architectural Invariant</span>
                     </div>
                     <span>Applied to Generation {lesson.generationTo}</span>
                   </div>
-                  <pre className="overflow-x-auto text-[11px] text-slate-200 py-1 leading-relaxed">
+                  <pre className="overflow-x-auto text-[11px] text-[#0a0a0a] py-1 leading-relaxed">
                     <code>{lesson.codeSnippet}</code>
                   </pre>
                 </div>

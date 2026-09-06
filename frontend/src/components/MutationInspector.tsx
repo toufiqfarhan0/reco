@@ -14,30 +14,30 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
   const [activeTab, setActiveTab] = useState<"prompt" | "config">("prompt");
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-xs space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+    <div className="rounded-xl border border-[#e4e4e3] bg-white p-5 shadow-xs space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e4e3] pb-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-cyan-500/10 text-cyan-400">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#f4f4f3] text-[#0a0a0a] border border-[#e4e4e3]">
             <FileDiff className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-tight text-white">
+            <h3 className="text-sm font-semibold tracking-tight text-[#0a0a0a]">
               Prompt & Configuration Mutation Inspector
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#525250]">
               {candidate.name} ({candidate.tag})
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950 p-0.5 text-xs font-mono">
+        <div className="flex items-center gap-1 rounded-lg border border-[#e4e4e3] bg-[#f4f4f3] p-0.5 text-xs font-mono">
           <button
             type="button"
             onClick={() => setActiveTab("prompt")}
             className={`rounded px-2.5 py-1 font-medium transition cursor-pointer ${
               activeTab === "prompt"
-                ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/30"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-white text-[#0a0a0a] shadow-xs"
+                : "text-[#525250] hover:text-[#0a0a0a]"
             }`}
           >
             Prompt Diff
@@ -47,8 +47,8 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
             onClick={() => setActiveTab("config")}
             className={`rounded px-2.5 py-1 font-medium transition cursor-pointer ${
               activeTab === "config"
-                ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/30"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-white text-[#0a0a0a] shadow-xs"
+                : "text-[#525250] hover:text-[#0a0a0a]"
             }`}
           >
             Config Diff
@@ -57,28 +57,28 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
       </div>
 
       {/* Mutator Metadata Card */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 rounded-lg border border-slate-800/80 bg-slate-950 p-3 text-xs">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 rounded-lg border border-[#e4e4e3] bg-[#f9f9f8] p-3 text-xs">
         <div>
-          <span className="text-[10px] uppercase font-mono text-slate-500 block">
+          <span className="text-[10px] uppercase font-mono text-[#8a8a88] block font-medium">
             Mutator Operator
           </span>
-          <span className="font-mono font-semibold text-cyan-300">
+          <span className="font-mono font-semibold text-[#0a0a0a]">
             {candidate.mutator_applied}
           </span>
         </div>
         <div>
-          <span className="text-[10px] uppercase font-mono text-slate-500 block">
+          <span className="text-[10px] uppercase font-mono text-[#8a8a88] block font-medium">
             Targeted Node
           </span>
-          <span className="font-mono font-semibold text-slate-200">
+          <span className="font-mono font-semibold text-[#0a0a0a]">
             {candidate.targeted_node}
           </span>
         </div>
         <div>
-          <span className="text-[10px] uppercase font-mono text-slate-500 block">
+          <span className="text-[10px] uppercase font-mono text-[#8a8a88] block font-medium">
             Tournament Status
           </span>
-          <span className="font-mono font-semibold text-emerald-400">
+          <span className="font-mono font-semibold text-emerald-700">
             {candidate.status.toUpperCase()}
           </span>
         </div>
@@ -88,36 +88,36 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
       {activeTab === "prompt" ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Baseline Prompt */}
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3.5 space-y-2">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 text-xs font-mono text-slate-400">
+          <div className="rounded-lg border border-[#e4e4e3] bg-white p-3.5 space-y-2">
+            <div className="flex items-center justify-between border-b border-[#e4e4e3] pb-1.5 text-xs font-mono text-[#525250]">
               <span>Baseline Prompt (V0)</span>
-              <span className="text-[10px] text-slate-500">ORIGINAL</span>
+              <span className="text-[10px] text-[#8a8a88]">ORIGINAL</span>
             </div>
-            <pre className="text-xs text-rose-300/90 whitespace-pre-wrap font-mono leading-relaxed bg-rose-950/10 p-2.5 rounded border border-rose-900/30">
+            <pre className="text-xs text-red-700 whitespace-pre-wrap font-mono leading-relaxed bg-red-50/50 p-2.5 rounded border border-red-200">
               {candidate.prompt_diff?.original || "No prompt diff available."}
             </pre>
           </div>
 
           {/* Mutated Prompt */}
-          <div className="rounded-lg border border-cyan-900/40 bg-slate-950 p-3.5 space-y-2">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 text-xs font-mono text-cyan-400">
+          <div className="rounded-lg border border-[#e4e4e3] bg-white p-3.5 space-y-2">
+            <div className="flex items-center justify-between border-b border-[#e4e4e3] pb-1.5 text-xs font-mono text-[#0a0a0a]">
               <span>Mutated Prompt ({candidate.name})</span>
-              <span className="text-[10px] font-bold text-emerald-400">
+              <span className="text-[10px] font-bold text-emerald-700">
                 ACTIVE MUTATION
               </span>
             </div>
-            <pre className="text-xs text-emerald-300 whitespace-pre-wrap font-mono leading-relaxed bg-emerald-950/10 p-2.5 rounded border border-emerald-900/30">
+            <pre className="text-xs text-emerald-700 whitespace-pre-wrap font-mono leading-relaxed bg-emerald-50/50 p-2.5 rounded border border-emerald-200">
               {candidate.prompt_diff?.mutated || "No prompt diff available."}
             </pre>
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-slate-800 bg-slate-950 p-3.5 space-y-2">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 text-xs font-mono text-slate-400">
+        <div className="rounded-lg border border-[#e4e4e3] bg-white p-3.5 space-y-2">
+          <div className="flex items-center justify-between border-b border-[#e4e4e3] pb-1.5 text-xs font-mono text-[#525250]">
             <span>Unified Architecture Configuration Diff</span>
-            <span className="text-[10px] text-cyan-400">YAML / JSON</span>
+            <span className="text-[10px] text-[#0a0a0a] font-medium">YAML / JSON</span>
           </div>
-          <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed p-3 bg-slate-900/60 rounded border border-slate-800">
+          <pre className="text-xs text-[#0a0a0a] whitespace-pre-wrap font-mono leading-relaxed p-3 bg-[#f9f9f8] rounded border border-[#e4e4e3]">
             {candidate.config_diff?.mutated || "No configuration diff recorded."}
           </pre>
         </div>
