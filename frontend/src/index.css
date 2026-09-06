@@ -1,34 +1,54 @@
 @import "tailwindcss";
+@import "@fontsource/geist/400.css";
+@import "@fontsource/geist/500.css";
+@import "@fontsource/geist/600.css";
+@import "@fontsource/geist/700.css";
 
 :root {
-  --background: #020617;
-  --foreground: #f1f5f9;
-  --panel-bg: #0f172a;
-  --border-color: #1e293b;
+  --bg: #f9f9f8;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f3;
+  --border: #e4e4e3;
+  --border-strong: #d1d1cf;
+  --text-primary: #0a0a0a;
+  --text-secondary: #525250;
+  --text-muted: #8a8a88;
+}
+
+html {
+  font-family: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  min-height: 100vh;
   margin: 0;
   padding: 0;
-  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100dvh;
 }
 
-/* Custom scrollbar for dense data views */
+html {
+  scroll-behavior: smooth;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #020617;
+  background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #253347;
+  background: var(--border-strong);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334766;
+  background: var(--text-muted);
+}
+
+::selection {
+  background: rgba(10, 10, 10, 0.1);
+  color: var(--text-primary);
 }

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Compass,
   Terminal,
+  ArrowLeft,
 } from "lucide-react";
 import { CloudAuthPill } from "./CloudAuthPill";
 
@@ -32,6 +33,7 @@ export interface HeaderProps {
   sessionId?: string;
   tokenStatus?: string;
   onOpenBilling?: () => void;
+  onGoToLanding?: () => void;
 }
 
 const STAGES: { id: StageType; label: string; num: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -58,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   sessionId = "usr_demo_anon_9f82c1",
   tokenStatus = "GoTrue JWT: Valid",
   onOpenBilling,
+  onGoToLanding,
 }) => {
   const handleStageClick = (stageId: StageType) => {
     onSelectStage(stageId);
@@ -67,118 +70,130 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        {/* Top bar: Brand, View Mode Switcher, Domain Selector, Execution Mode, Status */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 bg-white/95 backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      {/* Top Utility Bar */}
+      <div className="border-b border-zinc-100 px-4 sm:px-6 lg:px-8 py-2.5">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          {/* Left Brand & Workspace */}
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400 ring-1 ring-cyan-500/30">
-              <Layers className="h-5 w-5" />
+            {onGoToLanding && (
+              <button
+                type="button"
+                onClick={onGoToLanding}
+                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 transition-colors cursor-pointer shadow-2xs"
+                title="Return to Product Landing Page"
+                aria-label="Return to Product Landing Page"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Landing</span>
+              </button>
+            )}
+
+            <div className="h-4 w-px bg-zinc-200 hidden sm:block" />
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zinc-950 text-sm tracking-tight flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-zinc-900" />
+                Autonomous Agent Visual Engineering Console
+              </span>
+              <span className="rounded-full bg-zinc-100 border border-zinc-200/80 px-2 py-0.5 text-[10px] font-mono font-medium text-zinc-600">
+                Track 1
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold tracking-tight text-white">
-                  Autonomous Agent Visual Engineering Console
-                </h1>
-                <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-400 ring-1 ring-inset ring-cyan-500/20">
-                  Track 1
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Closed-Loop DAG Synthesis, Diagnostic Taxonomy & 4-Axis Benchmark
-              </p>
+
+            <div className="h-4 w-px bg-zinc-200 hidden md:block" />
+
+            {/* Domain Selector */}
+            <div className="hidden md:flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50/50 px-2 py-1 text-xs text-zinc-600">
+              <Database className="h-3 w-3 text-zinc-400" />
+              <label htmlFor="domain-select" className="text-zinc-600 sr-only">
+                Select Domain
+              </label>
+              <select
+                id="domain-select"
+                value={domain}
+                onChange={(e) => onChangeDomain(e.target.value as DomainType)}
+                className="bg-transparent font-medium text-zinc-900 outline-none cursor-pointer pr-1 text-xs"
+                aria-label="Select Domain"
+              >
+                <option value="financial_reconciliation">
+                  Financial Reconciliation
+                </option>
+                <option value="anomaly_detection">
+                  Anomaly Detection
+                </option>
+                <option value="research_comparison">
+                  Research Comparison
+                </option>
+              </select>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Top-Level View Mode Switcher: Overview vs Console */}
+          {/* Right Tools & Account */}
+          <div className="flex items-center gap-2.5">
+            {/* View Mode Switcher: Overview vs Console */}
             <div
-              className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs"
+              className="flex items-center rounded-md border border-zinc-200 bg-zinc-100/80 p-0.5 text-xs"
               role="tablist"
               aria-label="View Mode Switcher"
             >
               <button
                 type="button"
                 onClick={() => onToggleViewMode?.("overview")}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1 rounded px-2.5 py-1 font-medium transition-all cursor-pointer ${
                   viewMode === "overview"
-                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40 font-semibold"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
+                    : "text-zinc-500 hover:text-zinc-900"
                 }`}
                 role="tab"
                 aria-selected={viewMode === "overview"}
               >
                 <Compass className="h-3.5 w-3.5" />
-                Overview
+                <span>Overview</span>
               </button>
               <button
                 type="button"
                 onClick={() => onToggleViewMode?.("console")}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1 rounded px-2.5 py-1 font-medium transition-all cursor-pointer ${
                   viewMode === "console"
-                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40 font-semibold"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
+                    : "text-zinc-500 hover:text-zinc-900"
                 }`}
                 role="tab"
                 aria-selected={viewMode === "console"}
               >
                 <Terminal className="h-3.5 w-3.5" />
-                Console
+                <span>Console</span>
               </button>
             </div>
 
-            {/* Domain Selector */}
-            <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
-              <Database className="h-3.5 w-3.5 text-slate-400" />
-              <label htmlFor="domain-select" className="text-slate-400 sr-only">
-                Domain
-              </label>
-              <select
-                id="domain-select"
-                value={domain}
-                onChange={(e) => onChangeDomain(e.target.value as DomainType)}
-                className="bg-transparent font-medium text-slate-200 outline-none cursor-pointer pr-1"
-                aria-label="Select Domain"
-              >
-                <option value="financial_reconciliation" className="bg-slate-900">
-                  Financial Reconciliation
-                </option>
-                <option value="anomaly_detection" className="bg-slate-900">
-                  Anomaly Detection
-                </option>
-                <option value="research_comparison" className="bg-slate-900">
-                  Research Comparison
-                </option>
-              </select>
-            </div>
-
-            {/* Execution Mode Switcher: Demo Mode vs Live Mode */}
+            {/* Execution Mode Switcher */}
             <div
-              className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs"
+              className="hidden sm:flex items-center rounded-md border border-zinc-200 bg-zinc-100/80 p-0.5 text-xs"
               role="radiogroup"
               aria-label="Execution Mode"
             >
               <button
                 type="button"
                 onClick={() => onToggleMode("demo")}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-all cursor-pointer ${
                   mode === "demo"
-                    ? "bg-cyan-500/20 text-cyan-300 shadow-xs ring-1 ring-cyan-500/40"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
+                    : "text-zinc-500 hover:text-zinc-900"
                 }`}
                 aria-checked={mode === "demo"}
                 role="radio"
               >
                 <Zap className="h-3 w-3" />
-                Demo Mode
+                <span>Demo Mode</span>
               </button>
               <button
                 type="button"
                 onClick={() => onToggleMode("live")}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded px-2 py-1 font-medium transition-all cursor-pointer ${
                   mode === "live"
-                    ? "bg-emerald-500/20 text-emerald-300 shadow-xs ring-1 ring-emerald-500/40"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-white text-emerald-700 shadow-2xs font-semibold"
+                    : "text-zinc-500 hover:text-zinc-900"
                 }`}
                 aria-checked={mode === "live"}
                 role="radio"
@@ -186,16 +201,16 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="relative flex h-2 w-2">
                   <span
                     className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                      isRunning ? "animate-ping bg-emerald-400" : "bg-emerald-500"
+                      isRunning ? "animate-ping bg-emerald-500" : "bg-emerald-600"
                     }`}
                   />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
                 </span>
-                Live Mode
+                <span>Live Mode</span>
               </button>
             </div>
 
-            {/* Supabase Cloud Auth & Entitlement Status Pill */}
+            {/* Supabase Cloud Auth Status */}
             <CloudAuthPill
               tier={tier}
               isCloudConnected={isCloudConnected}
@@ -205,61 +220,73 @@ export const Header: React.FC<HeaderProps> = ({
               onToggleTier={onToggleTier}
             />
 
-            {/* Direct Monetization / Billing Modal Button */}
+            {/* Dodo Payments Upgrade CTA */}
             {onOpenBilling && (
               <button
                 type="button"
                 onClick={onOpenBilling}
-                className="flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/30 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-900/40 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
                 aria-label="Open Dodo Payments Pricing and Billing"
               >
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
                 <span>{tier === "pro" ? "Manage Pro" : "Upgrade $29/mo"}</span>
               </button>
             )}
           </div>
         </div>
+      </div>
 
-        {/* 5-Stage Engineering Navigator */}
-        <nav
-          className="grid grid-cols-2 gap-1.5 pt-1 sm:grid-cols-5"
-          aria-label="Engineering Pipeline Stages"
-        >
-          {STAGES.map((s) => {
-            const Icon = s.icon;
-            const isActive = currentStage === s.id && viewMode === "console";
-            return (
-              <button
-                key={s.id}
-                onClick={() => handleStageClick(s.id)}
-                className={`group flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-all cursor-pointer ${
-                  isActive
-                    ? "border-cyan-500/40 bg-cyan-950/30 text-cyan-200 ring-1 ring-cyan-500/30"
-                    : "border-slate-800/80 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-900 hover:text-slate-200"
-                }`}
-                aria-current={isActive ? "step" : undefined}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon
-                    className={`h-4 w-4 ${
-                      isActive ? "text-cyan-400" : "text-slate-500 group-hover:text-slate-300"
+      {/* 5-Stage Engineering Navigator Strip */}
+      <div className="bg-zinc-50/70 px-4 sm:px-6 lg:px-8 py-2">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 overflow-x-auto">
+          <nav
+            className="flex items-center gap-1.5 w-full justify-between"
+            aria-label="Engineering Pipeline Stages"
+          >
+            {STAGES.map((s, idx) => {
+              const Icon = s.icon;
+              const isActive = currentStage === s.id && viewMode === "console";
+              return (
+                <React.Fragment key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleStageClick(s.id)}
+                    className={`flex-1 flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs transition-all cursor-pointer select-none ${
+                      isActive
+                        ? "border-zinc-900 bg-zinc-900 text-white shadow-xs font-semibold"
+                        : "border-zinc-200/80 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-950 hover:bg-zinc-50"
                     }`}
-                  />
-                  <span className="text-xs font-semibold uppercase tracking-wider">
-                    {s.label}
-                  </span>
-                </div>
-                <span
-                  className={`text-[10px] font-mono ${
-                    isActive ? "text-cyan-400" : "text-slate-600"
-                  }`}
-                >
-                  {s.num}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
+                    aria-current={isActive ? "step" : undefined}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        className={`h-3.5 w-3.5 ${
+                          isActive ? "text-white" : "text-zinc-400"
+                        }`}
+                      />
+                      <span className="uppercase tracking-wider text-[11px] font-medium">
+                        {s.label}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-mono font-bold ${
+                        isActive ? "text-zinc-300" : "text-zinc-400"
+                      }`}
+                    >
+                      {s.num}
+                    </span>
+                  </button>
+
+                  {idx < STAGES.length - 1 && (
+                    <span className="text-zinc-300 text-xs select-none hidden sm:inline" aria-hidden="true">
+                      →
+                    </span>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </nav>
+        </div>
       </div>
     </header>
   );

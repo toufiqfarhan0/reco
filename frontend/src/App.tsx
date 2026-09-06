@@ -22,6 +22,7 @@ import {
   NEATLOGS_TRACE,
   DOMAIN_PRESETS,
 } from "@/lib/mockData";
+import { LandingPage } from "@/components/LandingPage";
 import { Header } from "@/components/Header";
 import { HeroLandingView } from "@/components/HeroLandingView";
 import { EpistemicMemoryLedger } from "@/components/EpistemicMemoryLedger";
@@ -35,9 +36,17 @@ import { BillingModal } from "@/components/BillingModal";
 
 export interface AppProps {
   initialViewMode?: "overview" | "console";
+  initialPage?: "landing" | "console";
 }
 
-export default function App({ initialViewMode = "overview" }: AppProps = {}) {
+export default function App({ initialViewMode = "overview", initialPage }: AppProps = {}) {
+  const defaultPage =
+    initialPage ??
+    (typeof process !== "undefined" && process.env.NODE_ENV === "test"
+      ? "console"
+      : "landing");
+
+  const [page, setPage] = useState<"landing" | "console">(defaultPage);
   const [viewMode, setViewMode] = useState<"overview" | "console">(initialViewMode);
   const [currentStage, setCurrentStage] = useState<StageType>("BUILD");
   const [domain, setDomain] = useState<DomainType>("financial_reconciliation");
@@ -77,140 +86,156 @@ export default function App({ initialViewMode = "overview" }: AppProps = {}) {
       setIsSynthesizing(false);
       setCurrentDag(INITIAL_DAG_V0);
       setCurrentStage("RUN");
+      setViewMode("console");
     }, 600);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Header with Mode Switcher & Domain Selector */}
-      <Header
-        currentStage={currentStage}
-        onSelectStage={setCurrentStage}
-        domain={domain}
-        onChangeDomain={handleDomainChange}
-        mode={mode}
-        onToggleMode={setMode}
-        isRunning={isLiveRunning || isSynthesizing}
-        viewMode={viewMode}
-        onToggleViewMode={setViewMode}
-        tier={tier}
-        onToggleTier={setTier}
-        isCloudConnected={isCloudConnected}
-        sessionId="usr_demo_anon_9f82c1"
-        tokenStatus="GoTrue JWT: Valid"
-        onOpenBilling={() => setIsBillingModalOpen(true)}
-      />
+    <div className="min-h-screen bg-[#fafafa] text-zinc-950 flex flex-col font-sans selection:bg-zinc-950 selection:text-white">
+      {/* Landing Page -- full screen, no header/footer */}
+      {page === "landing" && (
+        <LandingPage
+          onEnterConsole={() => {
+            setPage("console");
+            setViewMode("console");
+            setCurrentStage("BUILD");
+          }}
+        />
+      )}
 
-      {/* Main Container */}
-      <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-        {/* Overview Landing View */}
-        {viewMode === "overview" && (
-          <HeroLandingView
-            onLaunchConsole={() => setViewMode("console")}
-            onExploreLineage={() => {
-              setViewMode("console");
-              setCurrentStage("IMPROVE");
-            }}
-            onSelectStage={(stage) => {
-              setViewMode("console");
-              setCurrentStage(stage);
-            }}
+      {/* Engineering Console */}
+      {page === "console" && (
+        <>
+          {/* Sticky Header with Stage Navigator & Tools */}
+          <Header
+            currentStage={currentStage}
+            onSelectStage={setCurrentStage}
+            domain={domain}
+            onChangeDomain={handleDomainChange}
+            mode={mode}
+            onToggleMode={setMode}
+            isRunning={isLiveRunning}
+            viewMode={viewMode}
+            onToggleViewMode={setViewMode}
+            tier={tier}
+            onToggleTier={setTier}
+            isCloudConnected={isCloudConnected}
+            onOpenBilling={() => setIsBillingModalOpen(true)}
+            onGoToLanding={() => setPage("landing")}
           />
-        )}
 
-        {/* 5-Stage Interactive Console Workspace */}
-        {viewMode === "console" && (
-          <>
-            {currentStage === "BUILD" && (
-              <GoalInputSection
-                domain={domain}
-                currentDag={currentDag}
-                onSynthesize={handleSynthesize}
-                onProceedToRun={() => setCurrentStage("RUN")}
-                isSynthesizing={isSynthesizing}
+          {/* Main Container */}
+          <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 bg-[#fafafa]">
+            {/* Overview Landing View */}
+            {viewMode === "overview" && (
+              <HeroLandingView
+                onLaunchConsole={() => setViewMode("console")}
+                onExploreLineage={() => {
+                  setViewMode("console");
+                  setCurrentStage("IMPROVE");
+                }}
+                onSelectStage={(stage) => {
+                  setViewMode("console");
+                  setCurrentStage(stage);
+                }}
               />
             )}
 
-            {currentStage === "RUN" && (
-              <div className="space-y-6">
-                <RunProgressTracker
-                  architecture={currentDag}
-                  onExecutionComplete={() => {
-                    if (mode === "live") {
-                      setCurrentScorecard(V2_CANDIDATE_C_SCORECARD);
-                      setCurrentComparison(COMPARISON_V0_VS_CANDIDATE_C);
-                    }
-                  }}
-                />
-                <ScorecardView
-                  scorecard={currentScorecard}
-                  comparison={currentComparison}
-                  onProceedToUnderstand={() => setCurrentStage("UNDERSTAND")}
-                />
+            {/* 5-Stage Interactive Console Workspace */}
+            {viewMode === "console" && (
+              <>
+                {currentStage === "BUILD" && (
+                  <GoalInputSection
+                    domain={domain}
+                    currentDag={currentDag}
+                    onSynthesize={handleSynthesize}
+                    onProceedToRun={() => setCurrentStage("RUN")}
+                    isSynthesizing={isSynthesizing}
+                  />
+                )}
+
+                {currentStage === "RUN" && (
+                  <div className="space-y-6">
+                    <RunProgressTracker
+                      architecture={currentDag}
+                      onExecutionComplete={() => {
+                        if (mode === "live") {
+                          setCurrentScorecard(V2_CANDIDATE_C_SCORECARD);
+                          setCurrentComparison(COMPARISON_V0_VS_CANDIDATE_C);
+                        }
+                      }}
+                    />
+                    <ScorecardView
+                      scorecard={currentScorecard}
+                      comparison={currentComparison}
+                      onProceedToUnderstand={() => setCurrentStage("UNDERSTAND")}
+                    />
+                  </div>
+                )}
+
+                {currentStage === "UNDERSTAND" && (
+                  <div className="space-y-6">
+                    <FailureExplorer
+                      diagnostics={FAILURE_DIAGNOSTICS}
+                      onProceedToImprove={() => setCurrentStage("IMPROVE")}
+                    />
+                    <EpistemicMemoryLedger />
+                  </div>
+                )}
+
+                {currentStage === "IMPROVE" && (
+                  <div className="space-y-6">
+                    <CandidateComparisonView
+                      candidates={CANDIDATES_TOURNAMENT}
+                      lineage={EVOLUTION_LINEAGE}
+                      onProceedToValidate={() => setCurrentStage("VALIDATE")}
+                    />
+                    <EpistemicMemoryLedger />
+                  </div>
+                )}
+
+                {currentStage === "VALIDATE" && (
+                  <HeldOutValidationView
+                    data={HELD_OUT_VALIDATION_DATA}
+                    trace={NEATLOGS_TRACE}
+                  />
+                )}
+              </>
+            )}
+          </main>
+
+          {/* Footer / Telemetry status line */}
+          <footer className="w-full border-t border-zinc-200/80 bg-white py-3.5 text-xs text-zinc-400 font-mono">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <span>TRACK 1: AUTONOMOUS AGENT ENGINEERING</span>
+                <span>•</span>
+                <span>AIR-GAPPED BENCHMARK HARNESS</span>
               </div>
-            )}
-
-            {currentStage === "UNDERSTAND" && (
-              <div className="space-y-6">
-                <FailureExplorer
-                  diagnostics={FAILURE_DIAGNOSTICS}
-                  onProceedToImprove={() => setCurrentStage("IMPROVE")}
-                />
-                <EpistemicMemoryLedger />
+              <div className="flex items-center gap-3">
+                <span>VIEW: {viewMode.toUpperCase()}</span>
+                <span>•</span>
+                <span>MODE: {mode.toUpperCase()}</span>
+                <span>•</span>
+                <span className={tier === "pro" ? "text-violet-600 font-semibold" : ""}>
+                  TIER: {tier.toUpperCase()}
+                </span>
+                <span>•</span>
+                <span className="text-emerald-700 font-medium">SUPABASE: SYNCED</span>
               </div>
-            )}
+            </div>
+          </footer>
 
-            {currentStage === "IMPROVE" && (
-              <div className="space-y-6">
-                <CandidateComparisonView
-                  candidates={CANDIDATES_TOURNAMENT}
-                  lineage={EVOLUTION_LINEAGE}
-                  onProceedToValidate={() => setCurrentStage("VALIDATE")}
-                />
-                <EpistemicMemoryLedger />
-              </div>
-            )}
-
-            {currentStage === "VALIDATE" && (
-              <HeldOutValidationView
-                data={HELD_OUT_VALIDATION_DATA}
-                trace={NEATLOGS_TRACE}
-              />
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Footer / Telemetry status line */}
-      <footer className="w-full border-t border-slate-900 bg-slate-950/80 py-3 text-xs text-slate-500 font-mono">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <span>TRACK 1: AUTONOMOUS AGENT ENGINEERING</span>
-            <span>•</span>
-            <span>AIR-GAPPED BENCHMARK HARNESS</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span>VIEW: {viewMode.toUpperCase()}</span>
-            <span>•</span>
-            <span>MODE: {mode.toUpperCase()}</span>
-            <span>•</span>
-            <span className={tier === "pro" ? "text-cyan-400 font-semibold" : "text-slate-400"}>
-              TIER: {tier.toUpperCase()}
-            </span>
-            <span>•</span>
-            <span className="text-emerald-400">SUPABASE: SYNCED</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Non-blocking Dodo Payments Monetization Modal */}
-      <BillingModal
-        isOpen={isBillingModalOpen}
-        onClose={() => setIsBillingModalOpen(false)}
-        currentTier={tier}
-        onTierChange={setTier}
-        userId="usr_demo"
-      />
+          {/* Non-blocking Dodo Payments Monetization Modal */}
+          <BillingModal
+            isOpen={isBillingModalOpen}
+            onClose={() => setIsBillingModalOpen(false)}
+            currentTier={tier}
+            onTierChange={setTier}
+            userId="usr_demo"
+          />
+        </>
+      )}
     </div>
   );
 }
