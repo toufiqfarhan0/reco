@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate, MemoryRouter, useInRouterContext } from "react-router-dom";
+import { Routes, Route, Navigate, MemoryRouter, useInRouterContext, useLocation } from "react-router-dom";
 import { LandingPage } from "@/pages/LandingPage";
 import { ConsolePage } from "@/pages/ConsolePage";
 import { ArchitecturePage } from "@/pages/ArchitecturePage";
@@ -11,15 +11,28 @@ export interface AppProps {
   initialPage?: "landing" | "console";
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
+
+  return null;
+}
+
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/console" element={<ConsolePage />} />
-      <Route path="/architecture" element={<ArchitecturePage />} />
-      <Route path="/why-reco" element={<WhyRecoPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/console" element={<ConsolePage />} />
+        <Route path="/architecture" element={<ArchitecturePage />} />
+        <Route path="/why-reco" element={<WhyRecoPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

@@ -25,6 +25,7 @@ interface GoalInputSectionProps {
   isSynthesizing?: boolean;
   hasSynthesized?: boolean;
   onOpenToolCatalog?: () => void;
+  onSelectDomain?: (domain: DomainType) => void;
 }
 
 export const GoalInputSection: React.FC<GoalInputSectionProps> = ({
@@ -35,6 +36,7 @@ export const GoalInputSection: React.FC<GoalInputSectionProps> = ({
   isSynthesizing = false,
   hasSynthesized = false,
   onOpenToolCatalog,
+  onSelectDomain,
 }) => {
   const preset = domain && DOMAIN_PRESETS[domain] ? DOMAIN_PRESETS[domain] : undefined;
   const [goalText, setGoalText] = useState(preset ? preset.defaultGoal : "");
@@ -135,22 +137,90 @@ export const GoalInputSection: React.FC<GoalInputSectionProps> = ({
               </span>
             </div>
 
-            {/* Borderless surface textarea with bottom border */}
-            <textarea
-              id="goal-input"
-              rows={4}
-              value={goalText}
-              onChange={(e) => setGoalText(e.target.value)}
-              placeholder={`Describe your agent's goal in plain English...\ne.g. 'Reconcile internal transactions against payment gateway exports'`}
-              className="w-full bg-transparent border-0 border-b border-zinc-200 focus:border-indigo-600 text-zinc-800 py-3 text-xs leading-relaxed placeholder-zinc-400 placeholder:italic focus:ring-0 focus:outline-none transition-colors font-mono resize-y"
-            />
+            {/* Styled input box for goal textarea */}
+            <div className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-2xs transition-all focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+              <textarea
+                id="goal-input"
+                rows={4}
+                value={goalText}
+                onChange={(e) => setGoalText(e.target.value)}
+                placeholder={`Describe your agent's goal in plain English...\ne.g. 'Reconcile internal transactions against payment gateway exports'`}
+                className="w-full bg-transparent border-0 text-zinc-900 text-xs leading-relaxed placeholder-zinc-400 placeholder:italic focus:ring-0 focus:outline-none transition-colors font-mono resize-y"
+              />
+            </div>
 
-            {/* Domain Preset Chips */}
-            {preset && preset.sampleChips && preset.sampleChips.length > 0 && (
-              <div>
-                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-2 font-mono">
-                  Domain Preset Chips (Click to Apply)
+            {/* Guidance note below input mentioning you can use your goals below */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1">
+              <span className="flex items-center gap-1.5 text-[11px] text-zinc-600 font-geist">
+                <Sparkle size={13} className="text-indigo-600 shrink-0" weight="fill" />
+                <span>
+                  You can use your goals below or type any custom task specification to synthesize a tailored DAG.
                 </span>
+              </span>
+              <span className="font-mono text-[10px] text-zinc-400">
+                {goalText.trim().length} chars
+              </span>
+            </div>
+
+            {/* Available Domain Presets Selection Grid */}
+            <div className="space-y-2 pt-2 border-t border-zinc-100">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-mono">
+                  Domain Presets &amp; Ready-to-Use Goals
+                </span>
+                <span className="text-[10px] font-mono text-zinc-400">
+                  {Object.keys(DOMAIN_PRESETS).length} Presets Available
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {(Object.keys(DOMAIN_PRESETS) as DomainType[]).map((key) => {
+                  const p = DOMAIN_PRESETS[key];
+                  const isSelected = domain === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        if (onSelectDomain) {
+                          onSelectDomain(key);
+                        } else {
+                          setGoalText(p.defaultGoal);
+                        }
+                      }}
+                      className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-indigo-500 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20"
+                          : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className={`text-xs font-semibold font-geist truncate ${isSelected ? "text-indigo-950 font-bold" : "text-zinc-900"}`}>
+                          {p.name}
+                        </span>
+                        {isSelected && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[10px] text-zinc-500 line-clamp-2 font-geist leading-tight">
+                        {p.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Domain Preset Chips for Active Preset */}
+            {preset && preset.sampleChips && preset.sampleChips.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-mono">
+                    {preset.name} Focus Chips (Click to Apply)
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-geist">
+                    You can use your goals below to append focus areas
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {preset.sampleChips.map((chip) => (
                     <button
@@ -166,37 +236,43 @@ export const GoalInputSection: React.FC<GoalInputSectionProps> = ({
               </div>
             )}
 
-            {/* Latency & Cost Budget: Inline labeled inputs with border-b underline style */}
-            <div className="grid grid-cols-2 gap-6 pt-2">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="latency-budget" className="text-zinc-500 text-[11px] font-medium font-geist flex items-center gap-1.5">
-                  <Clock size={14} className="text-zinc-400" />
-                  Latency Budget (ms)
+            {/* Latency & Cost Budget: Styled Input Boxes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-2xs transition-all focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+                <label htmlFor="latency-budget" className="text-zinc-500 text-[11px] font-medium font-geist flex items-center gap-1.5 mb-1.5">
+                  <Clock size={14} className="text-indigo-600" />
+                  <span>Latency Budget (ms)</span>
                 </label>
-                <input
-                  id="latency-budget"
-                  type="number"
-                  value={latencyBudget}
-                  onChange={(e) => setLatencyBudget(e.target.value)}
-                  placeholder="e.g. 5000"
-                  className="w-full bg-transparent border-0 border-b border-zinc-200 focus:border-indigo-600 px-0 py-1 text-xs font-mono text-zinc-900 placeholder-zinc-400 focus:ring-0 focus:outline-none transition-colors"
-                />
+                <div className="flex items-center">
+                  <input
+                    id="latency-budget"
+                    type="number"
+                    value={latencyBudget}
+                    onChange={(e) => setLatencyBudget(e.target.value)}
+                    placeholder="e.g. 5000"
+                    className="w-full bg-transparent border-0 p-0 text-xs font-mono text-zinc-900 placeholder-zinc-400 focus:ring-0 focus:outline-none"
+                  />
+                  <span className="text-[10px] font-mono font-medium text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded ml-2">ms</span>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label htmlFor="cost-budget" className="text-zinc-500 text-[11px] font-medium font-geist flex items-center gap-1.5">
-                  <Coins size={14} className="text-zinc-400" />
-                  Cost Budget ($USD)
+              <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-2xs transition-all focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+                <label htmlFor="cost-budget" className="text-zinc-500 text-[11px] font-medium font-geist flex items-center gap-1.5 mb-1.5">
+                  <Coins size={14} className="text-indigo-600" />
+                  <span>Cost Budget ($USD)</span>
                 </label>
-                <input
-                  id="cost-budget"
-                  type="number"
-                  step="0.01"
-                  value={costBudget}
-                  onChange={(e) => setCostBudget(e.target.value)}
-                  placeholder="e.g. 0.05"
-                  className="w-full bg-transparent border-0 border-b border-zinc-200 focus:border-indigo-600 px-0 py-1 text-xs font-mono text-zinc-900 placeholder-zinc-400 focus:ring-0 focus:outline-none transition-colors"
-                />
+                <div className="flex items-center">
+                  <input
+                    id="cost-budget"
+                    type="number"
+                    step="0.01"
+                    value={costBudget}
+                    onChange={(e) => setCostBudget(e.target.value)}
+                    placeholder="e.g. 0.05"
+                    className="w-full bg-transparent border-0 p-0 text-xs font-mono text-zinc-900 placeholder-zinc-400 focus:ring-0 focus:outline-none"
+                  />
+                  <span className="text-[10px] font-mono font-medium text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded ml-2">USD</span>
+                </div>
               </div>
             </div>
 
@@ -336,7 +412,7 @@ export const GoalInputSection: React.FC<GoalInputSectionProps> = ({
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-purple-50/70 p-4 shadow-sm"
+                    className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-blue-50/50 p-4 shadow-sm"
                   >
                     <div className="flex flex-col gap-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">

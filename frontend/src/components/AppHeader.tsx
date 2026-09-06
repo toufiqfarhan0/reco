@@ -34,12 +34,18 @@ const DOMAIN_LABELS: Record<DomainType, string> = {
   financial_reconciliation: 'Financial Reconciliation',
   anomaly_detection: 'Anomaly Detection',
   research_comparison: 'Research Comparison',
+  cybersecurity_triage: 'Cybersecurity Incident Triage',
+  biomedical_literature: 'Biomedical Literature',
+  devops_root_cause: 'DevOps Diagnostics',
 };
 
 const DOMAIN_OPTIONS: DomainType[] = [
   'financial_reconciliation',
   'anomaly_detection',
   'research_comparison',
+  'cybersecurity_triage',
+  'biomedical_literature',
+  'devops_root_cause',
 ];
 
 interface StageConfig {

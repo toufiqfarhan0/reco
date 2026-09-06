@@ -124,6 +124,114 @@ export const DOMAIN_PRESETS: Record<
       "Regulatory Filing Discrepancy",
     ],
   },
+  cybersecurity_triage: {
+    name: "Cybersecurity Incident Triage",
+    label: "Cybersecurity Triage",
+    description:
+      "Automated SIEM alert correlation, IOC threat intelligence enrichment, false-positive filtering, and MITRE ATT&CK mapping.",
+    defaultGoal:
+      "Correlate multi-source SIEM security alerts, extract indicators of compromise (IOCs), query threat intelligence feeds, filter benign anomalies, and generate an incident triage brief.",
+    availableTools: [
+      {
+        name: "alert_correlator",
+        desc: "Correlates telemetry events across firewall, endpoint, and identity logs",
+        capability: "alert_correlation",
+      },
+      {
+        name: "threat_intel_lookup",
+        desc: "Queries threat feeds for malicious IPs, file hashes, and domain reputations",
+        capability: "threat_intelligence",
+      },
+      {
+        name: "ioc_extractor",
+        desc: "Extracts and validates IP, CIDR, hash, and CVE identifiers with regex",
+        capability: "ioc_extraction",
+      },
+      {
+        name: "json_validator",
+        desc: "Enforces strict MITRE ATT&CK schema compliance on incident triage reports",
+        capability: "schema_validation",
+      },
+    ],
+    sampleChips: [
+      "SIEM Alert Clustering",
+      "IOC Threat Feed Enrichment",
+      "Brute-Force & Lateral Movement Triage",
+      "CVE Exploitability & Blast Radius",
+    ],
+  },
+  biomedical_literature: {
+    name: "Biomedical Literature Synthesis",
+    label: "Biomedical Literature",
+    description:
+      "Biomedical entity extraction, clinical trial outcome cross-checking, and evidence synthesis with citation verification.",
+    defaultGoal:
+      "Synthesize randomized controlled trial findings across medical publications, extract biomarker efficacy endpoints, reconcile conflicting study results, and verify citation claims.",
+    availableTools: [
+      {
+        name: "mesh_entity_extractor",
+        desc: "Extracts MeSH terms, drug compounds, dosages, and patient cohort demographics",
+        capability: "entity_extraction",
+      },
+      {
+        name: "clinical_evidence_matcher",
+        desc: "Cross-references reported hazard ratios and p-values across trial publications",
+        capability: "evidence_synthesis",
+      },
+      {
+        name: "pubmed_citation_verifier",
+        desc: "Validates PubMed IDs and DOI references against primary source publications",
+        capability: "citation_verification",
+      },
+      {
+        name: "json_validator",
+        desc: "Verifies structured clinical finding schema contracts",
+        capability: "schema_validation",
+      },
+    ],
+    sampleChips: [
+      "Phase III Oncology Trial Endpoints",
+      "Drug-Drug Interaction Cross-Check",
+      "Biomarker Response Rate Synthesis",
+      "PubMed DOI Citation Verification",
+    ],
+  },
+  devops_root_cause: {
+    name: "DevOps Incident Diagnostics",
+    label: "DevOps Diagnostics",
+    description:
+      "Distributed trace latency regression analysis, Kubernetes pod crash triage, error log clustering, and root-cause isolation.",
+    defaultGoal:
+      "Analyze distributed OpenTelemetry traces and container error logs across microservices, isolate cascading latency bottlenecks, and identify root-cause commits or configuration regressions.",
+    availableTools: [
+      {
+        name: "trace_latency_analyzer",
+        desc: "Analyzes p99 latency regressions and span dependency bottlenecks across microservices",
+        capability: "trace_analysis",
+      },
+      {
+        name: "log_cluster_miner",
+        desc: "Clusters high-volume error logs and extracts recurring stack trace patterns",
+        capability: "log_clustering",
+      },
+      {
+        name: "metric_anomaly_detector",
+        desc: "Identifies sudden CPU, memory saturation, and network error rate spikes",
+        capability: "metric_detection",
+      },
+      {
+        name: "json_validator",
+        desc: "Validates root-cause diagnostic payloads against enterprise SRE schemas",
+        capability: "schema_validation",
+      },
+    ],
+    sampleChips: [
+      "p99 Microservice Latency Spike",
+      "Kubernetes CrashLoopBackOff Triage",
+      "Postgres Connection Pool Saturation",
+      "Deployment Canary Regression Detection",
+    ],
+  },
 };
 
 export const INITIAL_DAG_V0: DAGArchitecture = {

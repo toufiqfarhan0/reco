@@ -191,8 +191,8 @@ const FIVE_STAGES: StageDetail[] = [
     name: "VALIDATE",
     tagline: "Air-Gapped Held-Out Verification Gate",
     formalName: "Air-Gapped Promotion Gate with Cryptographic Integrity Checksum",
-    color: "purple",
-    badgeColor: "bg-purple-50 text-purple-700 border-purple-200",
+    color: "teal",
+    badgeColor: "bg-teal-50 text-teal-700 border-teal-200",
     icon: ShieldCheck,
     overview:
       "Stage 05 enforces an air-gapped promotion gate against an unpolluted held-out benchmark split. Using SHA-256 test integrity hashing, it proves zero training/optimization leakage and strictly emits PROMOTE, REQUIRES_REVIEW, or REJECT decisions.",
@@ -384,7 +384,7 @@ const reasoning = response.choices[0].message.reasoning;`,
     role: "Distributed Observability",
     tech: "Asynchronous Telemetry Ingest",
     icon: Broadcast,
-    color: "purple",
+    color: "indigo",
     badge: "5-Tier Span Telemetry",
     description:
       "Non-blocking distributed tracing engine providing fine-grained execution waterfalls across all stages. Hierarchy spans: optimization_run -> generation -> candidate_benchmark -> benchmark_case -> node_execution -> tool_invocation.",
@@ -476,6 +476,10 @@ export const ArchitecturePage: React.FC = () => {
   const [activeLesson, setActiveLesson] = useState<number>(0);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   // Copy helper
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -488,11 +492,11 @@ export const ArchitecturePage: React.FC = () => {
   const currentTaxonomy = TAXONOMY_CATEGORIES.find((c) => c.code === activeTaxonomy) || TAXONOMY_CATEGORIES[0];
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col font-sans selection:bg-indigo-600 selection:text-white text-zinc-900">
+    <div className="min-h-screen bg-[#f8f8f7] flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-700 text-zinc-900">
       {/* ---------------------------------------------------------------------- */}
       {/* 1. Header & Navigation matching Reco Design System                     */}
       {/* ---------------------------------------------------------------------- */}
-      <nav className="sticky top-0 z-50 h-14 bg-white/95 backdrop-blur-sm border-b border-zinc-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-2xs">
+      <nav className="sticky top-0 z-50 h-14 bg-white/95 backdrop-blur-md border-b border-zinc-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-sm">
         {/* Left: Brand + Back + Track Pill */}
         <div className="flex items-center gap-3">
           <Link
@@ -599,6 +603,7 @@ export const ArchitecturePage: React.FC = () => {
       {/* 2. Hero Section: Formal AutoML Theory & Mathematical Compiler          */}
       {/* ---------------------------------------------------------------------- */}
       <header className="relative bg-white border-b border-zinc-200 py-16 sm:py-20 overflow-hidden">
+        <div className="absolute inset-0 opacity-40" style={{ background: "radial-gradient(ellipse at 60% 0%, #e0e7ff 0%, transparent 60%)" }} />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           {/* Track 1 Pill Badge */}

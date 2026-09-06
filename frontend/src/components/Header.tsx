@@ -177,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
       initial={{ y: -10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="sticky top-0 z-40 w-full bg-white border-b border-zinc-100 shadow-xs"
+      className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-zinc-100 shadow-xs"
     >
       {/* Main Top Bar */}
       <div className="px-4 sm:px-6 lg:px-8 py-2.5">
@@ -276,6 +276,9 @@ export const Header: React.FC<HeaderProps> = ({
                 <option value="financial_reconciliation">Financial Reconciliation</option>
                 <option value="anomaly_detection">Anomaly Detection</option>
                 <option value="research_comparison">Research Comparison</option>
+                <option value="cybersecurity_triage">Cybersecurity Triage</option>
+                <option value="biomedical_literature">Biomedical Literature</option>
+                <option value="devops_root_cause">DevOps Diagnostics</option>
               </select>
             </div>
 
@@ -447,7 +450,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 5-Stage Engineering Navigator Strip */}
-      <div className="bg-zinc-50/70 border-t border-zinc-100 px-4 sm:px-6 lg:px-8 py-2">
+      <div className="bg-zinc-50/70 border-t border-zinc-100 px-4 sm:px-6 lg:px-8 py-1.5">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 overflow-x-auto">
           <nav
             className="flex items-center gap-1.5 w-full justify-between"
@@ -461,14 +464,21 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     type="button"
                     onClick={() => handleStageClick(s.id)}
-                    className={`flex-1 flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all cursor-pointer select-none ${
+                    className={`relative flex-1 flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer select-none ${
                       isActive
-                        ? "border-indigo-600 bg-indigo-50/80 text-indigo-900 shadow-xs font-semibold"
-                        : "border-zinc-200/80 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 hover:bg-zinc-50"
+                        ? "text-indigo-900 font-semibold"
+                        : "border border-zinc-200/80 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-900 hover:bg-zinc-50"
                     }`}
                     aria-current={isActive ? "step" : undefined}
                   >
-                    <div className="flex items-center gap-2">
+                    {isActive && (
+                      <motion.div
+                        layoutId="stage-active-bg"
+                        className="absolute inset-0 rounded-xl border border-indigo-400 bg-indigo-50/80 shadow-xs"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                      />
+                    )}
+                    <div className="relative flex items-center gap-2">
                       <Icon
                         size={15}
                         weight={isActive ? "fill" : "regular"}
@@ -479,8 +489,8 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                     </div>
                     <span
-                      className={`text-[10px] font-mono font-bold ${
-                        isActive ? "text-indigo-600" : "text-zinc-400"
+                      className={`relative text-[10px] font-mono font-bold ${
+                        isActive ? "text-indigo-600" : "text-zinc-300"
                       }`}
                     >
                       {s.num}
@@ -488,7 +498,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
 
                   {idx < STAGES.length - 1 && (
-                    <span className="text-zinc-300 text-xs select-none hidden sm:inline" aria-hidden="true">
+                    <span className="text-zinc-200 text-xs select-none hidden sm:inline" aria-hidden="true">
                       →
                     </span>
                   )}
