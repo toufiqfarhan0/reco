@@ -41,17 +41,41 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="glm-4-7-flash", description="Default model identifier")
 
     # TensorMux Inference Gateway (Optional)
-    tensormux_api_key: str = Field(default="", description="TensorMux API Key")
-    tensormux_base_url: str = Field(default="https://api.tensormux.com/v1", description="TensorMux endpoint")
+    tensormux_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("tensormux_api_key", "TENSORMUX_API_KEY"),
+        description="TensorMux API Key",
+    )
+    tensormux_base_url: str = Field(
+        default="https://api.tensormux.com/v1",
+        validation_alias=AliasChoices("tensormux_base_url", "TENSORMUX_BASE_URL"),
+        description="TensorMux endpoint",
+    )
 
     # Neatlogs Observability (Optional)
-    observability_enabled: bool = Field(default=False, description="Whether Neatlogs tracing is active")
-    neatlogs_api_key: str = Field(default="", description="Neatlogs API Key")
-    neatlogs_base_url: str = Field(default="https://ingest.neatlogs.com", description="Neatlogs API endpoint")
+    observability_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("observability_enabled", "OBSERVABILITY_ENABLED"),
+        description="Whether Neatlogs tracing is active",
+    )
+    neatlogs_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("neatlogs_api_key", "NEATLOGS_API_KEY"),
+        description="Neatlogs API Key",
+    )
+    neatlogs_base_url: str = Field(
+        default="https://ingest.neatlogs.com",
+        validation_alias=AliasChoices("neatlogs_base_url", "NEATLOGS_BASE_URL"),
+        description="Neatlogs API endpoint",
+    )
     neatlogs_timeout_seconds: float = Field(default=5.0, description="Neatlogs HTTP timeout in seconds")
 
     # Dodo Payments Billing (Step 27)
-    billing_enabled: bool = Field(default=False, description="Whether Dodo Payments billing is enforced")
+    billing_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("billing_enabled", "BILLING_ENABLED"),
+        description="Whether Dodo Payments billing is enforced",
+    )
     dodo_api_key: str = Field(
         default="",
         validation_alias=AliasChoices("dodo_api_key", "DODO_PAYMENTS_API_KEY", "DODO_API_KEY"),

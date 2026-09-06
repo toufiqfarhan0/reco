@@ -132,6 +132,10 @@ export const LandingPage: React.FC = () => {
       <BillingModal
         isOpen={isBillingOpen}
         onClose={() => setIsBillingOpen(false)}
+        onOpenAuth={() => {
+          setIsBillingOpen(false);
+          navigate("/console");
+        }}
       />
     </div>
   );

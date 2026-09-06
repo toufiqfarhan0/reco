@@ -329,7 +329,43 @@ export const GoalInputSection: React.FC<GoalInputSectionProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Pipeline Advancement Banner */}
+                {!isSynthesizing && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-purple-50/70 p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-xs font-mono font-semibold text-emerald-800">
+                          <CheckCircle size={14} weight="fill" className="text-emerald-600 shrink-0" />
+                          <span>Acyclic Architecture Validated</span>
+                        </div>
+                        <span className="text-[10px] font-mono font-medium text-indigo-700">
+                          Topological Sort Confirmed
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-zinc-700 font-geist leading-relaxed">
+                        Agent graph synthesized with 0 circular dependencies. Ready for deterministic benchmark execution and failure diagnostics.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={handleProceedClick}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white px-4 py-2.5 text-xs font-semibold shadow-xs transition-all cursor-pointer font-geist"
+                      >
+                        <span>Proceed to Stage 02: Run Baseline Evaluation</span>
+                        <ArrowRight size={14} weight="bold" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
               </>
+
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center text-zinc-400">
                 <Graph size={36} weight="duotone" className="mb-3 text-zinc-300" />

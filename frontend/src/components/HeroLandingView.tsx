@@ -329,9 +329,9 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
         </div>
       </section>
 
-      {/* Live Production Tech Rail (Single Line) */}
+      {/* Live Production Tech Rail */}
       <div className="mx-auto w-full max-w-7xl border-t border-zinc-200/80 pt-6">
-        <div className="flex items-center justify-between gap-4 overflow-x-auto pb-1">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 shrink-0">
             <CheckCircle size={16} weight="fill" className="text-emerald-600" />
             <span className="font-semibold uppercase tracking-wider text-zinc-950 whitespace-nowrap">
@@ -339,13 +339,13 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
             {TECH_BADGES.map((tech) => {
               const Icon = tech.Icon;
               return (
                 <div
                   key={tech.label}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white px-3 py-1.5 text-xs shadow-2xs whitespace-nowrap shrink-0"
+                  className="flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white px-3 py-1.5 text-xs shadow-2xs whitespace-nowrap"
                 >
                   <Icon size={15} weight="duotone" className="text-indigo-600 shrink-0" />
                   <div className="flex items-center gap-1.5">

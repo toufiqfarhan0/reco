@@ -53,6 +53,27 @@ describe("BillingModal Component", () => {
     expect(screen.getByText(/90210/i)).toBeInTheDocument();
   });
 
+  it("displays guidance card and triggers onOpenAuth when unauthenticated user clicks to upgrade", () => {
+    const onOpenAuth = vi.fn();
+    render(
+      <BillingModal
+        isOpen={true}
+        onClose={vi.fn()}
+        isAuthenticated={false}
+        onOpenAuth={onOpenAuth}
+      />
+    );
+
+    expect(screen.getByText(/Supabase Authentication Required/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/A Supabase account is required to link and manage your Pro subscription/i)
+    ).toBeInTheDocument();
+
+    const signInBtn = screen.getByRole("button", { name: /Sign In to Upgrade/i });
+    fireEvent.click(signInBtn);
+    expect(onOpenAuth).toHaveBeenCalledTimes(1);
+  });
+
   it("sends POST to /billing/checkout when Upgrade to Pro is clicked and opens checkout_url", async () => {
     const mockCheckoutUrl = "https://test.dodopayments.com/checkout/cs_test_abc123";
     global.fetch = vi.fn().mockResolvedValue({
@@ -74,6 +95,7 @@ describe("BillingModal Component", () => {
         isOpen={true}
         onClose={vi.fn()}
         userId="usr_demo"
+        isAuthenticated={true}
         onTierChange={onTierChange}
       />
     );
@@ -114,7 +136,14 @@ describe("BillingModal Component", () => {
     const windowOpenSpy = vi.fn();
     window.open = windowOpenSpy;
 
-    render(<BillingModal isOpen={true} onClose={vi.fn()} userId="usr_demo" />);
+    render(
+      <BillingModal
+        isOpen={true}
+        onClose={vi.fn()}
+        userId="usr_demo"
+        isAuthenticated={true}
+      />
+    );
 
     const portalBtn = screen.getByRole("button", { name: /Manage Subscription/i });
     fireEvent.click(portalBtn);
