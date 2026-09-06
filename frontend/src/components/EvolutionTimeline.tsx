@@ -16,8 +16,8 @@ export const EvolutionTimeline: React.FC<EvolutionTimelineProps> = ({
   onSelectNode,
 }) => {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
-      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+    <div className="space-y-4 pt-6 border-t border-zinc-100">
+      <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
         <div className="flex items-center gap-2">
           <GitCommit className="h-4 w-4 text-indigo-600" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">

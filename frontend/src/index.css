@@ -3,22 +3,44 @@
 @import "@fontsource/geist/500.css";
 @import "@fontsource/geist/600.css";
 @import "@fontsource/geist/700.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
 
 :root {
-  --bg: #f9f9f8;
+  --bg: #f8f8f7;
   --surface: #ffffff;
   --surface-raised: #f4f4f3;
-  --border: #e4e4e3;
-  --border-strong: #d1d1cf;
-  --text-primary: #0a0a0a;
-  --text-secondary: #525250;
-  --text-muted: #8a8a88;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --text-primary: #09090b;
+  --text-secondary: #71717a;
+  --text-muted: #a1a1aa;
+  --background: #f8f8f7;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --input: #e4e4e7;
+  --ring: #4f46e5;
+  --radius: 0.75rem;
 }
 
 html {
   font-family: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -27,10 +49,6 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   min-height: 100dvh;
-}
-
-html {
-  scroll-behavior: smooth;
 }
 
 ::-webkit-scrollbar {
@@ -49,6 +67,43 @@ html {
 }
 
 ::selection {
-  background: rgba(10, 10, 10, 0.1);
-  color: var(--text-primary);
+  background: rgba(79, 70, 229, 0.15);
+  color: #4f46e5;
+}
+
+@theme inline {
+  --font-heading: 'Geist', var(--font-sans);
+  --font-sans: 'Geist', 'Geist Variable', sans-serif;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
 }
