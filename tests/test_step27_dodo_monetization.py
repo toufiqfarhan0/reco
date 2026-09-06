@@ -150,7 +150,8 @@ def client(billing_settings, billing_service, mock_supabase_service):
     app = create_app(settings=billing_settings)
 
     with patch("reco.api.app.default_billing_service", billing_service), \
-         patch("reco.api.app.default_supabase_service", mock_supabase_service):
+         patch("reco.api.app.default_supabase_service", mock_supabase_service), \
+         patch("reco.api.app._execute_optimization_job"):
         yield TestClient(app)
 
 

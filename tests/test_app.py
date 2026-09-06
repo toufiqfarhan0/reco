@@ -21,6 +21,33 @@ def test_health_endpoint(client: TestClient):
     assert data["integrations"]["dodo"] is False
 
 
+def test_health_endpoint_with_active_integrations():
+    """Verify /health returns True for all four sponsor integrations when configured."""
+    from reco.config import Settings
+    from reco.api.app import create_app
+    active_settings = Settings(
+        _env_file=None,
+        app_env="production",
+        supabase_url="https://example.supabase.co",
+        supabase_key="test-key",
+        tensormux_api_key="tmx-test-key",
+        neatlogs_api_key="nl-test-key",
+        dodo_api_key="dodo-test-key",
+        billing_enabled=True,
+        observability_enabled=True,
+    )
+    test_app = create_app(settings=active_settings)
+    with TestClient(test_app) as cl:
+        response = cl.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["integrations"]["supabase"] is True
+        assert data["integrations"]["tensormux"] is True
+        assert data["integrations"]["neatlogs"] is True
+        assert data["integrations"]["dodo"] is True
+
+
+
 def test_version_endpoint(client: TestClient):
     """Verify /version returns 200, version, and hackathon track metadata."""
     response = client.get("/version")
