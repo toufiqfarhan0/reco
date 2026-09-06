@@ -249,10 +249,10 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="relative w-full max-w-4xl rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden text-zinc-900 my-8"
+        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden text-zinc-900 my-auto"
       >
         {/* Header Bar */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 bg-zinc-50">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 bg-zinc-50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-indigo-600 border border-zinc-200 shadow-xs">
               <CreditCard size={20} weight="duotone" />
@@ -282,8 +282,10 @@ export const BillingModal: React.FC<BillingModalProps> = ({
           </button>
         </div>
 
-        {/* Test Mode Judge Credentials Callout Pill */}
-        <div className="mx-6 mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 space-y-3">
+        {/* Scrollable Body Content */}
+        <div className="overflow-y-auto flex-1 p-6 space-y-6">
+          {/* Test Mode Judge Credentials Callout Pill */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
               <div className="mt-0.5 rounded-lg bg-amber-100 p-1 text-amber-800">
@@ -388,7 +390,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
         {/* Error / Success Feedback Banner */}
         {errorMessage && (
-          <div className="mx-6 mt-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
             <div className="flex items-center gap-2">
               <WarningCircle size={16} weight="fill" className="shrink-0 text-amber-600" />
               <span className="flex-1">{errorMessage}</span>
@@ -409,7 +411,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         )}
 
         {successUrl && (
-          <div className="mx-6 mt-4 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">
+          <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">
             <div className="flex items-center gap-2">
               <CheckCircle size={16} weight="fill" className="shrink-0 text-emerald-600" />
               <span>{successUrl.startsWith("http") ? "Dodo Payments session generated successfully." : successUrl}</span>
@@ -432,7 +434,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         )}
 
         {/* 2-Tier Pricing Comparison Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Tier 1: Free Tier */}
           <div
             className={`relative flex flex-col justify-between rounded-2xl border p-6 transition-all bg-zinc-50 border-zinc-200 ${
@@ -669,9 +671,10 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             </div>
           </div>
         </div>
+        </div>
 
         {/* Footer / Demo Gating Info */}
-        <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
+        <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-emerald-600 font-bold">●</span>
             <span>Non-blocking console: Core synthesis & benchmarks remain 100% accessible</span>
