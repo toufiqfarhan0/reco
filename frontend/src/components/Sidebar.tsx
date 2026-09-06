@@ -246,9 +246,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Demo Mode / Live Mode Toggle */}
             <div className="space-y-1 pt-1">
-              <span className="text-[10px] font-mono text-zinc-500 block">
-                Execution Engine
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-zinc-500 block">
+                  Execution Engine
+                </span>
+                <span className="text-[9px] font-mono font-medium text-zinc-400">
+                  {mode === "demo" ? "OFFLINE" : "LIVE"}
+                </span>
+              </div>
               <div
                 className="grid grid-cols-2 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs"
                 role="radiogroup"
@@ -281,6 +286,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className={`h-1.5 w-1.5 rounded-full ${isRunning ? "animate-ping bg-emerald-500" : "bg-emerald-600"}`} />
                   <span>Live</span>
                 </button>
+              </div>
+              <div className="pt-0.5 px-0.5 flex items-center justify-between text-[9px] font-mono text-zinc-400">
+                <span>RUNTIME:</span>
+                {mode === "demo" ? (
+                  <span className="text-zinc-600 font-medium truncate" title="Static Canonical Artifacts (Offline Sandbox)">
+                    Sandbox (Offline)
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-medium truncate" title="Real GLM-4.7-Flash (TensorMux)">
+                    GLM-4.7-Flash
+                  </span>
+                )}
               </div>
             </div>
 

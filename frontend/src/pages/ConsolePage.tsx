@@ -40,6 +40,98 @@ import { MyExperimentsModal } from "@/components/MyExperimentsModal";
 import { ToolCatalogModal } from "@/components/ToolCatalogModal";
 import { fetchTools } from "@/services/api";
 import { getSession, signOut, onAuthStateChange } from "@/lib/supabaseClient";
+import { Clock, Cpu } from "lucide-react";
+
+export const ModeHarnessBanner: React.FC<{ mode: ExecutionMode }> = ({ mode }) => {
+  if (mode === "demo") {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-100/70 px-4 py-2 text-xs font-mono text-zinc-700">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-bold text-zinc-800 uppercase tracking-wide">
+            DEMO
+          </span>
+          <span className="font-semibold text-zinc-900">
+            DEMO BENCHMARK HARNESS
+          </span>
+          <span className="text-zinc-400">•</span>
+          <span className="text-zinc-600">
+            Static Canonical Artifacts (Offline Sandbox)
+          </span>
+        </div>
+        <span className="text-[10px] text-zinc-400 hidden sm:inline font-medium">
+          Deterministic
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-xs font-mono text-emerald-800">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="inline-flex items-center gap-1 rounded bg-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-900 uppercase tracking-wide">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+          LIVE
+        </span>
+        <span className="font-semibold text-emerald-950">
+          LIVE EXECUTION HARNESS
+        </span>
+        <span className="text-emerald-400">•</span>
+        <span className="text-emerald-700">
+          Real GLM-4.7-Flash (TensorMux) &amp; Supabase Cloud Persistence
+        </span>
+      </div>
+      <span className="text-[10px] text-emerald-600 hidden sm:inline font-medium">
+        Active Runtime
+      </span>
+    </div>
+  );
+};
+
+export const StageAwaitingExecutionCard: React.FC<{
+  icon?: "clock" | "cpu";
+  title?: string;
+  description?: string;
+  onGoToBuild: () => void;
+  onLoadDemo: () => void;
+}> = ({
+  icon = "cpu",
+  title = "Diagnostic Analysis Awaiting Run",
+  description = "Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation.",
+  onGoToBuild,
+  onLoadDemo,
+}) => {
+  return (
+    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-10 text-center shadow-xs space-y-4">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+        {icon === "clock" ? <Clock className="h-6 w-6" /> : <Cpu className="h-6 w-6" />}
+      </div>
+      <div className="space-y-1.5 max-w-md mx-auto">
+        <h3 className="text-base font-semibold text-zinc-900 font-geist">
+          {title}
+        </h3>
+        <p className="text-xs text-zinc-500 font-geist leading-relaxed">
+          {description}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onGoToBuild}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white px-4 py-2.5 text-xs font-semibold shadow-xs transition cursor-pointer font-geist"
+        >
+          <span>Go to Stage 01: BUILD →</span>
+        </button>
+        <button
+          type="button"
+          onClick={onLoadDemo}
+          className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 active:scale-[0.98] text-zinc-700 px-4 py-2.5 text-xs font-semibold shadow-2xs transition cursor-pointer font-geist"
+        >
+          <span>Load Financial Reconcile Demo</span>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const PARSE_STAGE_PARAM = (param: string | null): StageType | null => {
   if (!param) return null;
@@ -87,8 +179,19 @@ export const ConsolePage: React.FC = () => {
   };
 
   // Global console execution configuration
-  const [domain, setDomain] = useState<DomainType | "">("");
-  const [hasSynthesized, setHasSynthesized] = useState<boolean>(false);
+  const presetParam = searchParams.get("preset") || searchParams.get("domain");
+  const initialDomain: DomainType | "" =
+    presetParam === "financial_reconciliation" || presetParam === "reconciliation"
+      ? "financial_reconciliation"
+      : presetParam === "anomaly_detection"
+      ? "anomaly_detection"
+      : presetParam === "research_comparison"
+      ? "research_comparison"
+      : "";
+
+  const [domain, setDomain] = useState<DomainType | "">(initialDomain);
+  const [hasSynthesized, setHasSynthesized] = useState<boolean>(Boolean(initialDomain));
+  const [hasExecutedRun, setHasExecutedRun] = useState<boolean>(Boolean(initialDomain));
   const [mode, setMode] = useState<ExecutionMode>("demo");
   const [tier, setTier] = useState<"free" | "pro">("free");
   const [isCloudConnected] = useState<boolean>(true);
@@ -159,11 +262,23 @@ export const ConsolePage: React.FC = () => {
     if (expData.v0_scorecard) {
       setCurrentScorecard(expData.v1_scorecard || expData.v0_scorecard);
     }
+    setHasSynthesized(true);
+    setHasExecutedRun(true);
     setCurrentStage("RUN");
   };
 
   // Active architecture and scorecards
-  const [currentDag, setCurrentDag] = useState<DAGArchitecture>(INITIAL_DAG_V0);
+  const [currentDag, setCurrentDag] = useState<DAGArchitecture>(() => {
+    if (initialDomain && DOMAIN_PRESETS[initialDomain]) {
+      const preset = DOMAIN_PRESETS[initialDomain];
+      return {
+        ...INITIAL_DAG_V0,
+        domain: initialDomain,
+        name: `Agent_${preset.name.replace(/\s+/g, "_")}_V0`,
+      };
+    }
+    return INITIAL_DAG_V0;
+  });
   const [currentScorecard, setCurrentScorecard] = useState<Scorecard>(
     V0_BASELINE_SCORECARD
   );
@@ -171,16 +286,21 @@ export const ConsolePage: React.FC = () => {
     ScorecardComparison | undefined
   >(COMPARISON_V0_VS_CANDIDATE_B);
 
-  // Handle Domain Change
-  const handleDomainChange = (newDomain: DomainType | "") => {
-    setDomain(newDomain);
-    if (newDomain && DOMAIN_PRESETS[newDomain]) {
-      const preset = DOMAIN_PRESETS[newDomain];
+  // Handle Domain Change (supports alias "reconciliation")
+  const handleDomainChange = (newDomain: DomainType | "reconciliation" | "") => {
+    const resolvedDomain: DomainType | "" =
+      newDomain === "reconciliation" ? "financial_reconciliation" : newDomain;
+
+    setDomain(resolvedDomain);
+    if (resolvedDomain && DOMAIN_PRESETS[resolvedDomain]) {
+      const preset = DOMAIN_PRESETS[resolvedDomain];
       setCurrentDag({
         ...INITIAL_DAG_V0,
-        domain: newDomain,
+        domain: resolvedDomain,
         name: `Agent_${preset.name.replace(/\s+/g, "_")}_V0`,
       });
+      setHasSynthesized(true);
+      setHasExecutedRun(true);
     }
   };
 
@@ -195,9 +315,13 @@ export const ConsolePage: React.FC = () => {
   };
 
   const handleProceedToRun = () => {
+    setHasSynthesized(true);
+    setHasExecutedRun(true);
     setCurrentStage("RUN");
     navigate("/console?stage=2");
   };
+
+  const isPipelineReady = Boolean((hasSynthesized || domain) && hasExecutedRun);
 
 
   return (
@@ -304,49 +428,138 @@ export const ConsolePage: React.FC = () => {
 
           {currentStage === "RUN" && (
             <div className="space-y-6">
-              <RunProgressTracker
-                architecture={currentDag}
-                onExecutionComplete={() => {
-                  if (mode === "live") {
-                    setCurrentScorecard(V2_CANDIDATE_C_SCORECARD);
-                    setCurrentComparison(COMPARISON_V0_VS_CANDIDATE_C);
-                  }
-                }}
-              />
-              <ScorecardView
-                scorecard={currentScorecard}
-                comparison={currentComparison}
-                onProceedToUnderstand={() => setCurrentStage("UNDERSTAND")}
-              />
+              <ModeHarnessBanner mode={mode} />
+
+              {!hasSynthesized && !domain ? (
+                <StageAwaitingExecutionCard
+                  icon="clock"
+                  title="No Benchmark Execution Yet"
+                  description="Synthesize an agent graph in Stage 01 (BUILD) or select a domain preset to execute the baseline evaluation."
+                  onGoToBuild={() => {
+                    setCurrentStage("BUILD");
+                    navigate("/console?stage=1");
+                  }}
+                  onLoadDemo={() => handleDomainChange("reconciliation")}
+                />
+              ) : (
+                <>
+                  <RunProgressTracker
+                    architecture={currentDag}
+                    onExecutionStart={() => {
+                      setHasExecutedRun(true);
+                    }}
+                    onExecutionComplete={() => {
+                      setHasExecutedRun(true);
+                      if (mode === "live") {
+                        setCurrentScorecard(V2_CANDIDATE_C_SCORECARD);
+                        setCurrentComparison(COMPARISON_V0_VS_CANDIDATE_C);
+                      }
+                    }}
+                  />
+                  {hasExecutedRun ? (
+                    <ScorecardView
+                      scorecard={currentScorecard}
+                      comparison={currentComparison}
+                      onProceedToUnderstand={() => {
+                        setCurrentStage("UNDERSTAND");
+                        navigate("/console?stage=3");
+                      }}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-8 text-center space-y-3">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1 max-w-sm mx-auto">
+                        <h4 className="text-sm font-semibold text-zinc-900 font-geist">
+                          Scorecard Awaiting DAG Execution
+                        </h4>
+                        <p className="text-xs text-zinc-500 font-geist">
+                          Click &quot;Execute DAG&quot; above to run the topological traversal and generate the 4-axis scorecard evaluation.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
           {currentStage === "UNDERSTAND" && (
             <div className="space-y-6">
-              <FailureExplorer
-                diagnostics={FAILURE_DIAGNOSTICS}
-                onProceedToImprove={() => setCurrentStage("IMPROVE")}
-              />
-              <EpistemicMemoryLedger />
+              {!isPipelineReady ? (
+                <StageAwaitingExecutionCard
+                  title="Diagnostic Analysis Awaiting Run"
+                  description="Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation."
+                  onGoToBuild={() => {
+                    setCurrentStage("BUILD");
+                    navigate("/console?stage=1");
+                  }}
+                  onLoadDemo={() => handleDomainChange("reconciliation")}
+                />
+              ) : (
+                <>
+                  <FailureExplorer
+                    diagnostics={FAILURE_DIAGNOSTICS}
+                    onProceedToImprove={() => {
+                      setCurrentStage("IMPROVE");
+                      navigate("/console?stage=4");
+                    }}
+                  />
+                  <EpistemicMemoryLedger />
+                </>
+              )}
             </div>
           )}
 
           {currentStage === "IMPROVE" && (
             <div className="space-y-6">
-              <CandidateComparisonView
-                candidates={CANDIDATES_TOURNAMENT}
-                lineage={EVOLUTION_LINEAGE}
-                onProceedToValidate={() => setCurrentStage("VALIDATE")}
-              />
-              <EpistemicMemoryLedger />
+              {!isPipelineReady ? (
+                <StageAwaitingExecutionCard
+                  title="Diagnostic Analysis Awaiting Run"
+                  description="Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation."
+                  onGoToBuild={() => {
+                    setCurrentStage("BUILD");
+                    navigate("/console?stage=1");
+                  }}
+                  onLoadDemo={() => handleDomainChange("reconciliation")}
+                />
+              ) : (
+                <>
+                  <ModeHarnessBanner mode={mode} />
+                  <CandidateComparisonView
+                    candidates={CANDIDATES_TOURNAMENT}
+                    lineage={EVOLUTION_LINEAGE}
+                    onProceedToValidate={() => {
+                      setCurrentStage("VALIDATE");
+                      navigate("/console?stage=5");
+                    }}
+                  />
+                  <EpistemicMemoryLedger />
+                </>
+              )}
             </div>
           )}
 
           {currentStage === "VALIDATE" && (
-            <HeldOutValidationView
-              data={HELD_OUT_VALIDATION_DATA}
-              trace={NEATLOGS_TRACE}
-            />
+            <div className="space-y-6">
+              {!isPipelineReady ? (
+                <StageAwaitingExecutionCard
+                  title="Diagnostic Analysis Awaiting Run"
+                  description="Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation."
+                  onGoToBuild={() => {
+                    setCurrentStage("BUILD");
+                    navigate("/console?stage=1");
+                  }}
+                  onLoadDemo={() => handleDomainChange("reconciliation")}
+                />
+              ) : (
+                <HeldOutValidationView
+                  data={HELD_OUT_VALIDATION_DATA}
+                  trace={NEATLOGS_TRACE}
+                />
+              )}
+            </div>
           )}
         </main>
 
