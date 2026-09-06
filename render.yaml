@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: reco-web-service
+    env: python
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
+    startCommand: uvicorn reco.api.app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.4
+      - key: DODO_PAYMENTS_ENVIRONMENT
+        value: test_mode

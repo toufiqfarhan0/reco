@@ -16,7 +16,9 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pyjwt>=2.8.0",
     "standardwebhooks>=1.0.0",
-    "dodopayments>=0.1.0"
+    "dodopayments>=0.1.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0"
 ]
 
 [project.optional-dependencies]
