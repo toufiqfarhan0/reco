@@ -152,6 +152,12 @@ class BillingService:
                     "email": user_email,
                     "name": user_name or user_email.split("@")[0],
                 },
+                billing_currency="USD",
+                billing_address={
+                    "country": "US",
+                    "zipcode": "90210",
+                },
+                minimal_address=True,
                 metadata={"user_id": user_id},
                 return_url=fallback_return_url,
             )

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { StageType } from "@/lib/types";
 import { HeroLandingView } from "@/components/HeroLandingView";
 import { BillingModal } from "@/components/BillingModal";
@@ -17,7 +17,17 @@ const STAGE_MAP: Record<StageType, number> = {
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isBillingOpen, setIsBillingOpen] = useState(false);
+
+  // Auto-forward checkout redirect parameters to /console
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    const status = searchParams.get("status");
+    if (checkout || status) {
+      navigate(`/console?${searchParams.toString()}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const handleLaunchConsole = () => {
     navigate("/console");
