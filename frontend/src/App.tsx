@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, MemoryRouter, useInRouterContext } from "react
 import { LandingPage } from "@/pages/LandingPage";
 import { ConsolePage } from "@/pages/ConsolePage";
 import { ArchitecturePage } from "@/pages/ArchitecturePage";
+import { WhyRecoPage } from "@/pages/WhyRecoPage";
 
 export interface AppProps {
   initialViewMode?: "overview" | "console";
@@ -16,6 +17,7 @@ export function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/console" element={<ConsolePage />} />
       <Route path="/architecture" element={<ArchitecturePage />} />
+      <Route path="/why-reco" element={<WhyRecoPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
