@@ -1,257 +1,299 @@
-"""Multi-case benchmark dataset for Research Synthesis.
+"""Deterministic synthetic benchmark scenarios for Research & Evidence Comparison (Domain C)."""
 
-Strictly split into 6 optimization cases and 4 held-out cases with zero cross-split leakage.
-Covers:
-- Document extraction (AI models, datasets, metrics, organizations, methods)
-- Metric cross-referencing (relative deltas, leaderboard leaders, baseline comparison)
-- Multi-source summary (topical coverage, key points synthesis)
-- Contradiction and discrepancy detection across reports
-"""
+from typing import List, Optional
+from reco.benchmarks.research.models import DocumentArticle, ResearchCase, ResearchGroundTruth
 
-from __future__ import annotations
-
-from typing import List
-from reco.benchmarks.base import BenchmarkCase, BenchmarkSplit, BenchmarkSuite
+BENCHMARK_NAME = "research_comparison"
+BENCHMARK_VERSION = "research_comparison-v1"
 
 
-def create_research_benchmark_cases() -> List[BenchmarkCase]:
-    """Instantiate the 10 canonical benchmark test cases for research synthesis."""
-    cases: List[BenchmarkCase] = []
-
-    # =========================================================================
-    # OPTIMIZATION SPLIT (6 Cases)
-    # =========================================================================
-
-    # 1. AI Entity Extraction from Research Abstract
-    cases.append(BenchmarkCase(
-        case_id="rsch_opt_001_entity_extraction",
-        name="Research Abstract AI Entity Extraction",
-        description="Extract recognized AI models, benchmarks, and organizations from a paper abstract.",
-        category="document_extraction",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "text": "We evaluate GLM-4.7-Flash released by Zhipu AI on the SWE-bench verified benchmark for software engineering tasks, observing significant accuracy and latency improvements."
-        },
-        expected_output={
-            "status": "extracted",
-            "entities": {
-                "models": ["GLM-4.7-Flash"],
-                "datasets": ["SWE-bench"],
-                "metrics": ["Accuracy", "Latency"],
-                "organizations": ["Zhipu AI"]
-            }
-        },
-        metadata={"difficulty": "easy", "domain": "research_synthesis", "split_target": "optimization"}
-    ))
-
-    # 2. Quantitative Metric Comparison of Two Models
-    cases.append(BenchmarkCase(
-        case_id="rsch_opt_002_model_metric_comparison",
-        name="Quantitative Comparison of Two Agent Models",
-        description="Cross-reference accuracy and latency across two models to determine leaderboard leaders.",
-        category="metric_cross_referencing",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "sources": {
-                "Model_Alpha": {"accuracy": 82.5, "latency_ms": 110.0},
-                "Model_Beta": {"accuracy": 89.0, "latency_ms": 85.0}
-            },
-            "baseline": "Model_Alpha"
-        },
-        expected_output={
-            "status": "comparison_complete",
-            "leaders": {"accuracy": "Model_Beta", "latency_ms": "Model_Beta"},
-            "baseline": "Model_Alpha"
-        },
-        metadata={"difficulty": "easy", "domain": "research_synthesis", "split_target": "optimization"}
-    ))
-
-    # 3. Multi-Document Architectural Research Synthesis
-    cases.append(BenchmarkCase(
-        case_id="rsch_opt_003_multi_document_summary",
-        name="Multi-Document Architectural Research Synthesis",
-        description="Consolidate findings across multiple technical papers into an executive synthesis.",
-        category="multi_source_summary",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "text": {
-                "paper_1": "Autonomous agent engineering systems iteratively mutate DAG architectures. Scorecard evaluation proves Pareto dominance across accuracy and latency.",
-                "paper_2": "Failure diagnostics classify root causes into taxonomy categories. Mutators apply targeted remedies to resolve tool selection and schema violations."
-            },
-            "focus_topics": ["autonomous agent", "failure diagnostics"]
-        },
-        expected_output={
-            "status": "summarized",
-            "topics_covered": ["autonomous agent", "failure diagnostics"],
-            "source_count": 2
-        },
-        metadata={"difficulty": "medium", "domain": "research_synthesis", "split_target": "optimization"}
-    ))
-
-    # 4. Cross-Document Accuracy Discrepancy Detection
-    cases.append(BenchmarkCase(
-        case_id="rsch_opt_004_accuracy_contradiction_detection",
-        name="Cross-Document Discrepancy Detection",
-        description="Flag divergent accuracy claims reported in main paper text versus appendix tables.",
-        category="contradiction_detection",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "sources": {
-                "Paper_Main": {"accuracy": 94.5},
-                "Appendix_Table": {"accuracy": 89.2}
-            },
-            "baseline": "Paper_Main"
-        },
-        expected_output={
-            "status": "comparison_complete",
-            "leaders": {"accuracy": "Paper_Main"}
-        },
-        metadata={"difficulty": "medium", "domain": "research_synthesis", "split_target": "optimization"}
-    ))
-
-    # 5. Method, Dataset, and Organization Extraction
-    cases.append(BenchmarkCase(
-        case_id="rsch_opt_005_method_and_dataset_extraction",
-        name="Deep Learning Survey Entity Extraction",
-        description="Isolate deep learning techniques (MoE, LoRA, RLHF) and benchmark datasets.",
-        category="document_extraction",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "text": "Survey on OpenAI and Meta training techniques utilizing MoE, LoRA, and RLHF on MMLU and GSM8K benchmarks."
-        },
-        expected_output={
-            "status": "extracted",
-            "entities": {
-                "datasets": ["MMLU", "GSM8K"],
-                "organizations": ["OpenAI", "Meta"],
-                "methods": ["MoE", "LoRA", "RLHF"]
-            }
-        },
-        metadata={"difficulty": "medium", "domain": "research_synthesis", "split_target": "optimization"}
-    ))
-
-    # 6. Three-Model Leaderboard Comparison Matrix
-    cases.append(BenchmarkCase(
-        case_id="rsch_opt_006_three_way_leaderboard_comparison",
-        name="Three-Model Leaderboard Comparison",
-        description="Evaluate trade-offs across 3 candidate agent generations on accuracy and cost.",
-        category="metric_cross_referencing",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "sources": {
-                "Agent_V0": {"accuracy": 83.3, "cost_usd": 0.01},
-                "Agent_V1": {"accuracy": 100.0, "cost_usd": 0.012},
-                "Agent_V2": {"accuracy": 100.0, "cost_usd": 0.009}
-            },
-            "baseline": "Agent_V0"
-        },
-        expected_output={
-            "status": "comparison_complete",
-            "leaders": {"accuracy": "Agent_V1", "cost_usd": "Agent_V2"}
-        },
-        metadata={"difficulty": "hard", "domain": "research_synthesis", "split_target": "optimization"}
-    ))
-
-    # =========================================================================
-    # HELD-OUT SPLIT (4 Cases)
-    # =========================================================================
-
-    # 7. Held-Out SWE-bench Evaluation Extraction
-    cases.append(BenchmarkCase(
-        case_id="rsch_held_001_swe_bench_evaluation_extraction",
-        name="Held-Out SWE-bench Evaluation Extraction",
-        description="Air-gapped verification of entity extraction on frontier coding models.",
-        category="document_extraction",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "text": "Evaluating DeepSeek-R1 and Claude 3.5 Sonnet on SWE-bench for bug resolution accuracy."
-        },
-        expected_output={
-            "status": "extracted",
-            "entities": {
-                "models": ["DeepSeek-R1", "Claude 3.5 Sonnet"],
-                "datasets": ["SWE-bench"],
-                "metrics": ["Accuracy"]
-            }
-        },
-        metadata={"difficulty": "medium", "domain": "research_synthesis", "split_target": "held-out"}
-    ))
-
-    # 8. Held-Out Throughput and Latency Matrix
-    cases.append(BenchmarkCase(
-        case_id="rsch_held_002_throughput_latency_matrix",
-        name="Held-Out Throughput and Latency Matrix",
-        description="Air-gapped verification identifying Engine_B as throughput and latency leader.",
-        category="metric_cross_referencing",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "sources": {
-                "Engine_A": {"throughput": 450.0, "latency_ms": 12.0},
-                "Engine_B": {"throughput": 620.0, "latency_ms": 9.5}
-            },
-            "baseline": "Engine_A"
-        },
-        expected_output={
-            "status": "comparison_complete",
-            "leaders": {"throughput": "Engine_B", "latency_ms": "Engine_B"}
-        },
-        metadata={"difficulty": "medium", "domain": "research_synthesis", "split_target": "held-out"}
-    ))
-
-    # 9. Held-Out Multi-Source Technical Synthesis
-    cases.append(BenchmarkCase(
-        case_id="rsch_held_003_multisource_technical_synthesis",
-        name="Held-Out Multi-Source Technical Synthesis",
-        description="Air-gapped verification of multi-document topic coverage and summary synthesis.",
-        category="multi_source_summary",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "text": [
-                "Cloud benchmark reports state GLM-4.7-Flash achieves lowest time-to-first-token.",
-                "Developer feedback notes superior tool calling precision on complex nested schemas."
+def get_optimization_cases() -> List[ResearchCase]:
+    """Return the 5 canonical optimization cases for Domain C."""
+    return [
+        # 1. RES-OPT-01: Clear winner under strict budget constraint (< $500/mo)
+        ResearchCase(
+            case_code="RES-OPT-01",
+            name="Budget-Constrained Relational Database Selection",
+            description="Evaluate Postgres vs CockroachDB vs Spanner under hard monthly budget limit of $500/mo.",
+            split="optimization",
+            task_goal="Select the best database technology that provides ACID compliance under $500/month.",
+            constraints={"max_cost_usd_mo": 500, "required_features": ["ACID", "SQL"]},
+            candidate_technologies=["PostgreSQL", "CockroachDB", "Cloud Spanner"],
+            documents=[
+                DocumentArticle(
+                    id="doc_01",
+                    title="PostgreSQL Cloud Hosting Pricing Matrix",
+                    source_type="pricing_catalog",
+                    content="Managed PostgreSQL high-availability production cluster starts at $180/month. Supports complete ACID compliance and standard SQL syntax.",
+                ),
+                DocumentArticle(
+                    id="doc_02",
+                    title="CockroachDB Dedicated Cluster Tier Pricing",
+                    source_type="pricing_catalog",
+                    content="CockroachDB Dedicated production cluster starts at $950/month base commit. Fully distributed SQL with serializable transactions.",
+                ),
+                DocumentArticle(
+                    id="doc_03",
+                    title="Cloud Spanner Enterprise Pricing Overview",
+                    source_type="pricing_catalog",
+                    content="Cloud Spanner requires minimum 1 node commit starting at $650/month excluding networking egress costs.",
+                ),
             ],
-            "focus_topics": ["tool calling", "latency"]
-        },
-        expected_output={
-            "status": "summarized",
-            "topics_covered": ["tool calling", "latency"],
-            "source_count": 2
-        },
-        metadata={"difficulty": "medium", "domain": "research_synthesis", "split_target": "held-out"}
-    ))
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="PostgreSQL",
+                required_facts=["$180/month", "CockroachDB exceeds $500 ($950)", "Spanner exceeds $500 ($650)"],
+                rejected_technologies=["CockroachDB", "Cloud Spanner"],
+            ),
+            difficulty="easy",
+        ),
 
-    # 10. Held-Out Divergent Benchmark Audit
-    cases.append(BenchmarkCase(
-        case_id="rsch_held_004_divergent_benchmark_audit",
-        name="Held-Out Divergent Benchmark Audit",
-        description="Air-gapped verification of longitudinal report score progression.",
-        category="contradiction_detection",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "sources": {
-                "Report_2026_Q1": {"f1_score": 0.91},
-                "Report_2026_Q2": {"f1_score": 0.95}
-            },
-            "baseline": "Report_2026_Q1"
-        },
-        expected_output={
-            "status": "comparison_complete",
-            "leaders": {"f1_score": "Report_2026_Q2"}
-        },
-        metadata={"difficulty": "easy", "domain": "research_synthesis", "split_target": "held-out"}
-    ))
+        # 2. RES-OPT-02: High-throughput write workload
+        ResearchCase(
+            case_code="RES-OPT-02",
+            name="High-Throughput Timeseries Ingestion Engine",
+            description="Select between ClickHouse and Postgres for 500,000 events/sec analytical ingestion.",
+            split="optimization",
+            task_goal="Select database for real-time sensor analytics requiring >= 400,000 writes/sec.",
+            constraints={"min_throughput_qps": 400000, "required_features": ["columnar", "timeseries"]},
+            candidate_technologies=["ClickHouse", "PostgreSQL", "MongoDB"],
+            documents=[
+                DocumentArticle(
+                    id="doc_11",
+                    title="Independent Benchmark: Analytical Columnar Ingestion Rates",
+                    source_type="independent_benchmark",
+                    content="Under 16-core commodity instances, ClickHouse achieves sustained 650,000 rows/second insert throughput with column-oriented compression.",
+                ),
+                DocumentArticle(
+                    id="doc_12",
+                    title="PostgreSQL High Write Load Benchmark Report",
+                    source_type="independent_benchmark",
+                    content="Standard PostgreSQL write throughput plateaus at 45,000 rows/second due to WAL serialization bottlenecks even with unlogged tables.",
+                ),
+                DocumentArticle(
+                    id="doc_13",
+                    title="MongoDB Ingestion Spec",
+                    source_type="vendor_marketing",
+                    content="MongoDB wiredTiger engine delivers flexible document storage up to 80,000 inserts/second.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="ClickHouse",
+                required_facts=["650,000 rows/second", "PostgreSQL plateaus at 45,000", "MongoDB achieves 80,000"],
+                rejected_technologies=["PostgreSQL", "MongoDB"],
+            ),
+            difficulty="medium",
+        ),
 
-    return cases
+        # 3. RES-OPT-03: Contradictory Claim Resolution (V0 Failure Case!)
+        # Vendor marketing claims DynamoDB supports complex multi-table SQL joins and relational schema,
+        # but independent technical specification explicitly documents that DynamoDB is non-relational with NO multi-table JOIN operations.
+        # Naive V0 accepts vendor marketing without cross-checking technical specs.
+        ResearchCase(
+            case_code="RES-OPT-03",
+            name="Relational Multi-Table Join & ACID Transaction Selection",
+            description="Resolve conflicting marketing claims vs technical specs for e-commerce relational schema.",
+            split="optimization",
+            task_goal="Select database for financial ledger requiring native multi-table SQL JOIN operations.",
+            constraints={"required_features": ["multi_table_joins", "relational_schema"]},
+            candidate_technologies=["DynamoDB", "PostgreSQL"],
+            documents=[
+                DocumentArticle(
+                    id="doc_21",
+                    title="DynamoDB Cloud Marketing Flyer",
+                    source_type="promotional_marketing",
+                    content="DynamoDB handles any relational workload with seamless ease and limitless power for all your joined enterprise queries!",
+                ),
+                DocumentArticle(
+                    id="doc_22",
+                    title="AWS DynamoDB Official Architectural Constraints",
+                    source_type="technical_architecture_spec",
+                    content="Amazon DynamoDB is a key-value and document database. It does NOT support multi-table SQL JOIN operations. All cross-table relationships must be synthesized in client application logic.",
+                ),
+                DocumentArticle(
+                    id="doc_23",
+                    title="PostgreSQL Core Architectural Specification",
+                    source_type="independent_benchmark",
+                    content="PostgreSQL provides native relational schemas, arbitrary multi-table inner/outer/cross SQL JOIN operations with hash, merge, and nested loop join algorithms.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="PostgreSQL",
+                required_facts=["DynamoDB does not support multi-table SQL joins", "DynamoDB marketing claim is unverified/false", "PostgreSQL native joins"],
+                rejected_technologies=["DynamoDB"],
+                contradiction_resolution="Rejected DynamoDB vendor claim because independent architectural specification confirms lack of multi-table SQL JOINs.",
+            ),
+            difficulty="hard",
+            metadata={"intended_v0_failure": "accepting_unverified_marketing_claims"},
+        ),
+
+        # 4. RES-OPT-04: Multi-region latency constraint with cost tradeoff
+        ResearchCase(
+            case_code="RES-OPT-04",
+            name="Global Multi-Region Read SLA vs Cost Tradeoff",
+            description="Select cache layer for global read latency under 10ms with budget under $1000/mo.",
+            split="optimization",
+            task_goal="Select globally distributed cache with read latency < 10ms and cost < $1000/mo.",
+            constraints={"max_latency_ms": 10, "max_cost_usd_mo": 1000},
+            candidate_technologies=["Redis Enterprise Cloud", "Memcached Self-Hosted"],
+            documents=[
+                DocumentArticle(
+                    id="doc_31",
+                    title="Redis Enterprise Active-Active Geo-Distribution Whitepaper",
+                    source_type="independent_benchmark",
+                    content="Redis Enterprise multi-region active-active clusters deliver local read latency of 1.8ms globally. Standard geo-cluster starts at $450/month.",
+                ),
+                DocumentArticle(
+                    id="doc_32",
+                    title="Memcached Self-Hosted Global Deployment Cost Report",
+                    source_type="independent_benchmark",
+                    content="Self-hosted Memcached cross-region replication requires custom sync daemon resulting in 85ms cross-region read latency.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="Redis Enterprise Cloud",
+                required_facts=["1.8ms local read latency", "$450/month within $1000 budget", "Memcached 85ms exceeds 10ms limit"],
+                rejected_technologies=["Memcached Self-Hosted"],
+            ),
+            difficulty="medium",
+        ),
+
+        # 5. RES-OPT-05: Synthesis of multiple documents
+        ResearchCase(
+            case_code="RES-OPT-05",
+            name="Vector Search Retrieval Engine for Generative AI",
+            description="Evaluate Qdrant vs pgvector for 10M vector indexing with HNSW search.",
+            split="optimization",
+            task_goal="Select specialized vector database for 10M embeddings with sub-15ms HNSW filtering.",
+            constraints={"max_latency_ms": 15, "required_features": ["hnsw_filtering", "payload_index"]},
+            candidate_technologies=["Qdrant", "Elasticsearch"],
+            documents=[
+                DocumentArticle(
+                    id="doc_41",
+                    title="Vector Search Benchmark Q2 2026",
+                    source_type="independent_benchmark",
+                    content="Qdrant demonstrates 8.2ms p95 latency on 10M 1536-dim vectors with strict payload filtering and HNSW graphs in Rust.",
+                ),
+                DocumentArticle(
+                    id="doc_42",
+                    title="Elasticsearch Dense Vector Performance Review",
+                    source_type="independent_benchmark",
+                    content="Elasticsearch 8.x dense_vector with Lucene HNSW achieves 38ms p95 latency on 10M vectors due to JVM garbage collection pauses.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="Qdrant",
+                required_facts=["8.2ms p95 latency", "HNSW filtering in Rust", "Elasticsearch 38ms exceeds 15ms limit"],
+                rejected_technologies=["Elasticsearch"],
+            ),
+            difficulty="medium",
+        ),
+    ]
 
 
-def get_research_benchmark_suite() -> BenchmarkSuite:
-    """Build and validate the standard 10-case research synthesis benchmark suite."""
-    cases = create_research_benchmark_cases()
-    suite = BenchmarkSuite(
-        name="research_synthesis_benchmark_v1",
-        description="Standard 10-case research synthesis benchmark partitioned 6/4 (opt/held-out).",
-        cases=cases
-    )
-    # Strictly validate partition isolation
-    suite.validate_partition_isolation()
-    return suite
+def get_held_out_cases() -> List[ResearchCase]:
+    """Return the 3 isolated held-out cases for Domain C regression protection."""
+    return [
+        # 1. RES-HLD-01: Analytical OLAP vs transactional OLTP
+        ResearchCase(
+            case_code="RES-HLD-01",
+            name="Real-time Financial Fraud Graph Engine",
+            description="Select between Neo4j and MongoDB for deep multi-hop graph traversal.",
+            split="held_out",
+            task_goal="Select graph database supporting 4-hop relationship traversal < 50ms.",
+            constraints={"max_latency_ms": 50, "required_features": ["graph_traversal", "cypher"]},
+            candidate_technologies=["Neo4j", "MongoDB"],
+            documents=[
+                DocumentArticle(
+                    id="hld_doc_01",
+                    title="Graph Query Performance Comparison",
+                    source_type="independent_benchmark",
+                    content="Neo4j index-free adjacency processes 4-hop graph queries in 12ms. Native Cypher engine optimizes relationship pointer chasing.",
+                ),
+                DocumentArticle(
+                    id="hld_doc_02",
+                    title="Document Database Graph Lookup Spec",
+                    source_type="independent_benchmark",
+                    content="MongoDB $graphLookup performs recursive collection scans, requiring 320ms for 4-hop queries on 500,000 edges.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="Neo4j",
+                required_facts=["12ms 4-hop traversal", "MongoDB 320ms exceeds 50ms limit"],
+                rejected_technologies=["MongoDB"],
+            ),
+            difficulty="medium",
+        ),
+
+        # 2. RES-HLD-02: Data residency constraint
+        ResearchCase(
+            case_code="RES-HLD-02",
+            name="Strict EU GDPR Data Residency Compliance",
+            description="Select cloud message broker with native in-region EU sovereign storage guarantees.",
+            split="held_out",
+            task_goal="Select message queue with dedicated in-region EU sovereign compliance.",
+            constraints={"required_features": ["eu_data_sovereignty", "kafka_api"]},
+            candidate_technologies=["Redpanda Sovereign Cloud", "Legacy US-Only Broker"],
+            documents=[
+                DocumentArticle(
+                    id="hld_doc_11",
+                    title="Redpanda Sovereign Cloud Architecture",
+                    source_type="independent_benchmark",
+                    content="Redpanda Sovereign Cloud guarantees 100% EU data locality in Frankfurt and Dublin, zero US cloud act exposure, and Kafka API compatibility.",
+                ),
+                DocumentArticle(
+                    id="hld_doc_12",
+                    title="Legacy US Cloud Message Broker Overview",
+                    source_type="independent_benchmark",
+                    content="Legacy US Broker routes telemetry metadata through Virginia control plane, violating strict EU sovereign data residency laws.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="Redpanda Sovereign Cloud",
+                required_facts=["100% EU data locality in Frankfurt", "Legacy broker routes through Virginia"],
+                rejected_technologies=["Legacy US-Only Broker"],
+            ),
+            difficulty="easy",
+        ),
+
+        # 3. RES-HLD-03: Scalability claims verification against audited benchmark
+        ResearchCase(
+            case_code="RES-HLD-03",
+            name="Enterprise Search Scalability under 100TB Index",
+            description="Evaluate search engine scalability on 100TB corpus without cluster collapse.",
+            split="held_out",
+            task_goal="Select search platform verified to support 100TB corpus indexing stably.",
+            constraints={"required_features": ["100tb_indexing", "distributed_search"]},
+            candidate_technologies=["OpenSearch", "Single-Node Lucene"],
+            documents=[
+                DocumentArticle(
+                    id="hld_doc_21",
+                    title="100TB Petabyte Search Benchmark Report",
+                    source_type="independent_benchmark",
+                    content="OpenSearch 2.x cluster distributed across 24 nodes successfully indexes 100TB with tiered ultraWarm storage and sub-second query latency.",
+                ),
+                DocumentArticle(
+                    id="hld_doc_22",
+                    title="Single-Node Search Architecture Notes",
+                    source_type="independent_benchmark",
+                    content="Single-node Lucene instances suffer memory crash beyond 8TB due to disk file descriptor and memory mapping limits.",
+                ),
+            ],
+            ground_truth=ResearchGroundTruth(
+                recommended_technology="OpenSearch",
+                required_facts=["24 nodes indexes 100TB", "Single-node crashes beyond 8TB"],
+                rejected_technologies=["Single-Node Lucene"],
+            ),
+            difficulty="easy",
+        ),
+    ]
+
+
+def load_cases(split: Optional[str] = None) -> List[ResearchCase]:
+    """Load cases for Domain C according to designated split."""
+    if split == "optimization":
+        return get_optimization_cases()
+    elif split == "held_out":
+        return get_held_out_cases()
+    elif split in (None, "full"):
+        return get_optimization_cases() + get_held_out_cases()
+    raise ValueError(f"Unknown split '{split}' for Research Comparison benchmark.")

@@ -126,19 +126,19 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
   });
 
   return (
-    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-4">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
       {/* Header Banner */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
             <BrainCircuit className="h-4 w-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold tracking-tight text-zinc-950">
+              <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
                 Epistemic Memory Ledger: Generational Self-Reflection
               </h3>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
+              <span className="rounded-xl bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
                 Continuous Learning
               </span>
             </div>
@@ -149,7 +149,7 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
             <CheckCircle2 className="h-3.5 w-3.5" />
             +25.0% Cumulative Gain
           </span>
@@ -157,8 +157,8 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
       </div>
 
       {/* Judge Query Callout Banner */}
-      <div className="flex items-start gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-3.5 text-xs text-zinc-600">
-        <span className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-zinc-800 shrink-0">
+      <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3.5 text-xs text-zinc-600">
+        <span className="rounded-md bg-zinc-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-zinc-800 shrink-0">
           JUDGE QUERY:
         </span>
         <span className="font-mono">
@@ -168,8 +168,8 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
 
       {/* Summary KPI Cards Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block font-medium">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Cumulative Accuracy Gain
           </span>
           <div className="mt-1 flex items-baseline gap-2">
@@ -182,12 +182,12 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block font-medium">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Learned Invariants
           </span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-zinc-950">
+            <span className="text-xl font-bold font-mono text-zinc-900">
               3 Rules
             </span>
             <span className="text-[11px] text-zinc-500 font-mono">
@@ -196,8 +196,8 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block font-medium">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Failure Taxonomies Handled
           </span>
           <div className="mt-1 flex items-baseline gap-2">
@@ -210,12 +210,12 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block font-medium">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Held-Out Verification
           </span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-zinc-950">
+            <span className="text-xl font-bold font-mono text-zinc-900">
               0.0%
             </span>
             <span className="text-[11px] text-emerald-700 font-mono font-medium">
@@ -231,10 +231,10 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           <button
             type="button"
             onClick={() => setSelectedFilter("all")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`rounded-xl px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
               selectedFilter === "all"
-                ? "bg-zinc-950 text-white shadow-2xs"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
             }`}
           >
             All Lessons (3)
@@ -242,10 +242,10 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           <button
             type="button"
             onClick={() => setSelectedFilter("V0 -> V1")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`rounded-xl px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
               selectedFilter === "V0 -> V1"
-                ? "bg-zinc-950 text-white shadow-2xs"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
             }`}
           >
             V0 to V1 (Lesson 01)
@@ -253,10 +253,10 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           <button
             type="button"
             onClick={() => setSelectedFilter("V1 -> V2")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`rounded-xl px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
               selectedFilter === "V1 -> V2"
-                ? "bg-zinc-950 text-white shadow-2xs"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950"
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
             }`}
           >
             V1 to V2 (Lessons 02 & 03)
@@ -275,18 +275,18 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           return (
             <div
               key={lesson.id}
-              className="rounded-xl border border-zinc-200/90 bg-white p-4 transition-all hover:border-zinc-300 shadow-2xs space-y-3"
+              className="rounded-2xl border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 shadow-xs space-y-3"
             >
               {/* Top Row: Lesson Number, Generation, Target Node, and Impact */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-zinc-950 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-2xs">
+                  <span className="rounded-lg bg-zinc-900 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-xs">
                     {lesson.lessonNumber}
                   </span>
-                  <span className="rounded bg-zinc-100 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-700 border border-zinc-200">
+                  <span className="rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-700 border border-zinc-200">
                     Generation: {lesson.generationTransition}
                   </span>
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-800 border border-amber-200">
+                  <span className="rounded-lg bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-800 border border-amber-200">
                     Source Failure: {lesson.sourceCategory}
                   </span>
                 </div>
@@ -301,7 +301,7 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
                     onClick={() =>
                       setExpandedLessonId(isExpanded ? null : lesson.id)
                     }
-                    className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-950 font-mono transition-colors cursor-pointer"
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-mono transition-colors cursor-pointer"
                   >
                     <span>{isExpanded ? "Hide Code" : "Inspect Invariant"}</span>
                     {isExpanded ? (
@@ -316,8 +316,8 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
               {/* 4 Required Technical Metrics Grid */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-1">
                 {/* Metric 1: Source Failure Category */}
-                <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-2.5">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase block font-medium">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-2.5">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase block font-medium">
                     Source Failure Category
                   </span>
                   <span className="font-mono text-xs font-semibold text-amber-800 mt-1 block">
@@ -329,21 +329,21 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
                 </div>
 
                 {/* Metric 2: Extracted Epistemic Rule */}
-                <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-2.5 sm:col-span-2">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase block font-medium">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-2.5 sm:col-span-2">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase block font-medium">
                     Extracted Epistemic Rule
                   </span>
-                  <p className="text-xs text-zinc-950 mt-1 leading-snug font-medium">
+                  <p className="text-xs text-zinc-900 mt-1 leading-snug font-medium">
                     "{lesson.epistemicRule}"
                   </p>
                 </div>
 
                 {/* Metric 3: Target Node & Impact */}
-                <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-2.5">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase block font-medium">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-2.5">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase block font-medium">
                     Target DAG Node
                   </span>
-                  <span className="font-mono text-xs font-semibold text-zinc-950 mt-1 block">
+                  <span className="font-mono text-xs font-semibold text-zinc-900 mt-1 block">
                     {lesson.targetNode}
                   </span>
                   <span className="text-[10px] text-emerald-700 font-mono mt-0.5 block font-medium">
@@ -353,9 +353,9 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
               </div>
 
               {/* Derivation Context & Empirical Outcome */}
-              <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3 text-xs space-y-1">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 text-xs space-y-1">
                 <div className="flex items-start gap-1.5 text-zinc-600">
-                  <span className="font-mono font-semibold text-zinc-950 shrink-0">
+                  <span className="font-mono font-semibold text-zinc-900 shrink-0">
                     Self-Reflection Derivation:
                   </span>
                   <span className="text-zinc-600">{lesson.derivationContext}</span>
@@ -368,15 +368,15 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
 
               {/* Expandable Synthesized Guardrail Code Snippet */}
               {isExpanded && (
-                <div className="rounded-xl border border-zinc-200/80 bg-zinc-50 p-3.5 font-mono text-xs space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-500 border-b border-zinc-200/70 pb-2">
-                    <div className="flex items-center gap-1.5 text-zinc-950 font-semibold">
-                      <Code2 className="h-3.5 w-3.5" />
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 font-mono text-xs space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500 border-b border-zinc-200 pb-2">
+                    <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
+                      <Code2 className="h-3.5 w-3.5 text-indigo-600" />
                       <span>Synthesized Architectural Invariant</span>
                     </div>
                     <span>Applied to Generation {lesson.generationTo}</span>
                   </div>
-                  <pre className="overflow-x-auto text-[11px] text-zinc-900 py-1 leading-relaxed bg-white p-3 rounded-lg border border-zinc-200 shadow-2xs">
+                  <pre className="overflow-x-auto text-[11px] text-zinc-900 py-1 leading-relaxed bg-white p-3 rounded-xl border border-zinc-200 shadow-xs">
                     <code>{lesson.codeSnippet}</code>
                   </pre>
                 </div>

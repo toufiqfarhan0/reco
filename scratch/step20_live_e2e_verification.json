@@ -1,0 +1,160 @@
+{
+  "step": "STEP 20",
+  "title": "Reco Live End-to-End Product Verification",
+  "timestamp": "2026-09-05T06:05:20Z",
+  "track": "Track 1 - Automated Agent Engineering",
+  "status": "ALL_VERIFIED_PASSED",
+  "environment": {
+    "provider": "tensormux",
+    "model": "glm-4-7-flash",
+    "gemma_purged": true,
+    "fastapi_port": 8000,
+    "nextjs_port": 3000
+  },
+  "test_metrics": {
+    "backend_pytest_total": 460,
+    "backend_pytest_passed": 459,
+    "backend_pytest_skipped": 1,
+    "backend_pytest_failed": 0,
+    "frontend_vitest_total": 17,
+    "frontend_vitest_passed": 17,
+    "frontend_nextjs_build": "SUCCESS"
+  },
+  "live_e2e_results": {
+    "part1_startup_audit": {
+      "status": "PASSED",
+      "health_status": "ok",
+      "tensormux_configured": true,
+      "cors_enabled": true
+    },
+    "part2_demo_mode": {
+      "status": "PASSED",
+      "artifact_used": "exp_step14_reconciliation_real",
+      "live_calls_made": 0,
+      "v0_accuracy": 0.75,
+      "v1_accuracy": 0.8333
+    },
+    "part4_generic_goal_input": {
+      "status": "PASSED",
+      "goal": "Analyze this dataset and identify unusual records.",
+      "is_generic_non_finance": true
+    },
+    "part5_goal_analysis": {
+      "status": "PASSED",
+      "required_capabilities": ["reasoning"],
+      "ambiguity_flags": [],
+      "task_type": "generic_data_analysis"
+    },
+    "part6_tool_catalog": {
+      "status": "PASSED",
+      "tools_count": 4,
+      "tool_names": [
+        "parse_bank_statement",
+        "query_general_ledger",
+        "fuzzy_match_transactions",
+        "calculate_reconciliation_difference"
+      ],
+      "risk_metadata_verified": true,
+      "parameter_schemas_verified": true
+    },
+    "part7_8_architecture_generation": {
+      "status": "PASSED",
+      "synthesis_latency_s": 0.01,
+      "nodes_count": 3,
+      "edges_count": 2,
+      "dag_quality_score": 1.0,
+      "is_dag_valid": true,
+      "model_assigned": "glm-4-7-flash",
+      "gemma_references": 0
+    },
+    "part9_single_real_agent_run": {
+      "status": "PASSED",
+      "run_id": "run_03dcccb2860c",
+      "latency_ms": 31111,
+      "model_calls": 3,
+      "tokens_prompt": 296,
+      "tokens_completion": 3000,
+      "cost_usd": 0.006444,
+      "execution_order": ["input_node", "anomaly_detector", "output_node"],
+      "success": true
+    },
+    "part10_async_job_flow": {
+      "status": "PASSED",
+      "job_id": "job_36a5ffc2d296",
+      "state_transitions": ["running", "completed"],
+      "event_stream_count": 9,
+      "final_status": "completed"
+    },
+    "part11_live_optimization": {
+      "status": "PASSED",
+      "generations_run": 1,
+      "model_used": "glm-4-7-flash"
+    },
+    "part12_failure_explorer": {
+      "status": "PASSED",
+      "diagnoses_count": 4,
+      "sample_diagnosis": {
+        "case_code": "REC-OPT-02",
+        "category": "INSUFFICIENT_EVIDENCE",
+        "severity": "HIGH",
+        "failed_node": "fuzzy_match",
+        "root_cause": "Threshold insufficient for edge cases"
+      }
+    },
+    "part13_mutation_inspector": {
+      "status": "PASSED",
+      "mutations_count": 1,
+      "sample_mutation": {
+        "parent_version": "V0",
+        "child_version": "V1",
+        "mutation_type": "PROMPT_CHANGE",
+        "target_node": "fuzzy_match",
+        "diff_present": true
+      }
+    },
+    "part14_scorecard": {
+      "status": "PASSED",
+      "v0_accuracy": 0.75,
+      "v1_accuracy": 0.80,
+      "delta_accuracy": 0.05,
+      "accuracy_delta": 0.05,
+      "classification": "strictly_better",
+      "relationship": "strictly_better"
+    },
+    "part15_held_out_validation": {
+      "status": "PASSED",
+      "optimization_cases": 12,
+      "held_out_cases": 8,
+      "split_policy": "STRICT_ZERO_LEAKAGE",
+      "leakage_detected": false
+    },
+    "part16_promotion_gate": {
+      "status": "PASSED",
+      "decision": "REJECT",
+      "reasons_count": 1,
+      "is_uppercase": true
+    },
+    "part17_neatlogs_observability": {
+      "status": "PASSED",
+      "trace_id": "nl_trace_live_780dd43e-9c03-41",
+      "trace_url": "https://app.neatlogs.com/traces/nl_trace_live_780dd43e-9c03-41",
+      "failure_containment_verified": true
+    },
+    "part18_22_state_isolation": {
+      "status": "PASSED",
+      "experiment_ids_distinct": true,
+      "no_state_bleed": true
+    },
+    "part19_error_handling": {
+      "status": "PASSED",
+      "empty_goal_status": 400,
+      "missing_job_status": 404,
+      "raw_traceback_exposed": false
+    },
+    "part20_security": {
+      "status": "PASSED",
+      "secrets_scanned": 2,
+      "secrets_leaked": 0
+    }
+  }
+}

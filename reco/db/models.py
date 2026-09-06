@@ -1,139 +1,128 @@
-"""Data models and exception definitions for Supabase PostgreSQL persistence (Track 1)."""
-
-from __future__ import annotations
+"""Pydantic data models for Reco persistence entities."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-import uuid
+from typing import Any, Dict, List, Literal, Optional
+from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ImmutabilityError(Exception):
-    """Raised when an operation attempts to overwrite or modify an immutable historical record."""
-
-
-class UserIsolationError(Exception):
-    """Raised when an operation violates multi-tenant user isolation boundaries."""
-
-
-class AuthenticationError(Exception):
-    """Raised when GoTrue JWT verification fails or Authorization header is invalid."""
-
-
 class ExperimentRecord(BaseModel):
-    """Persisted record representing an autonomous optimization session."""
+    """Database model for a Reco engineering experiment."""
+    id: UUID = Field(default_factory=uuid4)
+    name: str
+    goal: str
+    domain: str = "reconciliation"
+    status: Literal["running", "completed", "failed", "paused"] = "running"
+    current_best_version_id: Optional[UUID] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    model_config = ConfigDict(extra="ignore")
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    name: str = Field(description="Experiment label")
-    domain: str = Field(default="financial_reconciliation")
-    status: str = Field(default="running")
+class ToolRecord(BaseModel):
+    """Database model for an available domain tool."""
+    id: UUID = Field(default_factory=uuid4)
+    name: str
+    description: str
+    parameters_schema: Dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class AgentVersionRecord(BaseModel):
+    """Database model for an immutable agent architecture snapshot."""
+    id: UUID = Field(default_factory=uuid4)
+    experiment_id: UUID
+    version_number: int = Field(..., ge=0)
+    architecture: Dict[str, Any] = Field(default_factory=dict)
+    prompts: Dict[str, Any] = Field(default_factory=dict)
+    tools: List[str] = Field(default_factory=list)
+    memory_config: Dict[str, Any] = Field(default_factory=dict)
+    model_config_data: Dict[str, Any] = Field(default_factory=dict, alias="model_config")
+    parent_version_id: Optional[UUID] = None
+    mutation_summary: Optional[str] = None
+    status: Literal["draft", "evaluated", "promoted", "rejected"] = "draft"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class BenchmarkCaseRecord(BaseModel):
+    """Database model for a deterministic benchmark scenario."""
+    id: UUID = Field(default_factory=uuid4)
+    benchmark_name: str = "reconciliation"
+    case_code: str
+    split: Literal["optimization", "held_out"]
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
+    input_data: Dict[str, Any]
+    ground_truth: Dict[str, Any]
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class ArchitectureRecord(BaseModel):
-    """Persisted record representing an immutable DAG agent architecture."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(description="Unique architecture ID (e.g., Agent_Reconciliation_V0)")
-    experiment_id: str = Field(description="Associated experiment UUID")
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    name: str = Field(description="Human-readable architecture name")
-    generation: int = Field(default=0, description="Mutation lineage generation (0 = baseline)")
-    definition: Dict[str, Any] = Field(description="Serialized nodes, edges, task_spec, complexity")
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class BenchmarkRunRecord(BaseModel):
-    """Immutable evaluation scorecard of an architecture on a specific benchmark partition."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    experiment_id: str = Field(description="Associated experiment UUID")
-    architecture_id: str = Field(description="Target architecture ID evaluated")
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    split: str = Field(description="Benchmark partition ('optimization', 'held-out', 'full')")
-    total_cases: int = Field(default=0)
-    passed_cases: int = Field(default=0)
-    failed_cases: int = Field(default=0)
-    accuracy: float = Field(default=0.0)
-    reliability: float = Field(default=0.0)
-    latency_ms: float = Field(default=0.0)
-    cost_usd: float = Field(default=0.0)
-    case_results: List[Dict[str, Any]] = Field(default_factory=list)
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class EvaluationRecord(BaseModel):
-    """Immutable side-by-side Pareto comparison between baseline and candidate variants."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    experiment_id: str = Field(description="Associated experiment UUID")
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    baseline_architecture_id: str = Field(description="Baseline architecture ID")
-    candidate_architecture_id: str = Field(description="Mutated candidate architecture ID")
-    comparison: Dict[str, Any] = Field(description="ScorecardComparison metrics and badges")
-    verdict: str = Field(description="Outcome verdict: PARETO_DOMINANT, TRADEOFF, REGRESSION, NEUTRAL")
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class MutationRecord(BaseModel):
-    """Immutable record of an architectural mutation applied between generations."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    experiment_id: str = Field(description="Associated experiment UUID")
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    parent_architecture_id: str = Field(description="Parent architecture ID")
-    child_architecture_id: str = Field(description="Mutated child architecture ID")
-    generation: int = Field(description="Target generation number")
-    mutator_name: str = Field(description="Name of applied mutator operator")
-    diagnostic_category: Optional[str] = Field(default=None, description="Diagnosed failure category addressed")
-    mutation_diff: Dict[str, Any] = Field(description="Structured diff and visual diff")
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class TraceRecord(BaseModel):
-    """Persisted record of an end-to-end Neatlogs distributed execution trace."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(description="Neatlogs trace ID (e.g., tr_neat_xxx)")
-    experiment_id: str = Field(description="Associated experiment UUID")
-    architecture_id: Optional[str] = Field(default=None)
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    status: str = Field(default="success")
-    total_duration_ms: float = Field(default=0.0)
-    total_tokens: int = Field(default=0)
-    total_cost_usd: float = Field(default=0.0)
-    spans: List[Dict[str, Any]] = Field(default_factory=list)
-    deep_link_url: Optional[str] = Field(default=None)
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class UserEntitlementRecord(BaseModel):
-    """Persisted record representing a user's subscription entitlement tier."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    tier: str = Field(default="free", description="Entitlement tier: 'free' or 'pro'")
-    status: str = Field(default="none", description="Status: 'active', 'cancelled', 'expired', 'none'")
-    is_pro: bool = Field(default=False, description="Whether user has active Pro access")
-    customer_id: Optional[str] = Field(default=None, description="Dodo Payments customer ID")
-    subscription_id: Optional[str] = Field(default=None, description="Dodo Payments subscription ID")
-    payment_id: Optional[str] = Field(default=None, description="Last successful payment ID")
+    """Database model for an aggregate benchmark run evaluation."""
+    id: UUID = Field(default_factory=uuid4)
+    experiment_id: UUID
+    agent_version_id: UUID
+    benchmark_name: str = "reconciliation"
+    split: Literal["optimization", "held_out", "full"]
+    total_cases: int = 0
+    passed_cases: int = 0
+    failed_cases: int = 0
+    accuracy: float = Field(default=0.0, ge=0.0, le=1.0)
+    reliability: float = Field(default=0.0, ge=0.0, le=1.0)
+    total_cost_usd: float = 0.0
+    latency_ms: int = 0
+    status: Literal["running", "completed", "failed"] = "completed"
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed_at: Optional[datetime] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    expires_at: Optional[str] = Field(default=None)
 
+
+class CaseExecutionRecord(BaseModel):
+    """Database model for a case-level execution trace and result."""
+    id: UUID = Field(default_factory=uuid4)
+    benchmark_run_id: UUID
+    benchmark_case_id: UUID
+    agent_version_id: UUID
+    output: Dict[str, Any] = Field(default_factory=dict)
+    expected: Optional[Dict[str, Any]] = None
+    success: bool = False
+    accuracy_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    latency_ms: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+    tool_events: List[Dict[str, Any]] = Field(default_factory=list)
+    trace_id: Optional[str] = None
+    error: Optional[Dict[str, Any]] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class FailureDiagnosisRecord(BaseModel):
+    """Database model for a failure mode analysis record."""
+    id: UUID = Field(default_factory=uuid4)
+    case_execution_id: UUID
+    category: str
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
+    root_cause: str
+    evidence: Dict[str, Any] = Field(default_factory=dict)
+    recommended_mutations: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ImprovementRecord(BaseModel):
+    """Database model for version mutation lineage and comparison."""
+    id: UUID = Field(default_factory=uuid4)
+    experiment_id: UUID
+    parent_version_id: Optional[UUID] = None
+    candidate_version_id: UUID
+    mutation_type: str
+    mutation_description: str
+    rationale: str
+    metrics_before: Dict[str, Any] = Field(default_factory=dict)
+    metrics_after: Dict[str, Any] = Field(default_factory=dict)
+    accepted: bool = False
+    rejection_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

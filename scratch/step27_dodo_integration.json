@@ -1,0 +1,88 @@
+{
+  "step": 27,
+  "milestone": "Dodo Payments Monetization Integration",
+  "verified_at": "2026-09-05T15:54:00Z",
+  "dodo_product": {
+    "product_id": "pdt_0Nmvzbo4wJETkRyCMAEPt",
+    "name": "Reco Pro",
+    "price_cents": 900,
+    "currency": "USD",
+    "payment_frequency": "1 Month",
+    "tax_category": "saas",
+    "environment": "test_mode",
+    "status": "active"
+  },
+  "webhook_configuration": {
+    "webhook_id": "ep_3IlLh6t63yjEJAbT12sNPoJG9QZ",
+    "configured_endpoint": "https://individually-star-toys-loving.trycloudflare.com/api/v1/payments/webhook",
+    "route": "/api/v1/payments/webhook",
+    "http_method": "POST",
+    "signature_algorithm": "HMAC-SHA256 (standardwebhooks v1)",
+    "events_subscribed": [
+      "subscription.active",
+      "subscription.updated",
+      "subscription.renewed",
+      "subscription.cancelled",
+      "subscription.failed",
+      "subscription.expired",
+      "subscription.on_hold",
+      "payment.succeeded",
+      "payment.failed"
+    ],
+    "previous_failure_investigation": {
+      "failed_event": "payment.succeeded",
+      "root_causes": [
+        "FastAPI backend had zero /api/v1/payments/webhook route mounted",
+        "standardwebhooks dependency required for dodopayments unwrap was missing",
+        "Ephemeral trycloudflare public tunnel expired when process closed"
+      ],
+      "fixes_applied": [
+        "Mounted POST /api/v1/payments/webhook on FastAPI router",
+        "Installed standardwebhooks and wired client.webhooks.unwrap with raw body",
+        "Implemented idempotent webhook processing and fast 200 responses",
+        "Provided graceful failure containment and fallback stores"
+      ]
+    }
+  },
+  "checkout_flow": {
+    "mechanism": "Hosted Checkout Session (client.checkout_sessions.create)",
+    "sample_session_id": "cks_0Nmw59mdtoakkhTJpZXFS",
+    "sample_checkout_url": "https://test.checkout.dodopayments.com/session/cks_0Nmw59mdtoakkhTJpZXFS",
+    "customer_mapping": "Authenticated Supabase user_id injected into checkout metadata",
+    "return_url": "http://localhost:3000/?checkout=success"
+  },
+  "entitlement_model": {
+    "FREE": {
+      "max_generations": 1,
+      "max_candidates": 2,
+      "max_optimization_runs": 3,
+      "demo_mode_access": "unlimited"
+    },
+    "PRO": {
+      "max_generations": 5,
+      "max_candidates": 5,
+      "max_optimization_runs": 100,
+      "demo_mode_access": "unlimited"
+    }
+  },
+  "database_schema": {
+    "migration": "supabase/migrations/002_billing_schema.sql",
+    "tables": [
+      "subscriptions",
+      "webhook_events"
+    ],
+    "rls_enforced": true,
+    "safe_storage": "Zero card numbers, CVVs, API credentials, or webhook secrets stored"
+  },
+  "test_summary": {
+    "step27_targeted_tests_passed": 24,
+    "full_backend_tests_passed": 571,
+    "full_backend_tests_skipped": 1,
+    "full_backend_tests_failed": 0,
+    "frontend_vitest_tests_passed": 30,
+    "frontend_vitest_tests_failed": 0,
+    "frontend_production_build": "success (Next.js 16 Turbopack)",
+    "security_audit": "passed (0 secrets exposed)",
+    "track1_isolation": "verified (zero billing imports in core agent engine)"
+  }
+}

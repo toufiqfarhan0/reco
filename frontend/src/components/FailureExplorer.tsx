@@ -80,7 +80,7 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
         <button
           type="button"
           onClick={onProceedToImprove}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-zinc-800 active:scale-[0.98] cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all hover:bg-indigo-700 active:scale-[0.98] cursor-pointer"
         >
           <span>Synthesize Mutations (Stage 04)</span>
           <ArrowRight className="h-3.5 w-3.5" />
@@ -88,11 +88,11 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
       </div>
 
       {/* 12-Category Taxonomy Interactive Pills Matrix */}
-      <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-3">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-3">
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-zinc-500" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">
               Root-Cause Taxonomy Classification Matrix (12 Categories)
             </h3>
           </div>
@@ -105,18 +105,18 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
           <button
             type="button"
             onClick={() => setSelectedCategory("all")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-mono transition-all cursor-pointer ${
               selectedCategory === "all"
-                ? "bg-zinc-950 text-white font-medium shadow-2xs"
-                : "border border-zinc-200/80 bg-zinc-50/50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
+                ? "bg-indigo-600 text-white font-medium shadow-xs"
+                : "border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 hover:bg-zinc-50"
             }`}
           >
             <span>All Categories</span>
             <span
-              className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
+              className={`rounded-lg px-1.5 py-0.2 text-[10px] font-bold ${
                 selectedCategory === "all"
                   ? "bg-white/20 text-white"
-                  : "bg-zinc-200 text-zinc-700"
+                  : "bg-zinc-100 text-zinc-700"
               }`}
             >
               {diagnostics.length}
@@ -131,19 +131,19 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-mono transition-all cursor-pointer ${
                   isSelected
-                    ? "bg-zinc-950 text-white font-medium shadow-2xs"
+                    ? "bg-indigo-600 text-white font-medium shadow-xs"
                     : count > 0
-                    ? "border border-amber-300/80 bg-amber-50 text-amber-800 hover:border-amber-400"
-                    : "border border-zinc-200/70 bg-zinc-50/50 text-zinc-400 hover:text-zinc-700"
+                    ? "border border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400"
+                    : "border border-zinc-200 bg-white text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50"
                 }`}
                 title={cat.description}
               >
                 <span>{cat.name}</span>
                 {count > 0 && (
                   <span
-                    className={`rounded px-1 text-[10px] font-bold ${
+                    className={`rounded-md px-1 text-[10px] font-bold ${
                       isSelected
                         ? "bg-white/20 text-white"
                         : "bg-amber-100 text-amber-800"
@@ -272,8 +272,8 @@ export const FailureExplorer: React.FC<FailureExplorerProps> = ({
                 </div>
 
                 {/* Panel 2: Isolated Root Cause */}
-                <div className="rounded-xl border border-blue-200/80 bg-blue-50/30 p-4 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-blue-700">
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-700">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Isolated Root Cause
                   </div>

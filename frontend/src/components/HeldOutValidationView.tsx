@@ -138,13 +138,13 @@ export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-zinc-200 rounded-2xl p-5 shadow-xs">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-mono font-bold text-zinc-700 border border-zinc-200">
+            <span className="rounded-xl bg-zinc-100 px-2.5 py-0.5 text-[11px] font-mono font-bold text-zinc-700 border border-zinc-200">
               STAGE 05
             </span>
-            <h2 className="text-lg font-bold tracking-tight text-zinc-950">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900">
               VALIDATE: Air-Gapped Held-Out Generalization & Promotion
             </h2>
           </div>
@@ -154,14 +154,14 @@ export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
         </div>
 
         {/* Promotion State Switcher for Testing/Inspection */}
-        <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs font-mono">
+        <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 text-xs font-mono">
           <button
             type="button"
             onClick={() => setDecisionState("PROMOTED")}
-            className={`rounded-md px-2.5 py-1 font-medium transition cursor-pointer ${
+            className={`rounded-lg px-2.5 py-1 font-medium transition cursor-pointer ${
               decisionState === "PROMOTED"
-                ? "bg-white text-emerald-800 shadow-2xs font-bold"
-                : "text-zinc-600 hover:text-zinc-950"
+                ? "bg-white text-emerald-800 shadow-xs font-bold border border-zinc-200/80"
+                : "text-zinc-600 hover:text-zinc-900"
             }`}
           >
             PROMOTED
@@ -169,10 +169,10 @@ export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
           <button
             type="button"
             onClick={() => setDecisionState("REQUIRES_REVIEW")}
-            className={`rounded-md px-2.5 py-1 font-medium transition cursor-pointer ${
+            className={`rounded-lg px-2.5 py-1 font-medium transition cursor-pointer ${
               decisionState === "REQUIRES_REVIEW"
-                ? "bg-white text-amber-800 shadow-2xs font-bold"
-                : "text-zinc-600 hover:text-zinc-950"
+                ? "bg-white text-amber-800 shadow-xs font-bold border border-zinc-200/80"
+                : "text-zinc-600 hover:text-zinc-900"
             }`}
           >
             REQUIRES_REVIEW
@@ -180,10 +180,10 @@ export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
           <button
             type="button"
             onClick={() => setDecisionState("REJECTED")}
-            className={`rounded-md px-2.5 py-1 font-medium transition cursor-pointer ${
+            className={`rounded-lg px-2.5 py-1 font-medium transition cursor-pointer ${
               decisionState === "REJECTED"
-                ? "bg-white text-red-800 shadow-2xs font-bold"
-                : "text-zinc-600 hover:text-zinc-950"
+                ? "bg-white text-red-800 shadow-xs font-bold border border-zinc-200/80"
+                : "text-zinc-600 hover:text-zinc-900"
             }`}
           >
             REJECTED
@@ -195,15 +195,15 @@ export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
       {renderDecisionBanner()}
 
       {/* Air-Gapped Security & Integrity Card */}
-      <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-3">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-zinc-950" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
+            <Lock className="h-4 w-4 text-zinc-900" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">
               Air-Gapped Partition Isolation & Zero-Leakage Audit
             </h3>
           </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-xl border border-emerald-200">
             <CheckCircle2 className="h-3.5 w-3.5" />
             ZERO LEAKAGE CONFIRMED
           </span>

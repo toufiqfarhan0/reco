@@ -1,362 +1,556 @@
-"""Comprehensive test suite for Step 5 Track 1: Multi-Candidate Exploration & Pareto Dominance Selection.
+"""Step 22 Deterministic Test Suite: Multi-Candidate Optimization & Candidate Selection.
 
 Verifies:
-1. Multi-Candidate Pool Generation (`reco/mutation/generator.py`):
-   - Candidate A (Prompt Specialist): Targeted prompt refinement with edge-case instructions & few-shot formatting.
-   - Candidate B (Verifier Specialist): Dedicated verification and schema-conformance guardrail injection.
-   - Candidate C (Topology / Tool Specialist): Graph restructuring and specialized analytical tools assignment.
-   - Strict DAG validation: CandidateValidator enforcement rejecting broken graphs and hallucinated tools.
-2. Tournament Evaluation & Pareto Selection (`reco/evaluators/comparison.py`):
-   - 4-axis scorecard evaluation (Accuracy, Reliability, Cost, Latency) across competing candidates.
-   - Multi-dimensional Pareto dominance and frontier identification.
-   - Automatic tournament winner selection maximizing accuracy without catastrophic regressions.
+1. Max candidate limit enforcement (<= 3)
+2. Candidate generation from diagnoses
+3. Candidate diversity and deduplication
+4. Static validation budget protection
+5. Candidate benchmarking on optimization split
+6. Scorecard generation for candidates
+7. Candidate scorecard comparison against parent
+8. Best-candidate Pareto selection
+9. Regression rejection (reliability & accuracy)
+10. Tradeoff handling
+11. Parent immutability
+12. Lineage tracking
+13. Generation history preservation
+14. Held-out isolation
+15. Candidate statuses (selected, rejected, invalid)
+16. Benchmark case budget enforcement
+17. Neatlogs candidate lifecycle events
+18. API serialization for frontend display
 """
 
+import asyncio
+from typing import Any, Dict, List
+from uuid import UUID, uuid4
 import pytest
-from reco.benchmarks.base import BenchmarkSplit
-from reco.benchmarks.reconciliation.dataset import get_reconciliation_benchmark_suite
-from reco.core.goal_analyzer import GoalAnalyzer
-from reco.diagnostics.analyzer import FailureAnalyzer
-from reco.engine.generator import ArchitectureGenerator
-from reco.engine.models import AgentArchitecture, EdgeSpec, NodeSpec, NodeType
-from reco.evaluators.comparison import (
-    TournamentEvaluator,
-    TournamentResult,
-    compute_pareto_frontier,
-    is_pareto_dominant_pair,
-    select_tournament_winner,
+
+from reco.benchmarks.reconciliation import create_reconciliation_baseline_graph
+from reco.benchmarks.reconciliation.benchmark import ReconciliationBenchmark
+from reco.diagnostics.models import RecommendedMutation, RootCauseDiagnosis
+from reco.diagnostics.taxonomy import FailureCategory, MutationType, Severity
+from reco.engine.models import GraphDefinition
+from reco.evaluators.comparison import ComparisonPolicy, ScorecardComparison, compare_scorecards
+from reco.evaluators.scorecard import Scorecard
+from reco.mutation.generator import CandidateGenerator
+from reco.mutation.engine import MutationEngine
+from reco.mutation.models import (
+    AgentVersionCandidate,
+    CandidateEvaluationRecord,
+    MutationCandidate,
+    OptimizationConfig,
+    OptimizationGeneration,
+    OptimizationResult,
 )
-from reco.evaluators.scorecard import Scorecard, ScorecardEvaluator
-from reco.mutation.generator import CandidatePool, CandidatePoolGenerator, CandidateVariant
-from reco.mutation.validator import CandidateValidator
-from reco.tools.registry import ToolRegistry
+from reco.observability.tracer import get_tracer
+from reco.optimization.controller import OptimizationController
+from reco.optimization.events import (
+    OptimizationEvent,
+    OptimizationEventListener,
+    OptimizationEventType,
+)
+from reco.optimization.history import compute_graph_fingerprint
 
 
-# ==============================================================================
-# 1. Multi-Candidate Pool Generation & Specialist Verification
-# ==============================================================================
-
-def test_multi_candidate_pool_synthesis_and_specialists():
-    """Verify CandidatePoolGenerator synthesizes 3 competing specialist variants (A, B, C) from diagnostics."""
-    suite = get_reconciliation_benchmark_suite()
-    registry = ToolRegistry.create_reconciliation_default()
-
-    # Step 1: Synthesize Baseline V0 with exact_reconcile
-    spec = GoalAnalyzer().analyze("Reconcile financial transactions and detect discrepancies")
-    baseline = ArchitectureGenerator(tool_registry=registry).generate(spec, architecture_name="Agent_Reconciliation_V0")
-
-    # Step 2: Evaluate on optimization split and diagnose failures
-    evaluator = ScorecardEvaluator()
-    base_sc = evaluator.evaluate(baseline, suite, split=BenchmarkSplit.OPTIMIZATION)
-    analyzer = FailureAnalyzer(tool_registry=registry)
-    diag_report = analyzer.analyze_scorecard(base_sc, suite, baseline)
-
-    assert diag_report.failed_cases > 0, "Baseline should have diagnosed failures on format variations"
-
-    # Step 3: Synthesize 3-Candidate Exploration Pool
-    generator = CandidatePoolGenerator(tool_registry=registry)
-    pool = generator.generate_pool(baseline, diag_report)
-
-    assert isinstance(pool, CandidatePool)
-    assert len(pool) == 3
-
-    cand_a = pool.get_candidate("A")
-    cand_b = pool.get_candidate("B")
-    cand_c = pool.get_candidate("C")
-
-    assert cand_a is not None
-    assert cand_b is not None
-    assert cand_c is not None
-
-    # Verify Candidate A: Prompt Specialist
-    assert cand_a.specialist_type == "prompt"
-    assert "PromptMutator" in cand_a.applied_mutators
-    assert cand_a.targeted_node == "reasoning_node"
-    assert cand_a.validation_result.is_valid is True
-    assert cand_a.prompt_diff is not None
-    assert "reasoning_node" in cand_a.prompt_diff["mutated"]
-
-    # Verify Candidate B: Verifier Specialist
-    assert cand_b.specialist_type == "verifier"
-    assert "VerifierNodeMutator" in cand_b.applied_mutators
-    assert cand_b.validation_result.is_valid is True
-    # Must contain a dedicated verifier node
-    node_types_b = {n.type for n in cand_b.architecture.nodes}
-    assert NodeType.VERIFIER in node_types_b
-    assert any("verifier" in n.id for n in cand_b.architecture.nodes)
-
-    # Verify Candidate C: Topology / Tool Specialist
-    assert cand_c.specialist_type == "topology_tool"
-    assert "ToolAssignmentMutator" in cand_c.applied_mutators
-    assert cand_c.validation_result.is_valid is True
-    # Must have assigned smart_reconcile
-    tool_names_c = {n.tool_name for n in cand_c.architecture.nodes if n.type == NodeType.TOOL}
-    assert "smart_reconcile" in tool_names_c
-
-
-def test_candidate_validator_strictly_enforced_on_pool():
-    """Verify CandidateValidator guarantees acyclicity, reachability, and rejects hallucinated tools."""
-    registry = ToolRegistry.create_reconciliation_default()
-    validator = CandidateValidator(tool_registry=registry)
-    spec = GoalAnalyzer().analyze("Reconcile financial transactions")
-
-    # Candidate with a hallucinated tool must be rejected by validator
-    hallucinated_arch = AgentArchitecture(
-        id="hallucinated_arch",
-        name="Hallucinated DAG",
-        task_spec=spec,
-        nodes=[
-            NodeSpec(id="input_node", type=NodeType.INPUT, name="Input", dependencies=[]),
-            NodeSpec(id="tool_fake", type=NodeType.TOOL, tool_name="imaginary_quantum_reconcile", name="Fake Tool", dependencies=["input_node"]),
-            NodeSpec(id="output_node", type=NodeType.OUTPUT, name="Output", dependencies=["tool_fake"]),
+def _make_sample_diagnosis(target: str = "fuzzy_match", category: FailureCategory = FailureCategory.HALLUCINATED_MATCH) -> RootCauseDiagnosis:
+    return RootCauseDiagnosis(
+        diagnosis_id=uuid4(),
+        case_id="REC-OPT-08",
+        failure_category=category,
+        failed_node_id=target,
+        symptom="Counterparty mismatch in transaction pairing",
+        summary="False positive counterparty match",
+        root_cause="Matcher lacks strict counterparty identity constraints",
+        evidence=[{"source": "log", "observed": "Apex Logistics matched Apex Freight"}],
+        confidence=0.88,
+        severity=Severity.HIGH,
+        recommended_mutations=[
+            RecommendedMutation(
+                mutation_type=MutationType.PROMPT_CHANGE,
+                target=target,
+                rationale="Require strict vendor identity matching with require_vendor_match=True",
+                expected_effect="Eliminates false-positive reconciliation matches",
+                confidence=0.90,
+            ),
+            RecommendedMutation(
+                mutation_type=MutationType.ADD_VERIFIER,
+                target=target,
+                rationale="Add secondary auditor to verify counterparty alignment",
+                expected_effect="Secondary validation catches discrepant pairs",
+                confidence=0.80,
+            ),
+            RecommendedMutation(
+                mutation_type=MutationType.TOOL_ADD,
+                target=target,
+                rationale="Add calculate_reconciliation_difference tool for arithmetic validation",
+                expected_effect="Mathematical check verifies amount delta is zero",
+                confidence=0.75,
+                metadata={"tool_name": "calculate_reconciliation_difference"},
+            ),
         ],
-        edges=[
-            EdgeSpec(source="input_node", target="tool_fake"),
-            EdgeSpec(source="tool_fake", target="output_node"),
-        ]
     )
-    val_hallucinated = validator.validate(hallucinated_arch)
-    assert val_hallucinated.is_valid is False
-    assert any("Hallucinated tool rejected" in err for err in val_hallucinated.errors)
 
-    # Broken cyclic graph must be rejected
-    cyclic_arch = AgentArchitecture(
-        id="cyclic_arch",
-        name="Cyclic DAG",
-        task_spec=spec,
-        nodes=[
-            NodeSpec(id="input_node", type=NodeType.INPUT, name="Input", dependencies=[]),
-            NodeSpec(id="node_a", type=NodeType.REASONING, name="A", dependencies=["input_node", "node_b"]),
-            NodeSpec(id="node_b", type=NodeType.REASONING, name="B", dependencies=["node_a"]),
-            NodeSpec(id="output_node", type=NodeType.OUTPUT, name="Output", dependencies=["node_b"]),
+
+def _make_scorecard(
+    accuracy: float = 0.75,
+    reliability: float = 1.0,
+    cost: float = 0.071354,
+    latency: float = 50000.0,
+    version: str = "V0",
+    passed: int = 8,
+    failed: int = 4,
+) -> Scorecard:
+    return Scorecard(
+        benchmark_name="reconciliation",
+        benchmark_version="reconciliation-v1",
+        agent_version_id=uuid4(),
+        experiment_id=uuid4(),
+        split="optimization",
+        version=version,
+        accuracy=accuracy,
+        reliability=reliability,
+        total_cost_usd=cost,
+        avg_cost_usd=round(cost / 12, 6),
+        cost_type="simulated_mock",
+        total_latency_ms=int(latency),
+        avg_latency_ms=int(round(latency / 12)),
+        passed=True,
+        total_cases=12,
+        passed_cases=passed,
+        failed_cases=failed,
+    )
+
+
+# 1. Max candidate limit
+def test_max_candidate_limit():
+    generator = CandidateGenerator()
+    graph = create_reconciliation_baseline_graph()
+    diag = _make_sample_diagnosis()
+
+    # Requesting 10 candidates must be clamped to DEFAULT_MAX_CANDIDATES = 3
+    candidates = generator.generate(
+        agent_graph=graph,
+        diagnoses=[diag],
+        max_candidates=10,
+    )
+    assert len(candidates) <= 3
+    assert len(candidates) > 0
+
+
+# 2. Candidate generation from diagnoses
+def test_candidate_generation():
+    generator = CandidateGenerator()
+    graph = create_reconciliation_baseline_graph()
+    diag = _make_sample_diagnosis()
+
+    candidates = generator.generate(
+        agent_graph=graph,
+        diagnoses=[diag],
+        max_candidates=3,
+    )
+    assert len(candidates) >= 2
+    for cand in candidates:
+        assert isinstance(cand, MutationCandidate)
+        assert cand.target in graph.nodes or cand.target == "graph"
+        assert len(cand.rationale) > 0
+        assert cand.risk_level in ("low", "medium", "high")
+
+
+# 3. Candidate diversity & deduplication
+def test_candidate_diversity_and_deduplication():
+    generator = CandidateGenerator()
+    graph = create_reconciliation_baseline_graph()
+    diag = _make_sample_diagnosis()
+
+    candidates = generator.generate(
+        agent_graph=graph,
+        diagnoses=[diag, diag],  # Duplicate diagnoses
+        max_candidates=3,
+    )
+    # Must not contain duplicate mutation signatures
+    signatures = [f"{c.mutation_type.value}:{c.target}:{str(c.proposed_change)}" for c in candidates]
+    assert len(signatures) == len(set(signatures))
+
+    # Diversity: distinct mutation types should be explored
+    types = {c.mutation_type for c in candidates}
+    assert len(types) >= 2  # e.g. PROMPT_CHANGE and ADD_VERIFIER or TOOL_ADD
+
+
+# 4. Static validation budget protection
+def test_static_validation_budget_protection():
+    controller = OptimizationController()
+    graph = create_reconciliation_baseline_graph()
+
+    # Candidate with an invalid/fabricated tool
+    invalid_mutation = MutationCandidate(
+        candidate_id=uuid4(),
+        mutation_type=MutationType.TOOL_ADD,
+        target="fuzzy_match",
+        proposed_change={"tool_name": "non_existent_fake_tool_999"},
+        rationale="Add fabricated tool that does not exist in registry",
+        source_diagnosis_ids=[uuid4()],
+        expected_effect="Test failure",
+        confidence=0.5,
+    )
+
+    applied_cand = controller.mutation_engine.apply_mutation(graph, invalid_mutation)
+    assert applied_cand.is_valid is False
+    assert "Tool is not registered in ToolRegistry" in applied_cand.rejection_reason or "Fabricated tools are strictly rejected" in applied_cand.rejection_reason
+
+
+# 5. Candidate benchmarking & 6. Scorecard generation
+def test_candidate_benchmarking_and_scorecards():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+        diag = _make_sample_diagnosis()
+
+        # Generate 1 valid prompt mutation candidate
+        cand_mut = MutationCandidate(
+            candidate_id=uuid4(),
+            mutation_type=MutationType.PROMPT_CHANGE,
+            target="fuzzy_match",
+            proposed_change={"append": "Strictly verify transaction counterparty name before matching."},
+            rationale="Refine matcher prompt",
+            source_diagnosis_ids=[diag.diagnosis_id],
+            expected_effect="Improves accuracy",
+            confidence=0.85,
+        )
+
+        version_cand = controller.mutation_engine.apply_mutation(graph, cand_mut)
+        assert version_cand.is_valid is True
+
+        bench = ReconciliationBenchmark()
+        run = await bench.run_benchmark(graph=version_cand.graph, split="optimization", persist=False)
+        scorecard = run.to_scorecard()
+
+        assert scorecard.accuracy >= 0.0
+        assert scorecard.reliability == 1.0
+        assert scorecard.total_cases == 12
+        assert scorecard.total_cost_usd >= 0.0
+        assert scorecard.total_latency_ms >= 0
+
+    asyncio.run(_run())
+
+
+# 7. Candidate scorecard comparison against parent
+def test_candidate_comparison():
+    v0_card = _make_scorecard(accuracy=0.75, cost=0.071354, latency=50000.0, version="V0", passed=8)
+    cand_card = _make_scorecard(accuracy=0.80, cost=0.063950, latency=40000.0, version="V1_A", passed=9)
+
+    comp = compare_scorecards(v0_card, cand_card, ComparisonPolicy())
+    assert comp.accuracy_delta == pytest.approx(0.05, abs=1e-4)
+    assert comp.relationship == "strictly_better"
+
+
+# 8. Best-candidate selection & 15. Candidate statuses
+def test_best_candidate_selection_and_statuses():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+
+        cfg = OptimizationConfig(
+            max_generations=1,
+            max_candidates_per_generation=3,
+            run_held_out_at_termination=False,
+        )
+
+        result = await controller.optimize(graph=graph, config=cfg)
+        assert len(result.generations) == 1
+        gen = result.generations[0]
+
+        # Every candidate in generation must have a candidate record
+        assert len(gen.candidates) > 0
+        statuses = [c.status for c in gen.candidates]
+
+        # Exactly one candidate is selected, or decision is no_improvement
+        if gen.selected_version_id is not None:
+            assert "selected" in statuses
+            assert gen.decision == "selected"
+        else:
+            assert "selected" not in statuses
+
+    asyncio.run(_run())
+
+
+# 9. Regression rejection
+def test_regression_rejection():
+    v0_card = _make_scorecard(accuracy=0.80, reliability=1.0, cost=0.05, latency=40000.0, version="V0")
+    
+    # Regressed accuracy
+    cand_regressed_acc = _make_scorecard(accuracy=0.70, reliability=1.0, cost=0.01, latency=10000.0, version="Cand_Bad_Acc")
+    comp = compare_scorecards(v0_card, cand_regressed_acc, ComparisonPolicy())
+    assert comp.relationship in ("strictly_worse", "tradeoff")
+    assert comp.accuracy_delta < 0
+
+    # Regressed reliability
+    cand_regressed_rel = _make_scorecard(accuracy=0.85, reliability=0.80, cost=0.05, latency=40000.0, version="Cand_Bad_Rel")
+    comp_rel = compare_scorecards(v0_card, cand_regressed_rel, ComparisonPolicy())
+    assert comp_rel.reliability_delta < 0
+
+
+# 10. Tradeoff handling
+def test_tradeoff_handling():
+    v0_card = _make_scorecard(accuracy=0.75, reliability=1.0, cost=0.070000, latency=50000.0, version="V0")
+    # Higher accuracy (+5%), but slightly higher cost (+10%)
+    cand_tradeoff = _make_scorecard(accuracy=0.80, reliability=1.0, cost=0.077000, latency=48000.0, version="Cand_Tradeoff")
+    comp = compare_scorecards(v0_card, cand_tradeoff, ComparisonPolicy(cost_weight=0.2, accuracy_weight=0.8))
+    assert comp.relationship in ("tradeoff", "strictly_better")
+    assert comp.accuracy_delta > 0
+
+
+# 11. Parent immutability
+def test_parent_immutability():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+        orig_fp = compute_graph_fingerprint(graph)
+        orig_prompts = {nid: n.system_prompt for nid, n in graph.nodes.items()}
+
+        cand_meta = MutationCandidate(
+            candidate_id=uuid4(),
+            mutation_type=MutationType.PROMPT_CHANGE,
+            target="fuzzy_match",
+            proposed_change={"append": "TEST IMMUTABILITY CLAUSE"},
+            rationale="Test immutability",
+            source_diagnosis_ids=[uuid4()],
+            expected_effect="None",
+            confidence=0.5,
+        )
+
+        version_cand = controller.mutation_engine.apply_mutation(graph, cand_meta)
+        
+        # Mutated graph changed
+        assert compute_graph_fingerprint(version_cand.graph) != orig_fp
+        
+        # Original parent graph remains completely identical
+        assert compute_graph_fingerprint(graph) == orig_fp
+        for nid, prompt in orig_prompts.items():
+            assert graph.nodes[nid].system_prompt == prompt
+
+    asyncio.run(_run())
+
+
+# 12. Lineage tracking
+def test_lineage_tracking():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+        p_id = uuid4()
+
+        cand_meta = MutationCandidate(
+            candidate_id=uuid4(),
+            mutation_type=MutationType.PROMPT_CHANGE,
+            target="fuzzy_match",
+            proposed_change={"append": "Strict counterparty matching"},
+            rationale="Lineage test",
+            source_diagnosis_ids=[uuid4()],
+            expected_effect="Test",
+            confidence=0.8,
+            parent_version_id=p_id,
+        )
+
+        version_cand = controller.mutation_engine.apply_mutation(
+            graph=graph,
+            mutation=cand_meta,
+            parent_version_id=p_id,
+            version_number=1,
+        )
+
+        assert version_cand.parent_version_id == p_id
+        assert version_cand.version_number == 1
+        assert version_cand.candidate_id == cand_meta.candidate_id
+        assert version_cand.graph.metadata["parent_version_id"] == str(p_id)
+        assert version_cand.graph.metadata["version_number"] == 1
+
+    asyncio.run(_run())
+
+
+# 13. Generation history preservation
+def test_generation_history():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+
+        cfg = OptimizationConfig(
+            max_generations=1,
+            max_candidates_per_generation=3,
+            run_held_out_at_termination=False,
+        )
+
+        result = await controller.optimize(graph=graph, config=cfg)
+        assert len(result.generations) == 1
+        gen = result.generations[0]
+
+        # Verify structured candidates stored in generation
+        assert hasattr(gen, "candidates")
+        for cand_rec in gen.candidates:
+            assert isinstance(cand_rec, CandidateEvaluationRecord)
+            assert cand_rec.name.startswith("Candidate ")
+            assert cand_rec.mutation_type in [m.value for m in MutationType]
+            assert cand_rec.status in ("selected", "rejected", "invalid", "tradeoff")
+
+    asyncio.run(_run())
+
+
+# 14. Held-out isolation
+def test_held_out_isolation():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+
+        # Track which splits are accessed
+        called_splits = []
+
+        class MockBench(ReconciliationBenchmark):
+            async def run_benchmark(self, graph, split="optimization", **kwargs):
+                called_splits.append(split)
+                return await super().run_benchmark(graph, split=split, **kwargs)
+
+        mock_bench = MockBench()
+        cfg = OptimizationConfig(
+            max_generations=1,
+            max_candidates_per_generation=2,
+            run_held_out_at_termination=True,
+        )
+
+        result = await controller.optimize(graph=graph, benchmark=mock_bench, config=cfg)
+
+        # All candidate evaluations must be on "optimization" split
+        # Held-out should appear ONLY at the end for promotion gate
+        candidate_benchmark_splits = called_splits[:-2]  # Excluding final held-out runs
+        for s in candidate_benchmark_splits:
+            assert s == "optimization"
+
+        # Held out only evaluated at termination
+        assert called_splits[-1] == "held_out"
+        assert called_splits[-2] == "held_out"
+
+    asyncio.run(_run())
+
+
+# 16. Benchmark case budget enforcement
+def test_budget_enforcement():
+    async def _run():
+        controller = OptimizationController()
+        graph = create_reconciliation_baseline_graph()
+
+        # Cap candidate benchmark cases at 12 (allowing at most 1 candidate to run)
+        cfg = OptimizationConfig(
+            max_generations=1,
+            max_candidates_per_generation=3,
+            max_candidate_benchmark_cases=12,
+            run_held_out_at_termination=False,
+        )
+
+        result = await controller.optimize(graph=graph, config=cfg)
+        gen = result.generations[0]
+
+        # At most 1 candidate should have run benchmarks
+        benchmarked_count = len([c for c in gen.candidates if c.scorecard is not None])
+        assert benchmarked_count <= 1
+
+        # Later candidates should be rejected with budget exceeded reason
+        budget_exceeded = [c for c in gen.candidates if c.rejection_reason == "candidate_case_budget_exceeded"]
+        if len(gen.candidates) > 1:
+            assert len(budget_exceeded) >= 1
+
+    asyncio.run(_run())
+
+
+# 17. Neatlogs candidate lifecycle events
+def test_neatlogs_candidate_events():
+    tracer = get_tracer()
+    events_logged = []
+
+    def mock_log(name, payload=None):
+        events_logged.append((name, payload))
+
+    orig_log = tracer.log_event
+    tracer.log_event = mock_log
+    try:
+        tracer.trace_candidate_generated(
+            candidate_id="cand_1",
+            parent_version_id="p_1",
+            mutation_type="PROMPT_CHANGE",
+            target="fuzzy_match",
+            generation=1,
+            prompt_text="Secret prompt text that should not leak",
+        )
+        tracer.trace_candidate_benchmarked(
+            candidate_id="cand_1",
+            parent_version_id="p_1",
+            generation=1,
+            accuracy=0.80,
+            cost_usd=0.063,
+            latency_ms=491000,
+            relationship="strictly_better",
+        )
+        tracer.trace_candidate_selected(
+            candidate_id="cand_1",
+            parent_version_id="p_1",
+            generation=1,
+            mutation_type="PROMPT_CHANGE",
+            accuracy_delta=0.05,
+        )
+        tracer.trace_candidate_rejected(
+            candidate_id="cand_2",
+            parent_version_id="p_1",
+            generation=1,
+            reason="inferior_to_Candidate_A",
+        )
+
+        assert len(events_logged) == 4
+        assert events_logged[0][0] == "candidate_generated"
+        # Prompt hash stored, not raw prompt
+        assert "Secret prompt" not in str(events_logged[0][1])
+        assert events_logged[0][1]["prompt_hash"] != ""
+        assert events_logged[1][0] == "candidate_benchmarked"
+        assert events_logged[2][0] == "candidate_selected"
+        assert events_logged[3][0] == "candidate_rejected"
+    finally:
+        tracer.log_event = orig_log
+
+
+# 18. API candidate serialization
+def test_api_candidate_serialization():
+    from reco.api.app import format_live_optimization_result
+
+    graph = create_reconciliation_baseline_graph()
+    opt_res = OptimizationResult(
+        experiment_id=uuid4(),
+        initial_version_id=uuid4(),
+        final_version_id=uuid4(),
+        generations=[],
+        candidate_evaluations=[
+            CandidateEvaluationRecord(
+                candidate_id=uuid4(),
+                name="Candidate A",
+                mutation_type="PROMPT_CHANGE",
+                target="fuzzy_match",
+                rationale="Prompt patch",
+                scorecard=_make_scorecard(accuracy=0.80, cost=0.063950, latency=491859.0, version="V1", passed=9),
+                status="selected",
+            ),
+            CandidateEvaluationRecord(
+                candidate_id=uuid4(),
+                name="Candidate B",
+                mutation_type="ADD_VERIFIER",
+                target="fuzzy_match",
+                rationale="Add verifier",
+                scorecard=_make_scorecard(accuracy=0.75, cost=0.078210, latency=684200.0, version="V1_B", passed=8),
+                status="rejected",
+                rejection_reason="inferior_to_Candidate_A",
+            ),
         ],
-        edges=[
-            EdgeSpec(source="input_node", target="node_a"),
-            EdgeSpec(source="node_a", target="node_b"),
-            EdgeSpec(source="node_b", target="node_a"),
-            EdgeSpec(source="node_b", target="output_node"),
-        ]
-    )
-    val_cyclic = validator.validate(cyclic_arch)
-    assert val_cyclic.is_valid is False
-    assert any("Acyclicity contract violated" in err for err in val_cyclic.errors)
-
-
-def test_candidate_pool_structural_diffs():
-    """Verify each candidate in the pool exhibits distinct architectural diffs against the parent baseline."""
-    suite = get_reconciliation_benchmark_suite()
-    registry = ToolRegistry.create_reconciliation_default()
-
-    spec = GoalAnalyzer().analyze("Reconcile financial ledger transactions")
-    baseline = ArchitectureGenerator(tool_registry=registry).generate(spec, architecture_name="Baseline_V0")
-
-    evaluator = ScorecardEvaluator()
-    base_sc = evaluator.evaluate(baseline, suite, split=BenchmarkSplit.OPTIMIZATION)
-    analyzer = FailureAnalyzer(tool_registry=registry)
-    diag_report = analyzer.analyze_scorecard(base_sc, suite, baseline)
-
-    generator = CandidatePoolGenerator(tool_registry=registry)
-    pool = generator.generate_pool(baseline, diag_report)
-
-    for cand in pool:
-        assert cand.diff is not None
-        assert cand.diff.has_changes() is True
-        md = cand.diff.to_markdown()
-        assert "Architectural Diff" in md
-
-
-# ==============================================================================
-# 2. Tournament Evaluation & 4-Axis Scorecards
-# ==============================================================================
-
-def test_tournament_evaluator_4_axis_scorecards():
-    """Verify TournamentEvaluator computes 4-axis empirical scorecards across all competing candidates."""
-    suite = get_reconciliation_benchmark_suite()
-    registry = ToolRegistry.create_reconciliation_default()
-
-    spec = GoalAnalyzer().analyze("Reconcile financial transactions and detect discrepancies")
-    baseline = ArchitectureGenerator(tool_registry=registry).generate(spec, architecture_name="Baseline_V0")
-
-    evaluator = ScorecardEvaluator()
-    base_sc = evaluator.evaluate(baseline, suite, split=BenchmarkSplit.OPTIMIZATION)
-    analyzer = FailureAnalyzer(tool_registry=registry)
-    diag_report = analyzer.analyze_scorecard(base_sc, suite, baseline)
-
-    pool = CandidatePoolGenerator(tool_registry=registry).generate_pool(baseline, diag_report)
-
-    tournament = TournamentEvaluator()
-    tourney_result = tournament.evaluate_tournament(
-        baseline_architecture=baseline,
-        candidates=pool,
-        suite=suite,
-        split=BenchmarkSplit.OPTIMIZATION
     )
 
-    assert isinstance(tourney_result, TournamentResult)
-    assert len(tourney_result.candidates) == 3
-
-    # Verify each candidate scorecard matrix
-    for cand in tourney_result.candidates:
-        assert cand.scorecard is not None
-        assert cand.scorecard.total_cases == 6
-        assert 0.0 <= cand.scorecard.accuracy <= 1.0
-        assert 0.0 <= cand.scorecard.reliability <= 1.0
-        assert cand.scorecard.latency_ms > 0.0
-        assert 0.0 <= cand.win_rate <= 100.0
-
-    # Candidate C with smart_reconcile achieves 100% accuracy on optimization split
-    cand_c = tourney_result.candidates[2]
-    assert cand_c.id == "C"
-    assert cand_c.scorecard.accuracy == 1.0
-    assert cand_c.scorecard.accurate_cases == 6
-    assert cand_c.win_rate == 100.0
-
-    # Markdown rendering verification
-    md = tourney_result.to_markdown()
-    assert "# Multi-Candidate Tournament Evaluation Report" in md
-    assert "Candidate C" in md
-    assert "Scorecard Matrix" in md
-
-
-# ==============================================================================
-# 3. Pareto Dominance & Selection Functions
-# ==============================================================================
-
-def test_is_pareto_dominant_pair_logic():
-    """Verify 4-axis Pareto dominance logic (Accuracy, Reliability, Cost, Latency)."""
-    # Scorecard A strictly better on accuracy, equal on other 3 axes -> dominates B
-    sc_a = Scorecard(
-        name="A", split="optimization", total_cases=6, accurate_cases=6, reliable_cases=6,
-        accuracy=1.0, reliability=1.0, cost_usd=0.001, latency_ms=50.0
-    )
-    sc_b = Scorecard(
-        name="B", split="optimization", total_cases=6, accurate_cases=5, reliable_cases=6,
-        accuracy=0.833, reliability=1.0, cost_usd=0.001, latency_ms=50.0
-    )
-    assert is_pareto_dominant_pair(sc_a, sc_b) is True
-    assert is_pareto_dominant_pair(sc_b, sc_a) is False
-
-    # Scorecard C is higher accuracy but higher latency -> Tradeoff, neither dominates
-    sc_c = Scorecard(
-        name="C", split="optimization", total_cases=6, accurate_cases=6, reliable_cases=6,
-        accuracy=1.0, reliability=1.0, cost_usd=0.001, latency_ms=120.0
-    )
-    sc_d = Scorecard(
-        name="D", split="optimization", total_cases=6, accurate_cases=5, reliable_cases=6,
-        accuracy=0.833, reliability=1.0, cost_usd=0.001, latency_ms=30.0
-    )
-    assert is_pareto_dominant_pair(sc_c, sc_d) is False
-    assert is_pareto_dominant_pair(sc_d, sc_c) is False
-
-
-def test_compute_pareto_frontier_and_winner_selection():
-    """Verify compute_pareto_frontier isolates non-dominated candidates and selects winner maximizing accuracy."""
-    arch_dummy = ArchitectureGenerator().generate(
-        GoalAnalyzer().analyze("Reconcile transactions"),
-        architecture_name="Dummy"
-    )
-
-    # Variant 1: 83.3% accuracy, fast
-    v1 = CandidateVariant(
-        id="A", name="Cand A", specialist_type="prompt", architecture=arch_dummy,
-        scorecard=Scorecard(
-            name="A", split="opt", total_cases=6, accurate_cases=5, reliable_cases=6,
-            accuracy=0.833, reliability=1.0, cost_usd=0.001, latency_ms=25.0
-        )
-    )
-    # Variant 2: 83.3% accuracy, slower, more expensive -> dominated by V1
-    v2 = CandidateVariant(
-        id="B", name="Cand B", specialist_type="verifier", architecture=arch_dummy,
-        scorecard=Scorecard(
-            name="B", split="opt", total_cases=6, accurate_cases=5, reliable_cases=6,
-            accuracy=0.833, reliability=1.0, cost_usd=0.002, latency_ms=45.0
-        )
-    )
-    # Variant 3: 100.0% accuracy, slightly higher latency -> non-dominated
-    v3 = CandidateVariant(
-        id="C", name="Cand C", specialist_type="topology_tool", architecture=arch_dummy,
-        scorecard=Scorecard(
-            name="C", split="opt", total_cases=6, accurate_cases=6, reliable_cases=6,
-            accuracy=1.0, reliability=1.0, cost_usd=0.001, latency_ms=35.0
-        )
-    )
-
-    frontier = compute_pareto_frontier([v1, v2, v3])
-    frontier_ids = {c.id for c in frontier}
-
-    # V2 is strictly dominated by V1; V1 and V3 are non-dominated
-    assert "B" not in frontier_ids
-    assert "A" in frontier_ids
-    assert "C" in frontier_ids
-
-    # Automatic selection should pick V3 (maximizes accuracy at 1.0)
-    winner = select_tournament_winner([v1, v2, v3])
-    assert winner.id == "C"
-    assert winner.scorecard.accuracy == 1.0
-
-
-def test_tournament_winner_avoids_catastrophic_regressions():
-    """Verify select_tournament_winner excludes candidates with catastrophic regressions (>5x latency/cost)."""
-    arch_dummy = ArchitectureGenerator().generate(
-        GoalAnalyzer().analyze("Reconcile transactions"),
-        architecture_name="Dummy"
-    )
-    base_sc = Scorecard(
-        name="Baseline", split="opt", total_cases=6, accurate_cases=5, reliable_cases=6,
-        accuracy=0.833, reliability=1.0, cost_usd=0.001, latency_ms=30.0
-    )
-
-    # Candidate 1: 95% accuracy, reasonable latency (35ms)
-    v1 = CandidateVariant(
-        id="A", name="Cand A", specialist_type="prompt", architecture=arch_dummy,
-        scorecard=Scorecard(
-            name="A", split="opt", total_cases=6, accurate_cases=5, reliable_cases=6,
-            accuracy=0.95, reliability=1.0, cost_usd=0.001, latency_ms=35.0
-        )
-    )
-    # Candidate 2: 100% accuracy, but CATASTROPHIC latency (600ms = 20x baseline)
-    v2 = CandidateVariant(
-        id="B", name="Cand B", specialist_type="verifier", architecture=arch_dummy,
-        scorecard=Scorecard(
-            name="B", split="opt", total_cases=6, accurate_cases=6, reliable_cases=6,
-            accuracy=1.0, reliability=1.0, cost_usd=0.001, latency_ms=600.0
-        )
-    )
-
-    winner = select_tournament_winner([v1, v2], baseline_scorecard=base_sc)
-    # V2 must be filtered out due to catastrophic latency explosion (>5x baseline)
-    assert winner.id == "A"
-    assert winner.scorecard.accuracy == 0.95
-
-
-def test_candidate_variant_to_dict_frontend_compatibility():
-    """Verify CandidateVariant.to_dict() matches the frontend UI Candidate data contract."""
-    arch = ArchitectureGenerator().generate(
-        GoalAnalyzer().analyze("Reconcile transactions"),
-        architecture_name="Test"
-    )
-    cand = CandidateVariant(
-        id="C",
-        name="Candidate C (Topology & Tool Specialist)",
-        specialist_type="topology_tool",
-        tag="Gen 1 - Tool & Topology Specialist",
-        generation=1,
-        description="Tool mutation to smart_reconcile",
-        architecture=arch,
-        applied_mutators=["ToolAssignmentMutator"],
-        targeted_node="tool_smart_reconcile",
-        win_rate=100.0,
-        status="pareto_dominant"
-    )
-
-    d = cand.to_dict()
-    assert d["id"] == "C"
-    assert d["name"] == "Candidate C (Topology & Tool Specialist)"
-    assert d["tag"] == "Gen 1 - Tool & Topology Specialist"
-    assert d["generation"] == 1
-    assert d["mutator_applied"] == "ToolAssignmentMutator"
-    assert d["targeted_node"] == "tool_smart_reconcile"
-    assert d["win_rate"] == 100.0
-    assert d["status"] == "pareto_dominant"
-    assert "prompt_diff" in d
-    assert "config_diff" in d
+    payload = format_live_optimization_result(opt_res, goal="Reconcile accounts", baseline_graph=graph)
+    assert "candidates" in payload
+    assert len(payload["candidates"]) == 2
+    assert payload["candidates"][0]["name"] == "Candidate A"
+    assert payload["candidates"][0]["status"] == "selected"
+    assert payload["candidates"][1]["name"] == "Candidate B"
+    assert payload["candidates"][1]["status"] == "rejected"
+    assert payload["candidates"][1]["rejection_reason"] == "inferior_to_Candidate_A"

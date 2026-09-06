@@ -35,6 +35,9 @@ import { HeldOutValidationView } from "@/components/HeldOutValidationView";
 import { BillingModal } from "@/components/BillingModal";
 import { AuthModal } from "@/components/AuthModal";
 import { MyExperimentsModal } from "@/components/MyExperimentsModal";
+import { ToolCatalogModal } from "@/components/ToolCatalogModal";
+import { ToolSchema } from "@/lib/types";
+import { fetchTools } from "@/services/api";
 import { getSession, signOut, onAuthStateChange } from "@/lib/supabaseClient";
 
 export interface AppProps {
@@ -67,6 +70,9 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
   const [token, setToken] = useState<string | undefined>(undefined);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExperimentsModalOpen, setIsExperimentsModalOpen] = useState(false);
+  const [isToolCatalogOpen, setIsToolCatalogOpen] = useState(false);
+  const [tools, setTools] = useState<ToolSchema[]>([]);
+  const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getSession().then(({ session, user }) => {
@@ -87,6 +93,27 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
       subscription?.unsubscribe?.();
     };
   }, []);
+
+  useEffect(() => {
+    fetchTools().then((fetched) => {
+      if (fetched && fetched.length > 0) {
+        setTools(fetched);
+        setSelectedTools(new Set(fetched.map((t) => t.name)));
+      }
+    });
+  }, []);
+
+  const handleToggleTool = (toolName: string) => {
+    setSelectedTools((prev) => {
+      const next = new Set(prev);
+      if (next.has(toolName)) {
+        next.delete(toolName);
+      } else {
+        next.add(toolName);
+      }
+      return next;
+    });
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -137,7 +164,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-zinc-950 flex flex-col font-sans selection:bg-zinc-950 selection:text-white">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Landing Page -- full screen, no header/footer */}
       {page === "landing" && (
         <LandingPage
@@ -175,7 +202,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
           />
 
           {/* Main Container */}
-          <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 bg-[#fafafa]">
+          <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 bg-zinc-50">
             {/* Overview Landing View */}
             {viewMode === "overview" && (
               <HeroLandingView
@@ -201,6 +228,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
                     onSynthesize={handleSynthesize}
                     onProceedToRun={() => setCurrentStage("RUN")}
                     isSynthesizing={isSynthesizing}
+                    onOpenToolCatalog={() => setIsToolCatalogOpen(true)}
                   />
                 )}
 
@@ -255,7 +283,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
           </main>
 
           {/* Footer / Telemetry status line */}
-          <footer className="w-full border-t border-zinc-200/80 bg-white py-3.5 text-xs text-zinc-400 font-mono">
+          <footer className="w-full border-t border-zinc-200 bg-white py-3.5 text-xs text-zinc-500 font-mono">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <span>TRACK 1: AUTONOMOUS AGENT ENGINEERING</span>
@@ -267,7 +295,7 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
                 <span>•</span>
                 <span>MODE: {mode.toUpperCase()}</span>
                 <span>•</span>
-                <span className={tier === "pro" ? "text-violet-600 font-semibold" : ""}>
+                <span className={tier === "pro" ? "text-indigo-600 font-semibold" : ""}>
                   TIER: {tier.toUpperCase()}
                 </span>
                 <span>•</span>
@@ -301,6 +329,15 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
             onClose={() => setIsExperimentsModalOpen(false)}
             token={token}
             onLoadExperiment={handleLoadExperiment}
+          />
+
+          {/* Central Tool Registry Catalog Modal */}
+          <ToolCatalogModal
+            isOpen={isToolCatalogOpen}
+            onClose={() => setIsToolCatalogOpen(false)}
+            tools={tools}
+            selectedTools={selectedTools}
+            onToggleTool={handleToggleTool}
           />
         </>
       )}

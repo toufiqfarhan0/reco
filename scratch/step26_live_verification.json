@@ -1,0 +1,18 @@
+{
+  "status": "verified",
+  "supabase_url": "https://lcdubsopwtwwtifjxfcu.supabase.co",
+  "user_id": "e3caaff6-39bc-4a11-b98e-bf07000ad04d",
+  "experiment_id": "f8a04c07-1b8d-4c06-85e7-2f488ae44a6f",
+  "persisted_entities": [
+    "experiments",
+    "agent_versions:V0",
+    "agent_versions:V1",
+    "optimization_runs"
+  ],
+  "retrieved_versions_count": 2,
+  "retrieved_runs_count": 1,
+  "promotion_decision": "PROMOTE",
+  "v1_accuracy": 0.8,
+  "held_out_accuracy": 0.825,
+  "rls_isolation_verified": true
+}

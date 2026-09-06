@@ -1,4 +1,4 @@
-import { ExperimentData } from "@/lib/types";
+import { ExperimentData, ToolSchema } from "@/lib/types";
 
 const getBaseUrl = () => {
   if (typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null") {
@@ -6,6 +6,81 @@ const getBaseUrl = () => {
   }
   return "http://127.0.0.1:8000";
 };
+
+export async function fetchTools(): Promise<ToolSchema[]> {
+  try {
+    const res = await fetch(getBaseUrl() + "/tools");
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("Backend /tools unavailable, using fallback schemas:", err);
+  }
+  return [
+    {
+      name: "parse_bank_statement",
+      description: "Normalizes and validates raw bank statement lines into strongly-typed transaction records.",
+      parameters_schema: {
+        type: "object",
+        required: ["records"],
+        properties: {
+          records: { type: "array", description: "List of raw bank transaction rows" },
+        },
+      },
+      deterministic: true,
+      side_effect: false,
+      risk_level: "LOW",
+      category: "ingestion",
+    },
+    {
+      name: "query_general_ledger",
+      description: "Queries general ledger entries for target reconciliation accounts and periods.",
+      parameters_schema: {
+        type: "object",
+        required: ["entries"],
+        properties: {
+          entries: { type: "array", description: "List of general ledger posting rows" },
+        },
+      },
+      deterministic: true,
+      side_effect: false,
+      risk_level: "LOW",
+      category: "ingestion",
+    },
+    {
+      name: "fuzzy_match_transactions",
+      description: "Multi-factor similarity matcher aligning statement records with ledger entries using amounts, dates, and vendor tokens.",
+      parameters_schema: {
+        type: "object",
+        required: ["statement_records", "ledger_records"],
+        properties: {
+          require_vendor_match: { type: "boolean", description: "Enforce strict vendor token identity check" },
+          vendor_similarity_threshold: { type: "number", description: "Minimum cosine similarity threshold (0.0 - 1.0)" },
+        },
+      },
+      deterministic: false,
+      side_effect: false,
+      risk_level: "MEDIUM",
+      category: "reconciliation",
+    },
+    {
+      name: "calculate_reconciliation_difference",
+      description: "Computes exact Decimal discrepancy amounts, sign analysis, and variance categorization.",
+      parameters_schema: {
+        type: "object",
+        required: ["amount_a", "amount_b"],
+        properties: {
+          amount_a: { type: "number", description: "First amount" },
+          amount_b: { type: "number", description: "Second amount" },
+        },
+      },
+      deterministic: true,
+      side_effect: false,
+      risk_level: "LOW",
+      category: "analytics",
+    },
+  ];
+}
 
 export async function fetchUserExperiments(token?: string): Promise<any[]> {
   try {

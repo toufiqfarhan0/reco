@@ -1,44 +1,27 @@
-"""Abstract Base Mutator for DAG architecture transformation."""
-
-from __future__ import annotations
+"""Base abstract class for specialized architectural mutators."""
 
 import copy
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
-
-from reco.diagnostics.taxonomy import FailureDiagnostic
-from reco.engine.models import AgentArchitecture
-from reco.tools.registry import ToolRegistry
+from reco.engine.models import GraphDefinition
+from reco.mutation.models import MutationCandidate
 
 
 class BaseMutator(ABC):
-    """Abstract base class for targeted architectural DAG mutation operators."""
-
-    name: str = "base_mutator"
-
-    def __init__(self, tool_registry: Optional[ToolRegistry] = None):
-        self.tool_registry = tool_registry or ToolRegistry.create_reconciliation_default()
+    """Abstract base class for all structural and configuration mutators."""
 
     @abstractmethod
-    def mutate(
-        self,
-        architecture: AgentArchitecture,
-        diagnostic: Optional[FailureDiagnostic] = None,
-        **kwargs: Any
-    ) -> AgentArchitecture:
-        """Apply targeted mutation operator to an architecture DAG.
+    def can_handle(self, mutation: MutationCandidate) -> bool:
+        """Return True if this mutator handles the candidate's mutation type."""
+        pass
 
-        Args:
-            architecture: Parent AgentArchitecture to mutate.
-            diagnostic: Optional FailureDiagnostic driving this mutation.
-            kwargs: Additional mutation parameters.
+    @abstractmethod
+    def apply(self, graph: GraphDefinition, mutation: MutationCandidate) -> GraphDefinition:
+        """Apply the candidate mutation to a deep copy of the graph definition.
 
-        Returns:
-            Mutated clone of the AgentArchitecture.
+        Must NEVER mutate the input graph in place.
         """
-        raise NotImplementedError
+        pass
 
-    @staticmethod
-    def clone_architecture(architecture: AgentArchitecture) -> AgentArchitecture:
-        """Deepcopy architecture to ensure immutability of parent graph."""
-        return copy.deepcopy(architecture)
+    def clone_graph(self, graph: GraphDefinition) -> GraphDefinition:
+        """Safely create an isolated, deep copy of a GraphDefinition."""
+        return GraphDefinition(**copy.deepcopy(graph.model_dump(mode="json")))

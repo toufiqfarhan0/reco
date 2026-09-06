@@ -1,0 +1,455 @@
+{
+  "experiment_id": "92daa4a7-b71b-4aed-b157-cb412225aa54",
+  "model": "glm-4-7-flash",
+  "provider": "tensormux",
+  "timestamp": 1788591652.7878537,
+  "duration_seconds": 0.01,
+  "parent_version": {
+    "version_id": "3f193d9d-c996-40ee-9da1-bb68923eaa6b",
+    "version_name": "V0",
+    "scorecard": {
+      "benchmark_name": "reconciliation",
+      "benchmark_version": "reconciliation-v1",
+      "agent_version_id": null,
+      "experiment_id": null,
+      "split": "optimization",
+      "accuracy": 0.8,
+      "reliability": 1.0,
+      "total_cost_usd": 0.06395,
+      "avg_cost_usd": 0.005329,
+      "cost_type": "simulated_mock",
+      "total_latency_ms": 491859,
+      "avg_latency_ms": 40988,
+      "p50_latency_ms": 42895,
+      "p95_latency_ms": 51132,
+      "total_cases": 12,
+      "passed_cases": 9,
+      "failed_cases": 3,
+      "normalized": null,
+      "execution_metadata": {
+        "graph_id": "arch-reconciliation-baseline-v0",
+        "graph_name": "Manual Baseline Reconciliation Architecture V0",
+        "cost_type": "actual_live",
+        "pass_rate": 0.75,
+        "generation_method": "manual_baseline"
+      }
+    }
+  },
+  "candidate_pool_limit": 3,
+  "max_candidate_benchmark_cases": 36,
+  "candidates": [
+    {
+      "candidate_id": "a094c66e-1097-4d22-b7a7-f05ea7de654b",
+      "name": "Candidate A",
+      "mutation_type": "PROMPT_CHANGE",
+      "target": "fuzzy_match",
+      "proposed_change": {
+        "append": "Prioritize vendor/counterparty identity over monetary amount similarity. Invoke fuzzy_match_transactions with require_vendor_match=True and vendor_similarity_threshold=0.85 to reject false pairings with conflicting counterparty identities.",
+        "target_node": "fuzzy_match"
+      },
+      "rationale": "Prioritize vendor/counterparty identity over monetary amount similarity. Invoke fuzzy_match_transactions with require_vendor_match=True and vendor_similarity_threshold=0.85 to reject false pairings with conflicting counterparty identities.",
+      "fingerprint": "cb534d809ecd34bbf50ea2b7e4341d696b38fde86fcb33efebf33e03cb8176d2",
+      "is_valid": true,
+      "scorecard": {
+        "benchmark_name": "reconciliation",
+        "benchmark_version": "reconciliation-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 0.8,
+        "reliability": 1.0,
+        "total_cost_usd": 0.06395,
+        "avg_cost_usd": 0.005329,
+        "cost_type": "simulated_mock",
+        "total_latency_ms": 491859,
+        "avg_latency_ms": 40988,
+        "p50_latency_ms": 42895,
+        "p95_latency_ms": 51132,
+        "total_cases": 12,
+        "passed_cases": 9,
+        "failed_cases": 3,
+        "normalized": null,
+        "execution_metadata": {
+          "graph_id": "arch-reconciliation-baseline-v0",
+          "graph_name": "Manual Baseline Reconciliation Architecture V0",
+          "cost_type": "actual_live",
+          "pass_rate": 0.75,
+          "generation_method": "manual_baseline"
+        }
+      },
+      "comparison": {
+        "baseline_agent_version_id": null,
+        "candidate_agent_version_id": null,
+        "benchmark_name": "reconciliation",
+        "benchmark_version": "reconciliation-v1",
+        "split": "optimization",
+        "accuracy_delta": 0.05,
+        "reliability_delta": 0.0,
+        "cost_delta": -0.000617,
+        "cost_total_delta": -0.007404,
+        "latency_delta": -10596.0,
+        "latency_total_delta": -127143.0,
+        "relative_changes": {
+          "accuracy_pct": 6.67,
+          "reliability_pct": 0.0,
+          "cost_pct": -10.38,
+          "speed_pct": -20.54
+        },
+        "dimensions": {
+          "accuracy": {
+            "dimension": "accuracy",
+            "baseline_value": 0.75,
+            "candidate_value": 0.8,
+            "raw_delta": 0.05,
+            "percentage_change": 6.67,
+            "direction": "higher_is_better",
+            "status": "improved"
+          },
+          "reliability": {
+            "dimension": "reliability",
+            "baseline_value": 1.0,
+            "candidate_value": 1.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "cost": {
+            "dimension": "cost",
+            "baseline_value": 0.005946,
+            "candidate_value": 0.005329,
+            "raw_delta": -0.000617,
+            "percentage_change": -10.38,
+            "direction": "lower_is_better",
+            "status": "improved"
+          },
+          "speed": {
+            "dimension": "speed",
+            "baseline_value": 51584.0,
+            "candidate_value": 40988.0,
+            "raw_delta": -10596.0,
+            "percentage_change": -20.54,
+            "direction": "lower_is_better",
+            "status": "improved"
+          }
+        },
+        "improved_dimensions": [
+          "accuracy",
+          "cost",
+          "speed"
+        ],
+        "regressed_dimensions": [],
+        "unchanged_dimensions": [
+          "reliability"
+        ],
+        "relationship": "strictly_better",
+        "summary": "Accuracy improved by +5.0 percentage points (75.0% -> 80.0%), reliability remained unchanged at 100.0%, average cost decreased by 10.4% ($0.005946 -> $0.005329), average latency decreased by 20.5% (51584ms -> 40988ms)."
+      },
+      "status": "selected",
+      "rejection_reason": null,
+      "model_calls": 48,
+      "tool_calls": 36,
+      "cost_usd": 0.06395,
+      "latency_ms": 491859,
+      "tokens_in": 31718,
+      "tokens_out": 8185
+    },
+    {
+      "candidate_id": "b7caf9f4-a7e2-4b09-b1c2-290d39d68597",
+      "name": "Candidate B",
+      "mutation_type": "ADD_VERIFIER",
+      "target": "fuzzy_match",
+      "proposed_change": {
+        "node_id": "fuzzy_match_auditor",
+        "name": "Reconciliation Auditor",
+        "role": "Auditor",
+        "system_prompt": "Audit and verify outputs from 'fuzzy_match' against business constraints."
+      },
+      "rationale": "Add secondary audit verification node to eliminate unverified matches from 'fuzzy_match'.",
+      "fingerprint": "ef65b7c8ab7a42dc15885bddc69fd08324c1a84022a39d9a337e9eda6e5672ee",
+      "is_valid": true,
+      "scorecard": {
+        "benchmark_name": "reconciliation",
+        "benchmark_version": "reconciliation-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 0.75,
+        "reliability": 1.0,
+        "total_cost_usd": 0.134473,
+        "avg_cost_usd": 0.011206,
+        "cost_type": "simulated_mock",
+        "total_latency_ms": 416336,
+        "avg_latency_ms": 34695,
+        "p50_latency_ms": 34761,
+        "p95_latency_ms": 37416,
+        "total_cases": 12,
+        "passed_cases": 8,
+        "failed_cases": 4,
+        "normalized": null,
+        "execution_metadata": {
+          "graph_id": "arch-reconciliation-baseline-v0",
+          "graph_name": "Manual Baseline Reconciliation Architecture V0",
+          "cost_type": "actual_live",
+          "pass_rate": 0.6667,
+          "generation_method": "manual_baseline"
+        }
+      },
+      "comparison": {
+        "baseline_agent_version_id": null,
+        "candidate_agent_version_id": null,
+        "benchmark_name": "reconciliation",
+        "benchmark_version": "reconciliation-v1",
+        "split": "optimization",
+        "accuracy_delta": 0.0,
+        "reliability_delta": 0.0,
+        "cost_delta": 0.00526,
+        "cost_total_delta": 0.063119,
+        "latency_delta": -16889.0,
+        "latency_total_delta": -202666.0,
+        "relative_changes": {
+          "accuracy_pct": 0.0,
+          "reliability_pct": 0.0,
+          "cost_pct": 88.46,
+          "speed_pct": -32.74
+        },
+        "dimensions": {
+          "accuracy": {
+            "dimension": "accuracy",
+            "baseline_value": 0.75,
+            "candidate_value": 0.75,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "reliability": {
+            "dimension": "reliability",
+            "baseline_value": 1.0,
+            "candidate_value": 1.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "cost": {
+            "dimension": "cost",
+            "baseline_value": 0.005946,
+            "candidate_value": 0.011206,
+            "raw_delta": 0.00526,
+            "percentage_change": 88.46,
+            "direction": "lower_is_better",
+            "status": "regressed"
+          },
+          "speed": {
+            "dimension": "speed",
+            "baseline_value": 51584.0,
+            "candidate_value": 34695.0,
+            "raw_delta": -16889.0,
+            "percentage_change": -32.74,
+            "direction": "lower_is_better",
+            "status": "improved"
+          }
+        },
+        "improved_dimensions": [
+          "speed"
+        ],
+        "regressed_dimensions": [
+          "cost"
+        ],
+        "unchanged_dimensions": [
+          "accuracy",
+          "reliability"
+        ],
+        "relationship": "tradeoff",
+        "summary": "Accuracy remained unchanged at 75.0%, reliability remained unchanged at 100.0%, average cost increased by 88.5% ($0.005946 -> $0.011206), average latency decreased by 32.7% (51584ms -> 34695ms)."
+      },
+      "status": "rejected",
+      "rejection_reason": "inferior_to_Candidate A",
+      "model_calls": 48,
+      "tool_calls": 36,
+      "cost_usd": 0.134473,
+      "latency_ms": 416336,
+      "tokens_in": 37748,
+      "tokens_out": 38925
+    },
+    {
+      "candidate_id": "be78499d-d7b5-4c3b-bc6c-7be434e2e35e",
+      "name": "Candidate C",
+      "mutation_type": "TOOL_ADD",
+      "target": "fuzzy_match",
+      "proposed_change": {
+        "tool_name": "calculate_reconciliation_difference",
+        "target_node": "fuzzy_match"
+      },
+      "rationale": "Equip 'fuzzy_match' with arithmetic verification tool to eliminate tolerance discrepancies.",
+      "fingerprint": "1d3a8b301213b6b8ffa2973708950993678263c015eebbeeff899f00d639a6b2",
+      "is_valid": true,
+      "scorecard": {
+        "benchmark_name": "reconciliation",
+        "benchmark_version": "reconciliation-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 0.1667,
+        "reliability": 1.0,
+        "total_cost_usd": 0.127488,
+        "avg_cost_usd": 0.010624,
+        "cost_type": "simulated_mock",
+        "total_latency_ms": 295728,
+        "avg_latency_ms": 24644,
+        "p50_latency_ms": 25486,
+        "p95_latency_ms": 26456,
+        "total_cases": 12,
+        "passed_cases": 1,
+        "failed_cases": 11,
+        "normalized": null,
+        "execution_metadata": {
+          "graph_id": "arch-reconciliation-baseline-v0",
+          "graph_name": "Manual Baseline Reconciliation Architecture V0",
+          "cost_type": "actual_live",
+          "pass_rate": 0.0833,
+          "generation_method": "manual_baseline"
+        }
+      },
+      "comparison": {
+        "baseline_agent_version_id": null,
+        "candidate_agent_version_id": null,
+        "benchmark_name": "reconciliation",
+        "benchmark_version": "reconciliation-v1",
+        "split": "optimization",
+        "accuracy_delta": -0.5833,
+        "reliability_delta": 0.0,
+        "cost_delta": 0.004678,
+        "cost_total_delta": 0.056134,
+        "latency_delta": -26940.0,
+        "latency_total_delta": -323274.0,
+        "relative_changes": {
+          "accuracy_pct": -77.77,
+          "reliability_pct": 0.0,
+          "cost_pct": 78.67,
+          "speed_pct": -52.23
+        },
+        "dimensions": {
+          "accuracy": {
+            "dimension": "accuracy",
+            "baseline_value": 0.75,
+            "candidate_value": 0.1667,
+            "raw_delta": -0.5833,
+            "percentage_change": -77.77,
+            "direction": "higher_is_better",
+            "status": "regressed"
+          },
+          "reliability": {
+            "dimension": "reliability",
+            "baseline_value": 1.0,
+            "candidate_value": 1.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "cost": {
+            "dimension": "cost",
+            "baseline_value": 0.005946,
+            "candidate_value": 0.010624,
+            "raw_delta": 0.004678,
+            "percentage_change": 78.67,
+            "direction": "lower_is_better",
+            "status": "regressed"
+          },
+          "speed": {
+            "dimension": "speed",
+            "baseline_value": 51584.0,
+            "candidate_value": 24644.0,
+            "raw_delta": -26940.0,
+            "percentage_change": -52.23,
+            "direction": "lower_is_better",
+            "status": "improved"
+          }
+        },
+        "improved_dimensions": [
+          "speed"
+        ],
+        "regressed_dimensions": [
+          "accuracy",
+          "cost"
+        ],
+        "unchanged_dimensions": [
+          "reliability"
+        ],
+        "relationship": "tradeoff",
+        "summary": "Accuracy regressed by -58.33 percentage points (75.0% -> 16.67%), reliability remained unchanged at 100.0%, average cost increased by 78.7% ($0.005946 -> $0.010624), average latency decreased by 52.2% (51584ms -> 24644ms)."
+      },
+      "status": "rejected",
+      "rejection_reason": "accuracy_regression",
+      "model_calls": 60,
+      "tool_calls": 48,
+      "cost_usd": 0.127488,
+      "latency_ms": 295728,
+      "tokens_in": 49533,
+      "tokens_out": 26592
+    }
+  ],
+  "selected_candidate": {
+    "name": "Candidate A",
+    "candidate_id": "a094c66e-1097-4d22-b7a7-f05ea7de654b",
+    "mutation_type": "PROMPT_CHANGE",
+    "target": "fuzzy_match",
+    "accuracy": 0.8,
+    "cost_usd": 0.06395,
+    "latency_ms": 491859
+  },
+  "rejected_candidates": [
+    {
+      "name": "Candidate B",
+      "candidate_id": "b7caf9f4-a7e2-4b09-b1c2-290d39d68597",
+      "mutation_type": "ADD_VERIFIER",
+      "status": "rejected",
+      "rejection_reason": "inferior_to_Candidate A"
+    },
+    {
+      "name": "Candidate C",
+      "candidate_id": "be78499d-d7b5-4c3b-bc6c-7be434e2e35e",
+      "mutation_type": "TOOL_ADD",
+      "status": "rejected",
+      "rejection_reason": "accuracy_regression"
+    }
+  ],
+  "held_out_result": {
+    "benchmark_name": "reconciliation",
+    "benchmark_version": "reconciliation-v1",
+    "agent_version_id": null,
+    "experiment_id": null,
+    "split": "held_out",
+    "accuracy": 0.825,
+    "reliability": 1.0,
+    "total_cost_usd": 0.046096,
+    "avg_cost_usd": 0.005762,
+    "cost_type": "simulated_mock",
+    "total_latency_ms": 365584,
+    "avg_latency_ms": 45698,
+    "p50_latency_ms": 43084,
+    "p95_latency_ms": 65657,
+    "total_cases": 8,
+    "passed_cases": 6,
+    "failed_cases": 2,
+    "normalized": null,
+    "execution_metadata": {
+      "graph_id": "arch-reconciliation-baseline-v0",
+      "graph_name": "Manual Baseline Reconciliation Architecture V0",
+      "cost_type": "actual_live",
+      "pass_rate": 0.75,
+      "generation_method": "manual_baseline"
+    }
+  },
+  "total_experiment_cost_usd": 0.493981,
+  "total_experiment_latency_ms": 1569507,
+  "total_model_calls": 268,
+  "total_tool_calls": 204,
+  "held_out_protection": {
+    "policy": "STRICT_HELD_OUT_ISOLATION",
+    "evaluated_candidates": 1,
+    "held_out_evaluated_only_after_winner_selection": true
+  }
+}

@@ -85,7 +85,7 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
           <button
             type="button"
             onClick={onProceedToUnderstand}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-zinc-800 active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all hover:bg-indigo-700 active:scale-[0.98] cursor-pointer"
           >
             <span>Diagnose Failures (Stage 03)</span>
             <ArrowRight className="h-3.5 w-3.5" />

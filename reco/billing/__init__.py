@@ -1,43 +1,26 @@
-"""Reco Billing and Monetization Package (Track 1)."""
+"""Billing, monetization, and usage metering (Dodo Payments adapter)."""
 
 from reco.billing.models import (
-    DEFAULT_PRO_CURRENCY,
-    DEFAULT_PRO_PRICE_CENTS,
-    DEFAULT_PRO_PRICE_USD,
-    DEFAULT_PRO_PRODUCT_ID,
-    DEFAULT_PRO_PRODUCT_NAME,
-    BillingError,
-    CheckoutRequest,
+    FREE_LIMITS,
+    PRO_LIMITS,
     CheckoutResponse,
-    EntitlementGatingError,
-    PaymentGatewayError,
-    PortalRequest,
-    PortalResponse,
+    PlanTier,
     SubscriptionStatus,
-    SubscriptionTier,
+    UsageLimits,
     UserEntitlement,
-    WebhookResult,
-    WebhookVerificationError,
+    WebhookProcessResponse,
 )
-from reco.billing.service import BillingService
+from reco.billing.service import BillingService, default_billing_service
 
 __all__ = [
     "BillingService",
-    "BillingError",
-    "WebhookVerificationError",
-    "PaymentGatewayError",
-    "EntitlementGatingError",
-    "CheckoutRequest",
-    "CheckoutResponse",
-    "PortalRequest",
-    "PortalResponse",
-    "WebhookResult",
+    "default_billing_service",
     "UserEntitlement",
-    "SubscriptionTier",
+    "PlanTier",
     "SubscriptionStatus",
-    "DEFAULT_PRO_PRODUCT_ID",
-    "DEFAULT_PRO_PRICE_CENTS",
-    "DEFAULT_PRO_PRICE_USD",
-    "DEFAULT_PRO_PRODUCT_NAME",
-    "DEFAULT_PRO_CURRENCY",
+    "UsageLimits",
+    "FREE_LIMITS",
+    "PRO_LIMITS",
+    "CheckoutResponse",
+    "WebhookProcessResponse",
 ]

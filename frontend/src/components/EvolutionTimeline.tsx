@@ -16,11 +16,11 @@ export const EvolutionTimeline: React.FC<EvolutionTimelineProps> = ({
   onSelectNode,
 }) => {
   return (
-    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-4">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
       <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
         <div className="flex items-center gap-2">
-          <GitCommit className="h-4 w-4 text-zinc-950" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
+          <GitCommit className="h-4 w-4 text-indigo-600" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">
             Autonomous Evolutionary Lineage Timeline
           </h3>
         </div>
@@ -36,17 +36,17 @@ export const EvolutionTimeline: React.FC<EvolutionTimelineProps> = ({
             <div
               key={node.id}
               onClick={() => onSelectNode && onSelectNode(node.id)}
-              className={`relative flex flex-col justify-between rounded-xl border p-4 transition-all cursor-pointer shadow-2xs ${
+              className={`relative flex flex-col justify-between rounded-xl border p-4 transition-all cursor-pointer shadow-xs ${
                 isSelected
-                  ? "border-zinc-950 bg-white ring-1 ring-zinc-950 shadow-xs"
+                  ? "border-indigo-600 bg-white ring-1 ring-indigo-600 shadow-xs"
                   : node.status === "promoted"
-                  ? "border-emerald-300/80 bg-white hover:border-emerald-400"
-                  : "border-zinc-200/90 bg-white hover:border-zinc-300"
+                  ? "border-emerald-300 bg-white hover:border-emerald-400"
+                  : "border-zinc-200 bg-white hover:border-zinc-300"
               }`}
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="rounded-md bg-zinc-950 px-2 py-0.5 text-[10px] font-mono font-bold text-white shadow-2xs">
+                  <span className="rounded-lg bg-zinc-900 px-2 py-0.5 text-[10px] font-mono font-bold text-white shadow-xs">
                     GEN 0{node.generation}
                   </span>
                   <span
@@ -54,7 +54,7 @@ export const EvolutionTimeline: React.FC<EvolutionTimelineProps> = ({
                       node.status === "promoted"
                         ? "text-emerald-700"
                         : node.status === "candidate"
-                        ? "text-blue-700"
+                        ? "text-indigo-700"
                         : "text-zinc-400"
                     }`}
                   >
@@ -92,7 +92,7 @@ export const EvolutionTimeline: React.FC<EvolutionTimelineProps> = ({
                     node.accuracy >= 1.0
                       ? "text-emerald-700"
                       : node.accuracy > 0.5
-                      ? "text-blue-700"
+                      ? "text-indigo-700"
                       : "text-red-700"
                   }`}
                 >

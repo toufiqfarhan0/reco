@@ -1,439 +1,298 @@
-"""4-Axis Scorecard Engine: Accuracy, Reliability, Cost, and Speed evaluation.
+"""Generic domain-agnostic multi-dimensional scorecard model.
 
-Provides deterministic evaluation of agent architectures and side-by-side
-comparisons with delta badges, Pareto dominance detection, and tradeoff flagging.
+Evaluates and represents agent performance across four standard axes:
+1. Accuracy (higher = better, 0.0 to 1.0)
+2. Reliability (higher = better, 0.0 to 1.0)
+3. Cost (lower = better, in USD, distinguishing actual vs simulated_mock)
+4. Speed / Latency (lower = better, in milliseconds)
 """
 
-from __future__ import annotations
+from typing import Any, Dict, Literal, Optional, Union
+from uuid import UUID, uuid4
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-import time
-from typing import Any, Dict, List, Optional, Tuple, Union
-from pydantic import BaseModel, Field
-
-from reco.benchmarks.base import BenchmarkCase, BenchmarkSplit, BenchmarkSuite
-from reco.benchmarks.reconciliation.dataset import get_reconciliation_benchmark_suite
-from reco.core.goal_analyzer import GoalAnalyzer
-from reco.engine.generator import ArchitectureGenerator
-from reco.engine.models import AgentArchitecture, NodeStatus
-from reco.engine.runtime import AgentRuntime, ExecutionResult
+from reco.core.interfaces import BenchmarkRunResult
+from reco.db.models import BenchmarkRunRecord
 
 
-class CaseEvaluationResult(BaseModel):
-    """Detailed evaluation telemetry for a single benchmark test case."""
+class NormalizedMetrics(BaseModel):
+    """Auxiliary normalized 0.0-1.0 representation for visualization and radar charts.
 
-    case_id: str = Field(description="Unique benchmark case identifier")
-    split: str = Field(description="Partition split of the test case")
-    is_accurate: bool = Field(description="True if output matches ground truth")
-    is_reliable: bool = Field(description="True if execution had no exceptions/errors")
-    cost_usd: float = Field(default=0.0, description="Inference/tool cost for this case in USD")
-    latency_ms: float = Field(default=0.0, description="Wall-clock latency in milliseconds")
-    error: Optional[str] = Field(default=None, description="Error detail if execution failed")
-    actual_output: Any = Field(default=None, description="Actual output payload produced")
-    expected_output: Any = Field(default=None, description="Expected ground-truth criteria")
+    Raw units are always preserved in the parent Scorecard.
+    """
+    accuracy_norm: float = Field(..., ge=0.0, le=1.0, description="Normalized accuracy (0.0 to 1.0)")
+    reliability_norm: float = Field(..., ge=0.0, le=1.0, description="Normalized reliability (0.0 to 1.0)")
+    cost_norm: float = Field(..., ge=0.0, le=1.0, description="Normalized cost efficiency (1.0 = lowest cost)")
+    speed_norm: float = Field(..., ge=0.0, le=1.0, description="Normalized speed efficiency (1.0 = lowest latency)")
+    reference_bounds: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class Scorecard(BaseModel):
-    """4-Axis empirical scorecard measuring agent performance."""
+    """Generic multi-dimensional evaluation scorecard for an agent version across a benchmark split."""
+    benchmark_name: str = Field(..., description="Benchmark suite name (e.g. 'reconciliation', 'research')")
+    benchmark_version: str = Field(..., description="Immutable benchmark suite version (e.g. 'reconciliation-v1')")
+    agent_version_id: Optional[UUID] = Field(default=None, description="UUID of the evaluated agent version")
+    experiment_id: Optional[UUID] = Field(default=None, description="UUID of the parent experiment")
+    split: Literal["optimization", "held_out", "full"] = Field(
+        ...,
+        description="'optimization' (mutation/diagnosis) or 'held_out' (validation/promotion)",
+    )
 
-    name: str = Field(description="Architecture or benchmark run identifier")
-    split: str = Field(description="Evaluated partition split ('optimization', 'held-out', or 'full')")
-    total_cases: int = Field(description="Total number of evaluated test cases")
-    accurate_cases: int = Field(description="Number of cases matching ground-truth output")
-    reliable_cases: int = Field(description="Number of cases executing without runtime exceptions")
-
-    # Canonical 4 Axes
+    # 1. Raw Primary Metrics
     accuracy: float = Field(
-        description="Axis 1: Fraction of cases matching ground-truth output (0.0 to 1.0)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Domain-evaluated accuracy score (0.0 to 1.0, higher is better)",
     )
     reliability: float = Field(
-        description="Axis 2: Fraction of cases executed without exceptions or tool errors (0.0 to 1.0)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Crash-free execution success rate (0.0 to 1.0, higher is better)",
     )
-    cost_usd: float = Field(
-        description="Axis 3: Exact token-derived inference cost or deterministic $0 tool cost in USD"
+    total_cost_usd: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Total execution cost in USD (lower is better)",
     )
-    latency_ms: float = Field(
-        description="Axis 4: Total wall-clock execution time in milliseconds"
+    avg_cost_usd: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Average execution cost per case in USD (lower is better)",
     )
-
-    avg_latency_ms: float = Field(default=0.0, description="Average wall-clock latency per case (ms)")
-    latency_s: float = Field(default=0.0, description="Total wall-clock execution time in seconds")
-    case_results: List[CaseEvaluationResult] = Field(default_factory=list, description="Per-case evaluation breakdown")
-
-    def summary_dict(self) -> Dict[str, Any]:
-        """Return a structured dictionary of core metrics."""
-        return {
-            "name": self.name,
-            "split": self.split,
-            "total_cases": self.total_cases,
-            "accuracy": round(self.accuracy, 4),
-            "reliability": round(self.reliability, 4),
-            "cost_usd": round(self.cost_usd, 6),
-            "latency_ms": round(self.latency_ms, 2),
-            "avg_latency_ms": round(self.avg_latency_ms, 2),
-            "latency_s": round(self.latency_s, 4),
-        }
-
-    def to_markdown(self) -> str:
-        """Render a readable markdown summary table of the 4 canonical axes."""
-        acc_pct = f"{self.accuracy * 100:.1f}%"
-        rel_pct = f"{self.reliability * 100:.1f}%"
-        cost_str = f"${self.cost_usd:.4f}"
-        lat_str = f"{self.latency_ms:.2f} ms ({self.latency_s:.4f} s, avg {self.avg_latency_ms:.2f} ms/case)"
-
-        lines = [
-            f"### 4-Axis Scorecard: {self.name} (Split: {self.split.upper()})",
-            f"Evaluated {self.total_cases} benchmark test cases.",
-            "",
-            "| Axis | Metric | Value | Detail |",
-            "| :--- | :--- | :--- | :--- |",
-            f"| **1. Accuracy** | Ground-Truth Match Rate | **{acc_pct}** | {self.accurate_cases}/{self.total_cases} cases passed |",
-            f"| **2. Reliability** | Error-Free Execution Rate | **{rel_pct}** | {self.reliable_cases}/{self.total_cases} cases passed |",
-            f"| **3. Cost** | Inference & Tool Cost | **{cost_str}** | Deterministic / token-derived |",
-            f"| **4. Speed** | Wall-Clock Latency | **{self.latency_ms:.2f} ms** | Total: {lat_str} |",
-            ""
-        ]
-        return "\n".join(lines)
-
-
-class ScorecardComparison(BaseModel):
-    """Side-by-side comparison between baseline and candidate architectures across all 4 axes."""
-
-    baseline_name: str
-    candidate_name: str
-    split: str
-    baseline_scorecard: Scorecard
-    candidate_scorecard: Scorecard
-
-    # Metric Deltas (Candidate - Baseline)
-    accuracy_delta: float = Field(description="Δ Accuracy (candidate - baseline)")
-    reliability_delta: float = Field(description="Δ Reliability (candidate - baseline)")
-    cost_delta_usd: float = Field(description="Δ Cost in USD (candidate - baseline)")
-    latency_delta_ms: float = Field(description="Δ Latency in milliseconds (candidate - baseline)")
-    latency_pct_delta: float = Field(description="Percentage change in latency")
-
-    # Delta Badges
-    accuracy_badge: str = Field(description="Formatted delta badge for accuracy")
-    reliability_badge: str = Field(description="Formatted delta badge for reliability")
-    cost_badge: str = Field(description="Formatted delta badge for cost")
-    latency_badge: str = Field(description="Formatted delta badge for latency")
-
-    # Multi-Axis Pareto & Tradeoff Assessments
-    is_pareto_dominant: bool = Field(
-        description="True if candidate improves on >=1 axis with zero regressions on any axis"
+    cost_type: Literal["actual", "estimated", "simulated_mock"] = Field(
+        default="actual",
+        description="Provenance of cost metric ('actual', 'estimated', 'simulated_mock')",
     )
-    has_tradeoff: bool = Field(
-        description="True if candidate improves on >=1 axis but regresses on another"
+    total_latency_ms: int = Field(
+        default=0,
+        ge=0,
+        description="Total wall-clock execution duration in milliseconds (lower is better)",
     )
-    tradeoffs: List[str] = Field(default_factory=list, description="Descriptive list of flagged tradeoffs")
-    verdict: str = Field(
-        description="Summary decision: 'PARETO_DOMINANT', 'TRADEOFF', 'REGRESSION', or 'NEUTRAL'"
+    avg_latency_ms: int = Field(
+        default=0,
+        ge=0,
+        description="Average wall-clock duration per case in milliseconds (lower is better)",
+    )
+    p50_latency_ms: Optional[int] = Field(default=None, ge=0, description="50th percentile latency in ms")
+    p95_latency_ms: Optional[int] = Field(default=None, ge=0, description="95th percentile latency in ms")
+
+    # 2. Case Counts
+    total_cases: int = Field(..., ge=0, description="Total benchmark test cases executed")
+    passed_cases: int = Field(..., ge=0, description="Number of test cases passing accuracy & reliability criteria")
+    failed_cases: int = Field(..., ge=0, description="Number of test cases failing criteria")
+
+    # 3. Normalized Representation & Metadata
+    normalized: Optional[NormalizedMetrics] = Field(
+        default=None,
+        description="Optional normalized scores for comparison/visualization without discarding raw metrics",
+    )
+    execution_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional benchmark, provider, or environment metadata",
     )
 
-    def to_markdown(self) -> str:
-        """Render an executive side-by-side comparison table with delta badges."""
-        lines = [
-            f"### Scorecard Comparison: {self.candidate_name} vs {self.baseline_name} (Split: {self.split.upper()})",
-            f"**Verdict:** `{self.verdict}`"
-            + (" (Pareto Dominant: improves without regression)" if self.is_pareto_dominant else ""),
-            "",
-            "| Axis | Baseline | Candidate | Delta | Badge | Assessment |",
-            "| :--- | :--- | :--- | :--- | :--- | :--- |",
-            f"| **Accuracy** | {self.baseline_scorecard.accuracy * 100:.1f}% | {self.candidate_scorecard.accuracy * 100:.1f}% | {self.accuracy_delta * 100:+.1f}% | `{self.accuracy_badge}` | {self._assess_axis('accuracy')} |",
-            f"| **Reliability** | {self.baseline_scorecard.reliability * 100:.1f}% | {self.candidate_scorecard.reliability * 100:.1f}% | {self.reliability_delta * 100:+.1f}% | `{self.reliability_badge}` | {self._assess_axis('reliability')} |",
-            f"| **Cost (USD)** | ${self.baseline_scorecard.cost_usd:.4f} | ${self.candidate_scorecard.cost_usd:.4f} | {self.cost_delta_usd:+.4f} | `{self.cost_badge}` | {self._assess_axis('cost')} |",
-            f"| **Speed (ms)** | {self.baseline_scorecard.latency_ms:.2f} ms | {self.candidate_scorecard.latency_ms:.2f} ms | {self.latency_delta_ms:+.2f} ms | `{self.latency_badge}` | {self._assess_axis('speed')} |",
-            ""
-        ]
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-        if self.tradeoffs:
-            lines.append("**Flagged Tradeoffs:**")
-            for t in self.tradeoffs:
-                lines.append(f"- [Tradeoff] {t}")
-            lines.append("")
+    @property
+    def passed(self) -> bool:
+        """Convenience boolean indicator for whether the benchmark passed baseline criteria."""
+        return self.passed_cases > 0 and self.accuracy >= 0.50
 
-        return "\n".join(lines)
+    @field_validator("failed_cases")
+    @classmethod
+    def validate_case_counts(cls, v: int, info) -> int:
+        data = info.data
+        total = data.get("total_cases")
+        passed = data.get("passed_cases")
+        if total is not None and passed is not None:
+            if passed + v != total:
+                # Rebalance or allow explicit validation
+                if passed > total:
+                    raise ValueError(f"passed_cases ({passed}) cannot exceed total_cases ({total})")
+        return v
 
-    def _assess_axis(self, axis: str) -> str:
-        if axis == "accuracy":
-            if self.accuracy_delta > 1e-4:
-                return "[Improved]"
-            elif self.accuracy_delta < -1e-4:
-                return "[Regressed]"
-            return "[Equal]"
-        elif axis == "reliability":
-            if self.reliability_delta > 1e-4:
-                return "[Improved]"
-            elif self.reliability_delta < -1e-4:
-                return "[Regressed]"
-            return "[Equal]"
-        elif axis == "cost":
-            if self.cost_delta_usd < -1e-5:
-                return "[Cheaper]"
-            elif self.cost_delta_usd > 1e-5:
-                return "[More Expensive]"
-            return "[Equal]"
-        elif axis == "speed":
-            if self.latency_delta_ms < -0.1:
-                return "[Faster]"
-            elif self.latency_delta_ms > 0.1:
-                return "[Slower]"
-            return "[Equal]"
-        return "[Equal]"
-
-
-class ScorecardEvaluator:
-    """Evaluates agent architectures on partitioned benchmark suites across all 4 canonical axes."""
-
-    def __init__(
+    def compute_normalized(
         self,
-        runtime: Optional[AgentRuntime] = None,
-        cost_per_case_usd: float = 0.0
-    ):
-        self.runtime = runtime or AgentRuntime()
-        self.cost_per_case_usd = cost_per_case_usd
+        cost_max_ref: Optional[float] = None,
+        latency_max_ref: Optional[int] = None,
+    ) -> NormalizedMetrics:
+        """Compute and attach auxiliary normalized 0.0-1.0 scores while preserving raw metrics."""
+        cost_max = cost_max_ref if cost_max_ref and cost_max_ref > 0 else max(self.avg_cost_usd * 2, 0.01)
+        latency_max = latency_max_ref if latency_max_ref and latency_max_ref > 0 else max(self.avg_latency_ms * 2, 100)
 
-    def evaluate(
-        self,
-        architecture: AgentArchitecture,
-        suite_or_cases: Union[BenchmarkSuite, List[BenchmarkCase]],
-        split: Optional[Union[BenchmarkSplit, str]] = None,
-        name: Optional[str] = None
-    ) -> Scorecard:
-        """Execute benchmark cases and synthesize a 4-axis scorecard.
+        cost_eff = max(0.0, min(1.0, 1.0 - (self.avg_cost_usd / cost_max)))
+        speed_eff = max(0.0, min(1.0, 1.0 - (self.avg_latency_ms / latency_max)))
 
-        Args:
-            architecture: The agent DAG architecture to evaluate.
-            suite_or_cases: A BenchmarkSuite or a list of BenchmarkCase objects.
-            split: Optional partition filter ('optimization' or 'held-out').
-            name: Optional descriptive label for the scorecard.
+        norm = NormalizedMetrics(
+            accuracy_norm=round(self.accuracy, 4),
+            reliability_norm=round(self.reliability, 4),
+            cost_norm=round(cost_eff, 4),
+            speed_norm=round(speed_eff, 4),
+            reference_bounds={
+                "cost_max_ref": cost_max,
+                "latency_max_ref": latency_max,
+                "units": {
+                    "accuracy": "ratio (0-1)",
+                    "reliability": "ratio (0-1)",
+                    "cost": "USD",
+                    "latency": "ms",
+                },
+            },
+        )
+        self.normalized = norm
+        return norm
 
-        Returns:
-            Computed Scorecard with Accuracy, Reliability, Cost, and Latency metrics.
-        """
-        # Resolve cases based on split filter
-        if isinstance(suite_or_cases, BenchmarkSuite):
-            if split:
-                cases = suite_or_cases.get_split(split)
-                split_label = split if isinstance(split, str) else split.value
-            else:
-                cases = suite_or_cases.cases
-                split_label = "full"
-        else:
-            if split:
-                norm_split = BenchmarkSplit.OPTIMIZATION if str(split).lower() in ("optimization", "opt") else BenchmarkSplit.HELD_OUT
-                cases = [c for c in suite_or_cases if c.split == norm_split]
-                split_label = norm_split.value
-            else:
-                cases = suite_or_cases
-                split_label = cases[0].split.value if cases else "unknown"
+    @classmethod
+    def from_benchmark_run_result(
+        cls,
+        result: BenchmarkRunResult,
+        benchmark_name: str = "generic",
+        benchmark_version: str = "v1",
+        cost_type: Literal["actual", "estimated", "simulated_mock"] = "simulated_mock",
+        agent_version_id: Optional[UUID] = None,
+        experiment_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> "Scorecard":
+        """Construct a Scorecard from the core BenchmarkRunResult exchange model."""
+        total = result.cases_total
+        passed = result.cases_passed
+        failed = total - passed
+        avg_cost = result.total_cost_usd / total if total > 0 else 0.0
+        total_lat = result.avg_latency_ms * total
 
-        if not cases:
-            raise ValueError(f"No benchmark test cases available to evaluate for split '{split_label}'.")
+        card = cls(
+            benchmark_name=benchmark_name,
+            benchmark_version=benchmark_version,
+            agent_version_id=agent_version_id,
+            experiment_id=experiment_id,
+            split=result.split,  # type: ignore
+            accuracy=result.accuracy,
+            reliability=result.reliability,
+            total_cost_usd=round(result.total_cost_usd, 6),
+            avg_cost_usd=round(avg_cost, 6),
+            cost_type=cost_type,
+            total_latency_ms=total_lat,
+            avg_latency_ms=result.avg_latency_ms,
+            total_cases=total,
+            passed_cases=passed,
+            failed_cases=failed,
+            execution_metadata=metadata or {},
+        )
+        return card
 
-        run_name = name or architecture.name or architecture.id
-        case_results: List[CaseEvaluationResult] = []
-
-        total_latency_ms = 0.0
-        total_cost_usd = 0.0
-
-        for case in cases:
-            case_start = time.perf_counter()
-            exec_result = self.runtime.execute(architecture, case.input_data)
-            case_elapsed_ms = (time.perf_counter() - case_start) * 1000.0
-
-            # 1. Reliability: No runtime crash and no failed nodes
-            no_runtime_error = exec_result.status == NodeStatus.COMPLETED and exec_result.error is None
-            no_node_failures = not any(r.status == NodeStatus.FAILED for r in exec_result.node_records.values())
-            is_reliable = no_runtime_error and no_node_failures
-
-            # 2. Accuracy: Ground-truth match
-            is_accurate = False
-            if is_reliable:
-                is_accurate = case.eval_match(exec_result.final_output)
-
-            # 3. Cost: exact token/tool cost or deterministic $0
-            case_cost = getattr(exec_result, "total_cost_usd", 0.0) + self.cost_per_case_usd
-
-            # 4. Latency
-            case_latency = exec_result.total_latency_ms if exec_result.total_latency_ms > 0 else case_elapsed_ms
-            total_latency_ms += case_latency
-            total_cost_usd += case_cost
-
-            case_results.append(CaseEvaluationResult(
-                case_id=case.case_id,
-                split=case.split.value,
-                is_accurate=is_accurate,
-                is_reliable=is_reliable,
-                cost_usd=round(case_cost, 6),
-                latency_ms=round(case_latency, 3),
-                error=exec_result.error,
-                actual_output=exec_result.final_output,
-                expected_output=case.expected_output
-            ))
-
-        total_count = len(cases)
-        accurate_count = sum(1 for r in case_results if r.is_accurate)
-        reliable_count = sum(1 for r in case_results if r.is_reliable)
-
-        accuracy = accurate_count / total_count
-        reliability = reliable_count / total_count
-        avg_latency_ms = total_latency_ms / total_count
-
-        return Scorecard(
-            name=run_name,
-            split=split_label,
-            total_cases=total_count,
-            accurate_cases=accurate_count,
-            reliable_cases=reliable_count,
-            accuracy=round(accuracy, 4),
-            reliability=round(reliability, 4),
-            cost_usd=round(total_cost_usd, 6),
-            latency_ms=round(total_latency_ms, 2),
-            avg_latency_ms=round(avg_latency_ms, 2),
-            latency_s=round(total_latency_ms / 1000.0, 4),
-            case_results=case_results
+    @classmethod
+    def from_reconciliation_run_result(
+        cls,
+        result: Any,  # ReconciliationRunResult
+        agent_version_id: Optional[UUID] = None,
+        experiment_id: Optional[UUID] = None,
+    ) -> "Scorecard":
+        """Construct a generic Scorecard from a domain-specific ReconciliationRunResult."""
+        total = result.total_cases
+        avg_cost = result.total_cost_usd / total if total > 0 else 0.0
+        cost_type_meta = result.metadata.get("cost_type", "simulated_mock")
+        if cost_type_meta == "actual_provider":
+            cost_type_meta = "estimated"
+        cost_type: Literal["actual", "estimated", "simulated_mock"] = (
+            cost_type_meta if cost_type_meta in ["actual", "estimated", "simulated_mock"] else "simulated_mock"
         )
 
-    def compare(self, baseline: Scorecard, candidate: Scorecard) -> ScorecardComparison:
-        """Perform side-by-side 4-axis scorecard comparison between baseline and candidate.
+        # Extract percentiles from case results if available
+        latencies = sorted([c.latency_ms for c in result.case_results]) if result.case_results else []
+        p50 = latencies[len(latencies) // 2] if latencies else None
+        p95 = latencies[int(len(latencies) * 0.95)] if latencies else None
 
-        Calculates delta badges, verifies Pareto dominance, and flags trade-offs.
+        card = cls(
+            benchmark_name=result.benchmark_name,
+            benchmark_version=result.benchmark_version,
+            agent_version_id=agent_version_id,
+            experiment_id=experiment_id,
+            split=result.split,
+            accuracy=result.accuracy,
+            reliability=result.reliability,
+            total_cost_usd=result.total_cost_usd,
+            avg_cost_usd=round(avg_cost, 6),
+            cost_type=cost_type,
+            total_latency_ms=result.total_latency_ms,
+            avg_latency_ms=result.avg_latency_ms,
+            p50_latency_ms=p50,
+            p95_latency_ms=p95,
+            total_cases=total,
+            passed_cases=result.passed_cases,
+            failed_cases=result.failed_cases,
+            execution_metadata={
+                **result.metadata,
+                "generation_method": result.generation_method,
+            },
+        )
+        return card
 
-        Args:
-            baseline: Baseline Scorecard (e.g. V0).
-            candidate: Candidate Scorecard (e.g. mutated/optimized architecture).
-
-        Returns:
-            ScorecardComparison instance.
-        """
-        # 1. Calculate deltas
-        acc_delta = candidate.accuracy - baseline.accuracy
-        rel_delta = candidate.reliability - baseline.reliability
-        cost_delta = candidate.cost_usd - baseline.cost_usd
-        lat_delta = candidate.latency_ms - baseline.latency_ms
-
-        lat_pct = (lat_delta / baseline.latency_ms * 100.0) if baseline.latency_ms > 0 else 0.0
-
-        # 2. Compute formatted badges
-        # Accuracy badge
-        acc_badge = f"{acc_delta * 100:+.1f}%"
-        # Reliability badge
-        rel_badge = f"{rel_delta * 100:+.1f}%"
-
-        # Cost badge (negative is better / green)
-        if abs(cost_delta) < 1e-6:
-            cost_badge = "$0.0000"
-        elif cost_delta > 0:
-            cost_badge = f"+${cost_delta:.4f}"
-        else:
-            cost_badge = f"-${abs(cost_delta):.4f}"
-
-        # Latency badge (negative is better / faster)
-        lat_badge = f"{lat_delta:+.2f}ms ({lat_pct:+.1f}%)"
-
-        # 3. Assess improvements & regressions per axis
-        # Accuracy: higher is better
-        acc_improved = acc_delta > 1e-4
-        acc_regressed = acc_delta < -1e-4
-
-        # Reliability: higher is better
-        rel_improved = rel_delta > 1e-4
-        rel_regressed = rel_delta < -1e-4
-
-        # Cost: lower is better
-        cost_improved = cost_delta < -1e-5
-        cost_regressed = cost_delta > 1e-5
-
-        # Speed: lower latency is better
-        speed_improved = lat_delta < -0.1
-        speed_regressed = lat_delta > 0.1
-
-        improved_any = acc_improved or rel_improved or cost_improved or speed_improved
-        regressed_any = acc_regressed or rel_regressed or cost_regressed or speed_regressed
-
-        # 4. Pareto dominance & Tradeoff identification
-        is_pareto = improved_any and not regressed_any
-        has_tradeoff = improved_any and regressed_any
-
-        tradeoffs: List[str] = []
-        if acc_improved and speed_regressed:
-            tradeoffs.append(
-                f"+{acc_delta * 100:.1f}% accuracy gain at cost of +{lat_pct:.1f}% latency increase (+{lat_delta:.2f}ms)"
-            )
-        if acc_improved and cost_regressed:
-            tradeoffs.append(
-                f"+{acc_delta * 100:.1f}% accuracy gain with higher inference cost (+${cost_delta:.4f})"
-            )
-        if speed_improved and acc_regressed:
-            tradeoffs.append(
-                f"{lat_pct:.1f}% faster latency with {acc_delta * 100:.1f}% accuracy degradation"
-            )
-        if rel_improved and speed_regressed:
-            tradeoffs.append(
-                f"+{rel_delta * 100:.1f}% reliability improvement with +{lat_pct:.1f}% latency increase"
-            )
-        if cost_improved and acc_regressed:
-            tradeoffs.append(
-                f"-${abs(cost_delta):.4f} cost reduction with {acc_delta * 100:.1f}% accuracy loss"
-            )
-
-        # Verdict
-        if is_pareto:
-            verdict = "PARETO_DOMINANT"
-        elif has_tradeoff:
-            verdict = "TRADEOFF"
-        elif regressed_any:
-            verdict = "REGRESSION"
-        else:
-            verdict = "NEUTRAL"
-
-        return ScorecardComparison(
-            baseline_name=baseline.name,
-            candidate_name=candidate.name,
-            split=baseline.split,
-            baseline_scorecard=baseline,
-            candidate_scorecard=candidate,
-            accuracy_delta=round(acc_delta, 4),
-            reliability_delta=round(rel_delta, 4),
-            cost_delta_usd=round(cost_delta, 6),
-            latency_delta_ms=round(lat_delta, 2),
-            latency_pct_delta=round(lat_pct, 2),
-            accuracy_badge=acc_badge,
-            reliability_badge=rel_badge,
-            cost_badge=cost_badge,
-            latency_badge=lat_badge,
-            is_pareto_dominant=is_pareto,
-            has_tradeoff=has_tradeoff,
-            tradeoffs=tradeoffs,
-            verdict=verdict
+    @classmethod
+    def from_db_record(
+        cls,
+        record: BenchmarkRunRecord,
+    ) -> "Scorecard":
+        """Reconstitute a generic Scorecard from a stored database BenchmarkRunRecord."""
+        total = record.total_cases
+        avg_cost = record.total_cost_usd / total if total > 0 else 0.0
+        avg_lat = int(record.latency_ms / total) if total > 0 else 0
+        cost_type_meta = record.metadata.get("cost_type", "actual")
+        cost_type: Literal["actual", "estimated", "simulated_mock"] = (
+            cost_type_meta if cost_type_meta in ["actual", "estimated", "simulated_mock"] else "actual"
         )
 
+        return cls(
+            benchmark_name=record.benchmark_name,
+            benchmark_version=record.metadata.get("benchmark_version", "reconciliation-v1"),
+            agent_version_id=record.agent_version_id,
+            experiment_id=record.experiment_id,
+            split=record.split,  # type: ignore
+            accuracy=record.accuracy,
+            reliability=record.reliability,
+            total_cost_usd=record.total_cost_usd,
+            avg_cost_usd=round(avg_cost, 6),
+            cost_type=cost_type,
+            total_latency_ms=record.latency_ms,
+            avg_latency_ms=record.metadata.get("avg_latency_ms", avg_lat),
+            total_cases=total,
+            passed_cases=record.passed_cases,
+            failed_cases=record.failed_cases,
+            execution_metadata=record.metadata,
+        )
 
-def run_v0_benchmark(
-    split: Union[BenchmarkSplit, str] = BenchmarkSplit.OPTIMIZATION,
-    runtime: Optional[AgentRuntime] = None
-) -> Scorecard:
-    """Execute the V0 baseline DAG through the partitioned benchmark split and compute the scorecard.
+    def to_db_record(
+        self,
+        experiment_id: Optional[UUID] = None,
+        agent_version_id: Optional[UUID] = None,
+    ) -> BenchmarkRunRecord:
+        """Convert this Scorecard into a database BenchmarkRunRecord for persistence."""
+        exp_id = experiment_id or self.experiment_id or uuid4()
+        ver_id = agent_version_id or self.agent_version_id or uuid4()
 
-    Args:
-        split: Partition split to evaluate on (defaults to 'optimization').
-        runtime: Optional AgentRuntime instance.
-
-    Returns:
-        Scorecard representing initial V0 baseline performance.
-    """
-    suite = get_reconciliation_benchmark_suite()
-    analyzer = GoalAnalyzer()
-    spec = analyzer.analyze("Reconcile financial transaction ledgers, match records, and detect discrepancies")
-
-    generator = ArchitectureGenerator()
-    v0_architecture = generator.generate(spec, architecture_name="Agent_Reconciliation_V0")
-
-    evaluator = ScorecardEvaluator(runtime=runtime)
-    scorecard = evaluator.evaluate(
-        architecture=v0_architecture,
-        suite_or_cases=suite,
-        split=split,
-        name="V0_Baseline_Reconciliation"
-    )
-    return scorecard
+        return BenchmarkRunRecord(
+            experiment_id=exp_id,
+            agent_version_id=ver_id,
+            benchmark_name=self.benchmark_name,
+            split=self.split,
+            total_cases=self.total_cases,
+            passed_cases=self.passed_cases,
+            failed_cases=self.failed_cases,
+            accuracy=self.accuracy,
+            reliability=self.reliability,
+            total_cost_usd=self.total_cost_usd,
+            latency_ms=self.total_latency_ms,
+            status="completed",
+            metadata={
+                "benchmark_version": self.benchmark_version,
+                "avg_cost_usd": self.avg_cost_usd,
+                "avg_latency_ms": self.avg_latency_ms,
+                "cost_type": self.cost_type,
+                "p50_latency_ms": self.p50_latency_ms,
+                "p95_latency_ms": self.p95_latency_ms,
+                **self.execution_metadata,
+            },
+        )

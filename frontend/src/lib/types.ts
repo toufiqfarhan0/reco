@@ -1,3 +1,26 @@
+export interface ToolParameterProperty {
+  type: string;
+  description?: string;
+  enum?: string[];
+  items?: Record<string, unknown>;
+  default?: unknown;
+}
+
+export interface ToolSchema {
+  name: string;
+  description: string;
+  parameters_schema: {
+    type: string;
+    required?: string[];
+    properties?: Record<string, ToolParameterProperty>;
+  };
+  output_schema?: Record<string, unknown>;
+  deterministic: boolean;
+  side_effect: boolean;
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  category: string;
+}
+
 export type DomainType =
   | "financial_reconciliation"
   | "anomaly_detection"

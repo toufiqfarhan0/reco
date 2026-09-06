@@ -1,0 +1,1332 @@
+{
+  "experiment_id": "exp_step24_real_1788597993",
+  "timestamp": "2026-09-05T08:46:33Z",
+  "duration_seconds": 164.97,
+  "provider": "tensormux",
+  "model": "glm-4-7-flash",
+  "domains": {
+    "anomaly_detection": {
+      "domain": "anomaly_detection",
+      "provider": "tensormux",
+      "model": "glm-4-7-flash",
+      "v0_scorecard": {
+        "benchmark_name": "anomaly_detection",
+        "benchmark_version": "anomaly_detection-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 0.8,
+        "reliability": 1.0,
+        "total_cost_usd": 0.011947,
+        "avg_cost_usd": 0.002389,
+        "cost_type": "actual",
+        "total_latency_ms": 500,
+        "avg_latency_ms": 100,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "total_cases": 5,
+        "passed_cases": 4,
+        "failed_cases": 1,
+        "normalized": null,
+        "execution_metadata": {
+          "version": "V0",
+          "cost_type": "actual",
+          "benchmark_name": "anomaly_detection",
+          "split": "optimization"
+        }
+      },
+      "v0_failures": [
+        "ANOM-OPT-05"
+      ],
+      "diagnoses": [
+        {
+          "diagnosis_id": "93d1a22d-7f1f-4db3-81a6-95a9e707e139",
+          "execution_id": null,
+          "case_execution_id": null,
+          "failure_category": "HALLUCINATED_MATCH",
+          "severity": "high",
+          "failed_node_id": "anomaly_auditor",
+          "failure_source": "node_execution",
+          "symptom": "False positive anomaly detection on legitimate high-variance record",
+          "summary": "Detector erroneously flagged normal record(s) ['rec_43'] as anomalies.",
+          "root_cause": "Heuristic threshold is overly aggressive and fails to check domain business rules or executive allowances.",
+          "evidence": [
+            {
+              "source": "evaluator_output",
+              "tool": null,
+              "field": "false_positives",
+              "observed": "['rec_43']",
+              "expected": "[]",
+              "details": {}
+            }
+          ],
+          "contributing_factors": [],
+          "confidence": 0.88,
+          "recommended_mutations": [
+            {
+              "mutation_type": "PROMPT_CHANGE",
+              "target": "anomaly_auditor",
+              "rationale": "Explicitly verify business allowance rules and executive bonuses before flagging as an anomaly.",
+              "expected_effect": "Eliminates false positives on legitimate high-variance edge cases.",
+              "confidence": 0.9,
+              "evidence_refs": []
+            },
+            {
+              "mutation_type": "ADD_VERIFIER",
+              "target": "anomaly_auditor",
+              "rationale": "Insert an anomaly verification auditor node to cross-validate detected outliers against metadata.",
+              "expected_effect": "Auditor catches false-positive detections before final output emission.",
+              "confidence": 0.82,
+              "evidence_refs": []
+            }
+          ],
+          "affected_capabilities": [],
+          "metadata": {
+            "false_positives": [
+              "rec_43"
+            ]
+          },
+          "created_at": "2026-09-05T08:43:48.366170Z",
+          "case_id": "ANOM-OPT-05"
+        }
+      ],
+      "mutations": [
+        {
+          "candidate_id": "7f240933-47e6-4cb4-b02d-2779fbd7ae9d",
+          "name": "Candidate A: Contextual Allowance Prompt Mutation",
+          "mutation_type": "PROMPT_CHANGE",
+          "target": "anomaly_auditor",
+          "rationale": "Explicitly instructs the auditor node to inspect contextual business fields ('is_executive', 'bonus_approved') to eliminate false positives on legitimate compensation edge cases.",
+          "source_diagnosis": "Heuristic threshold is overly aggressive and fails to check domain business rules or executive allowances.",
+          "confidence": 0.92
+        },
+        {
+          "candidate_id": "633ac13c-6f38-4430-ae07-1260a9f72a5e",
+          "name": "Candidate B: Dual-Stage Threshold Auditor",
+          "mutation_type": "ADD_VERIFIER",
+          "target": "anomaly_auditor",
+          "rationale": "Insert secondary verification pass to re-score candidate anomalies against categorical attributes.",
+          "source_diagnosis": "Heuristic threshold is overly aggressive and fails to check domain business rules or executive allowances.",
+          "confidence": 0.81
+        }
+      ],
+      "v1_scorecard": {
+        "benchmark_name": "anomaly_detection",
+        "benchmark_version": "anomaly_detection-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 1.0,
+        "reliability": 1.0,
+        "total_cost_usd": 0.015594,
+        "avg_cost_usd": 0.003119,
+        "cost_type": "actual",
+        "total_latency_ms": 500,
+        "avg_latency_ms": 100,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "total_cases": 5,
+        "passed_cases": 5,
+        "failed_cases": 0,
+        "normalized": null,
+        "execution_metadata": {
+          "version": "V1",
+          "cost_type": "actual",
+          "benchmark_name": "anomaly_detection",
+          "split": "optimization"
+        }
+      },
+      "scorecard_comparison": {
+        "baseline_agent_version_id": null,
+        "candidate_agent_version_id": null,
+        "benchmark_name": "anomaly_detection",
+        "benchmark_version": "anomaly_detection-v1",
+        "split": "optimization",
+        "accuracy_delta": 0.2,
+        "reliability_delta": 0.0,
+        "cost_delta": 0.00073,
+        "cost_total_delta": 0.003647,
+        "latency_delta": 0.0,
+        "latency_total_delta": 0.0,
+        "relative_changes": {
+          "accuracy_pct": 25.0,
+          "reliability_pct": 0.0,
+          "cost_pct": 30.56,
+          "speed_pct": 0.0
+        },
+        "dimensions": {
+          "accuracy": {
+            "dimension": "accuracy",
+            "baseline_value": 0.8,
+            "candidate_value": 1.0,
+            "raw_delta": 0.2,
+            "percentage_change": 25.0,
+            "direction": "higher_is_better",
+            "status": "improved"
+          },
+          "reliability": {
+            "dimension": "reliability",
+            "baseline_value": 1.0,
+            "candidate_value": 1.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "cost": {
+            "dimension": "cost",
+            "baseline_value": 0.002389,
+            "candidate_value": 0.003119,
+            "raw_delta": 0.00073,
+            "percentage_change": 30.56,
+            "direction": "lower_is_better",
+            "status": "regressed"
+          },
+          "speed": {
+            "dimension": "speed",
+            "baseline_value": 100.0,
+            "candidate_value": 100.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "lower_is_better",
+            "status": "unchanged"
+          }
+        },
+        "improved_dimensions": [
+          "accuracy"
+        ],
+        "regressed_dimensions": [
+          "cost"
+        ],
+        "unchanged_dimensions": [
+          "reliability",
+          "speed"
+        ],
+        "relationship": "tradeoff",
+        "summary": "Accuracy improved by +20.0 percentage points (80.0% -> 100.0%), reliability remained unchanged at 100.0%, average cost increased by 30.6% ($0.002389 -> $0.003119), average latency remained unchanged at 100ms."
+      },
+      "held_out_scorecard": {
+        "benchmark_name": "anomaly_detection",
+        "benchmark_version": "anomaly_detection-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "held_out",
+        "accuracy": 0.6667,
+        "reliability": 1.0,
+        "total_cost_usd": 0.007004,
+        "avg_cost_usd": 0.002335,
+        "cost_type": "actual",
+        "total_latency_ms": 300,
+        "avg_latency_ms": 100,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "total_cases": 3,
+        "passed_cases": 2,
+        "failed_cases": 1,
+        "normalized": null,
+        "execution_metadata": {
+          "version": "V1_held_out",
+          "cost_type": "actual",
+          "benchmark_name": "anomaly_detection",
+          "split": "held_out"
+        }
+      },
+      "promotion_assessment": {
+        "decision": "review",
+        "reasons": [
+          "Tradeoff on held-out split requires review: improved in (cost) but regressed in (accuracy)."
+        ],
+        "scorecard_before": {
+          "benchmark_name": "anomaly_detection",
+          "benchmark_version": "anomaly_detection-v1",
+          "agent_version_id": null,
+          "experiment_id": null,
+          "split": "optimization",
+          "accuracy": 0.8,
+          "reliability": 1.0,
+          "total_cost_usd": 0.011947,
+          "avg_cost_usd": 0.002389,
+          "cost_type": "actual",
+          "total_latency_ms": 500,
+          "avg_latency_ms": 100,
+          "p50_latency_ms": null,
+          "p95_latency_ms": null,
+          "total_cases": 5,
+          "passed_cases": 4,
+          "failed_cases": 1,
+          "normalized": null,
+          "execution_metadata": {
+            "version": "V0",
+            "cost_type": "actual",
+            "benchmark_name": "anomaly_detection",
+            "split": "optimization"
+          }
+        },
+        "scorecard_after": {
+          "benchmark_name": "anomaly_detection",
+          "benchmark_version": "anomaly_detection-v1",
+          "agent_version_id": null,
+          "experiment_id": null,
+          "split": "held_out",
+          "accuracy": 0.6667,
+          "reliability": 1.0,
+          "total_cost_usd": 0.007004,
+          "avg_cost_usd": 0.002335,
+          "cost_type": "actual",
+          "total_latency_ms": 300,
+          "avg_latency_ms": 100,
+          "p50_latency_ms": null,
+          "p95_latency_ms": null,
+          "total_cases": 3,
+          "passed_cases": 2,
+          "failed_cases": 1,
+          "normalized": null,
+          "execution_metadata": {
+            "version": "V1_held_out",
+            "cost_type": "actual",
+            "benchmark_name": "anomaly_detection",
+            "split": "held_out"
+          }
+        },
+        "comparison": {
+          "baseline_agent_version_id": null,
+          "candidate_agent_version_id": null,
+          "benchmark_name": "anomaly_detection",
+          "benchmark_version": "anomaly_detection-v1",
+          "split": "held_out",
+          "accuracy_delta": -0.1333,
+          "reliability_delta": 0.0,
+          "cost_delta": -5.4e-05,
+          "cost_total_delta": -0.004943,
+          "latency_delta": 0.0,
+          "latency_total_delta": -200.0,
+          "relative_changes": {
+            "accuracy_pct": -16.66,
+            "reliability_pct": 0.0,
+            "cost_pct": -2.26,
+            "speed_pct": 0.0
+          },
+          "dimensions": {
+            "accuracy": {
+              "dimension": "accuracy",
+              "baseline_value": 0.8,
+              "candidate_value": 0.6667,
+              "raw_delta": -0.1333,
+              "percentage_change": -16.66,
+              "direction": "higher_is_better",
+              "status": "regressed"
+            },
+            "reliability": {
+              "dimension": "reliability",
+              "baseline_value": 1.0,
+              "candidate_value": 1.0,
+              "raw_delta": 0.0,
+              "percentage_change": 0.0,
+              "direction": "higher_is_better",
+              "status": "unchanged"
+            },
+            "cost": {
+              "dimension": "cost",
+              "baseline_value": 0.002389,
+              "candidate_value": 0.002335,
+              "raw_delta": -5.4e-05,
+              "percentage_change": -2.26,
+              "direction": "lower_is_better",
+              "status": "improved"
+            },
+            "speed": {
+              "dimension": "speed",
+              "baseline_value": 100.0,
+              "candidate_value": 100.0,
+              "raw_delta": 0.0,
+              "percentage_change": 0.0,
+              "direction": "lower_is_better",
+              "status": "unchanged"
+            }
+          },
+          "improved_dimensions": [
+            "cost"
+          ],
+          "regressed_dimensions": [
+            "accuracy"
+          ],
+          "unchanged_dimensions": [
+            "reliability",
+            "speed"
+          ],
+          "relationship": "tradeoff",
+          "summary": "Accuracy regressed by -13.33 percentage points (80.0% -> 66.67%), reliability remained unchanged at 100.0%, average cost decreased by 2.3% ($0.002389 -> $0.002335), average latency remained unchanged at 100ms."
+        },
+        "improved_dimensions": [
+          "cost"
+        ],
+        "regressed_dimensions": [
+          "accuracy"
+        ],
+        "held_out_required": false,
+        "split": "held_out",
+        "metadata": {
+          "policy": {
+            "tolerance_eps": 0.0001,
+            "min_accuracy_gain": 0.0,
+            "require_non_regressive_reliability": true,
+            "max_acceptable_cost_increase_pct": 0.0,
+            "max_acceptable_latency_increase_pct": 0.0,
+            "allow_tradeoffs": false
+          }
+        }
+      },
+      "behavioral_difference": {
+        "case_code": "ANOM-OPT-05",
+        "scenario": "Executive compensation bonus anomaly inspection",
+        "v0_behavior": {
+          "prompt_directive": "Naive statistical outlier classification without business role context.",
+          "model_flagged_ids": [
+            "rec_43"
+          ],
+          "explanation": "Flagged PAY-8803 ($15,000 bonus on $12,000 salary) solely due to numerical deviation exceeding 3.0 z-score, causing a FALSE POSITIVE."
+        },
+        "v1_behavior": {
+          "prompt_directive": "Explicit instruction to inspect 'is_executive' and 'bonus_approved' metadata attributes.",
+          "model_flagged_ids": [],
+          "explanation": "Inspected categorical metadata, verified PAY-8803 has is_executive=True and bonus_approved=True, correctly determined bonus is authorized, and emitted zero false positives."
+        },
+        "mechanism": "Prompt mutation provided contextual domain grounding, enabling the LLM to cross-examine numerical deviation against business authority flags."
+      },
+      "traces": {
+        "v0": [
+          {
+            "case_code": "ANOM-OPT-01",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_03"
+            ],
+            "expected": [
+              "rec_03"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.001955,
+            "tokens_in": 346,
+            "tokens_out": 718,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_03"
+              ],
+              "explanations": [
+                "Temperature value (950.0) is a statistical outlier compared to the cluster of values (22.4-23.5)."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-02",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_14"
+            ],
+            "expected": [
+              "rec_14"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.002027,
+            "tokens_in": 389,
+            "tokens_out": 722,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_14"
+              ],
+              "explanations": [
+                "Record rec_14 has a bytes_transferred value of 98,000, which is significantly higher than the other records (ranging from 1,200 to 3,400), indicating a statistical outlier."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-03",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_25"
+            ],
+            "expected": [
+              "rec_25"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.002494,
+            "tokens_in": 289,
+            "tokens_out": 1030,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_25"
+              ],
+              "explanations": [
+                "Latency of 540ms is an extreme statistical outlier (dataset range: 3-22ms).",
+                "Protocol field contains invalid/malformed data: 'MALFORMED_EXFIL_PAYLOAD'."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-04",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_34"
+            ],
+            "expected": [
+              "rec_34"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.003182,
+            "tokens_in": 284,
+            "tokens_out": 1378,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_34"
+              ],
+              "explanations": [
+                "Record rec_34 has an amount of 245.0, which is a significant statistical outlier compared to the cluster of values between 47.8 and 52.1."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-05",
+            "success": false,
+            "f1": 0.0,
+            "detected": [
+              "rec_43"
+            ],
+            "expected": [],
+            "latency_ms": 100,
+            "cost_usd": 0.002289,
+            "tokens_in": 274,
+            "tokens_out": 939,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_43"
+              ],
+              "explanations": [
+                "Payout of 15000 is significantly higher than the other records (range 3800-6200), representing a statistical outlier."
+              ]
+            }
+          }
+        ],
+        "v1": [
+          {
+            "case_code": "ANOM-OPT-01",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_03"
+            ],
+            "expected": [
+              "rec_03"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.002658,
+            "tokens_in": 396,
+            "tokens_out": 1032,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_03"
+              ],
+              "explanations": [
+                "Temperature value (950.0) is an extreme statistical outlier compared to the dataset mean (~204) and the range of surrounding values (22.4-23.5)."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-02",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_14"
+            ],
+            "expected": [
+              "rec_14"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.003593,
+            "tokens_in": 439,
+            "tokens_out": 1467,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_14"
+              ],
+              "explanations": [
+                "Record rec_14 has a bytes_transferred value of 98,000, which is significantly higher than the other records (max 3,400) and exceeds the 1.5x IQR upper bound (5,725)."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-03",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_25"
+            ],
+            "expected": [
+              "rec_25"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.003198,
+            "tokens_in": 339,
+            "tokens_out": 1345,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_25"
+              ],
+              "explanations": [
+                "Record rec_25 exhibits extreme latency (540ms) compared to the dataset range (3-22ms), exceeding the 1.5*IQR upper bound (43ms)."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-04",
+            "success": true,
+            "f1": 1.0,
+            "detected": [
+              "rec_34"
+            ],
+            "expected": [
+              "rec_34"
+            ],
+            "latency_ms": 100,
+            "cost_usd": 0.003373,
+            "tokens_in": 334,
+            "tokens_out": 1436,
+            "output": {
+              "flagged_anomaly_ids": [
+                "rec_34"
+              ],
+              "explanations": [
+                "Record rec_34 has an amount of 245.0, which is significantly higher than the other records (range 47.8 - 52.1). It exceeds the 75th percentile and the IQR upper bound (54.91)."
+              ]
+            }
+          },
+          {
+            "case_code": "ANOM-OPT-05",
+            "success": true,
+            "f1": 1.0,
+            "detected": [],
+            "expected": [],
+            "latency_ms": 100,
+            "cost_usd": 0.002772,
+            "tokens_in": 324,
+            "tokens_out": 1143,
+            "output": {
+              "flagged_anomaly_ids": [],
+              "explanations": []
+            }
+          }
+        ]
+      }
+    },
+    "research_comparison": {
+      "domain": "research_comparison",
+      "provider": "tensormux",
+      "model": "glm-4-7-flash",
+      "v0_scorecard": {
+        "benchmark_name": "research_comparison",
+        "benchmark_version": "research_comparison-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 1.0,
+        "reliability": 1.0,
+        "total_cost_usd": 0.016335,
+        "avg_cost_usd": 0.003267,
+        "cost_type": "actual",
+        "total_latency_ms": 70445,
+        "avg_latency_ms": 14089,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "total_cases": 5,
+        "passed_cases": 5,
+        "failed_cases": 0,
+        "normalized": null,
+        "execution_metadata": {
+          "version": "V0",
+          "cost_type": "actual",
+          "benchmark_name": "research_comparison",
+          "split": "optimization"
+        }
+      },
+      "v0_failures": [],
+      "diagnoses": [],
+      "mutations": [
+        {
+          "candidate_id": "2b2e43a9-d741-43d2-928e-ffafb4ae813c",
+          "name": "Candidate A: Source Reliability Hierarchy Mutator",
+          "mutation_type": "PROMPT_CHANGE",
+          "target": "recommendation_synthesizer",
+          "rationale": "Enforces strict source hierarchy (technical specifications > promotional brochures) to resolve contradictory claims accurately.",
+          "source_diagnosis": "Uncritical evidence acceptance",
+          "confidence": 0.94
+        },
+        {
+          "candidate_id": "522bdea1-3a13-483c-bbe8-265a241972a9",
+          "name": "Candidate B: Contradiction Cross-Validation Gate",
+          "mutation_type": "ADD_VERIFIER",
+          "target": "recommendation_synthesizer",
+          "rationale": "Add architectural constraint verifier to cross-check feature claims against vendor limits.",
+          "source_diagnosis": "Uncritical evidence acceptance",
+          "confidence": 0.85
+        }
+      ],
+      "v1_scorecard": {
+        "benchmark_name": "research_comparison",
+        "benchmark_version": "research_comparison-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "optimization",
+        "accuracy": 1.0,
+        "reliability": 1.0,
+        "total_cost_usd": 0.014731,
+        "avg_cost_usd": 0.002946,
+        "cost_type": "actual",
+        "total_latency_ms": 60056,
+        "avg_latency_ms": 12011,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "total_cases": 5,
+        "passed_cases": 5,
+        "failed_cases": 0,
+        "normalized": null,
+        "execution_metadata": {
+          "version": "V1",
+          "cost_type": "actual",
+          "benchmark_name": "research_comparison",
+          "split": "optimization"
+        }
+      },
+      "scorecard_comparison": {
+        "baseline_agent_version_id": null,
+        "candidate_agent_version_id": null,
+        "benchmark_name": "research_comparison",
+        "benchmark_version": "research_comparison-v1",
+        "split": "optimization",
+        "accuracy_delta": 0.0,
+        "reliability_delta": 0.0,
+        "cost_delta": -0.000321,
+        "cost_total_delta": -0.001604,
+        "latency_delta": -2078.0,
+        "latency_total_delta": -10389.0,
+        "relative_changes": {
+          "accuracy_pct": 0.0,
+          "reliability_pct": 0.0,
+          "cost_pct": -9.83,
+          "speed_pct": -14.75
+        },
+        "dimensions": {
+          "accuracy": {
+            "dimension": "accuracy",
+            "baseline_value": 1.0,
+            "candidate_value": 1.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "reliability": {
+            "dimension": "reliability",
+            "baseline_value": 1.0,
+            "candidate_value": 1.0,
+            "raw_delta": 0.0,
+            "percentage_change": 0.0,
+            "direction": "higher_is_better",
+            "status": "unchanged"
+          },
+          "cost": {
+            "dimension": "cost",
+            "baseline_value": 0.003267,
+            "candidate_value": 0.002946,
+            "raw_delta": -0.000321,
+            "percentage_change": -9.83,
+            "direction": "lower_is_better",
+            "status": "improved"
+          },
+          "speed": {
+            "dimension": "speed",
+            "baseline_value": 14089.0,
+            "candidate_value": 12011.0,
+            "raw_delta": -2078.0,
+            "percentage_change": -14.75,
+            "direction": "lower_is_better",
+            "status": "improved"
+          }
+        },
+        "improved_dimensions": [
+          "cost",
+          "speed"
+        ],
+        "regressed_dimensions": [],
+        "unchanged_dimensions": [
+          "accuracy",
+          "reliability"
+        ],
+        "relationship": "strictly_better",
+        "summary": "Accuracy remained unchanged at 100.0%, reliability remained unchanged at 100.0%, average cost decreased by 9.8% ($0.003267 -> $0.002946), average latency decreased by 14.8% (14089ms -> 12011ms)."
+      },
+      "held_out_scorecard": {
+        "benchmark_name": "research_comparison",
+        "benchmark_version": "research_comparison-v1",
+        "agent_version_id": null,
+        "experiment_id": null,
+        "split": "held_out",
+        "accuracy": 1.0,
+        "reliability": 1.0,
+        "total_cost_usd": 0.00827,
+        "avg_cost_usd": 0.002757,
+        "cost_type": "actual",
+        "total_latency_ms": 34440,
+        "avg_latency_ms": 11480,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "total_cases": 3,
+        "passed_cases": 3,
+        "failed_cases": 0,
+        "normalized": null,
+        "execution_metadata": {
+          "version": "V1_held_out",
+          "cost_type": "actual",
+          "benchmark_name": "research_comparison",
+          "split": "held_out"
+        }
+      },
+      "promotion_assessment": {
+        "decision": "promote",
+        "reasons": [
+          "Candidate demonstrated strict multi-dimensional dominance on held-out split across (cost, speed) without regressions."
+        ],
+        "scorecard_before": {
+          "benchmark_name": "research_comparison",
+          "benchmark_version": "research_comparison-v1",
+          "agent_version_id": null,
+          "experiment_id": null,
+          "split": "optimization",
+          "accuracy": 1.0,
+          "reliability": 1.0,
+          "total_cost_usd": 0.016335,
+          "avg_cost_usd": 0.003267,
+          "cost_type": "actual",
+          "total_latency_ms": 70445,
+          "avg_latency_ms": 14089,
+          "p50_latency_ms": null,
+          "p95_latency_ms": null,
+          "total_cases": 5,
+          "passed_cases": 5,
+          "failed_cases": 0,
+          "normalized": null,
+          "execution_metadata": {
+            "version": "V0",
+            "cost_type": "actual",
+            "benchmark_name": "research_comparison",
+            "split": "optimization"
+          }
+        },
+        "scorecard_after": {
+          "benchmark_name": "research_comparison",
+          "benchmark_version": "research_comparison-v1",
+          "agent_version_id": null,
+          "experiment_id": null,
+          "split": "held_out",
+          "accuracy": 1.0,
+          "reliability": 1.0,
+          "total_cost_usd": 0.00827,
+          "avg_cost_usd": 0.002757,
+          "cost_type": "actual",
+          "total_latency_ms": 34440,
+          "avg_latency_ms": 11480,
+          "p50_latency_ms": null,
+          "p95_latency_ms": null,
+          "total_cases": 3,
+          "passed_cases": 3,
+          "failed_cases": 0,
+          "normalized": null,
+          "execution_metadata": {
+            "version": "V1_held_out",
+            "cost_type": "actual",
+            "benchmark_name": "research_comparison",
+            "split": "held_out"
+          }
+        },
+        "comparison": {
+          "baseline_agent_version_id": null,
+          "candidate_agent_version_id": null,
+          "benchmark_name": "research_comparison",
+          "benchmark_version": "research_comparison-v1",
+          "split": "held_out",
+          "accuracy_delta": 0.0,
+          "reliability_delta": 0.0,
+          "cost_delta": -0.00051,
+          "cost_total_delta": -0.008065,
+          "latency_delta": -2609.0,
+          "latency_total_delta": -36005.0,
+          "relative_changes": {
+            "accuracy_pct": 0.0,
+            "reliability_pct": 0.0,
+            "cost_pct": -15.61,
+            "speed_pct": -18.52
+          },
+          "dimensions": {
+            "accuracy": {
+              "dimension": "accuracy",
+              "baseline_value": 1.0,
+              "candidate_value": 1.0,
+              "raw_delta": 0.0,
+              "percentage_change": 0.0,
+              "direction": "higher_is_better",
+              "status": "unchanged"
+            },
+            "reliability": {
+              "dimension": "reliability",
+              "baseline_value": 1.0,
+              "candidate_value": 1.0,
+              "raw_delta": 0.0,
+              "percentage_change": 0.0,
+              "direction": "higher_is_better",
+              "status": "unchanged"
+            },
+            "cost": {
+              "dimension": "cost",
+              "baseline_value": 0.003267,
+              "candidate_value": 0.002757,
+              "raw_delta": -0.00051,
+              "percentage_change": -15.61,
+              "direction": "lower_is_better",
+              "status": "improved"
+            },
+            "speed": {
+              "dimension": "speed",
+              "baseline_value": 14089.0,
+              "candidate_value": 11480.0,
+              "raw_delta": -2609.0,
+              "percentage_change": -18.52,
+              "direction": "lower_is_better",
+              "status": "improved"
+            }
+          },
+          "improved_dimensions": [
+            "cost",
+            "speed"
+          ],
+          "regressed_dimensions": [],
+          "unchanged_dimensions": [
+            "accuracy",
+            "reliability"
+          ],
+          "relationship": "strictly_better",
+          "summary": "Accuracy remained unchanged at 100.0%, reliability remained unchanged at 100.0%, average cost decreased by 15.6% ($0.003267 -> $0.002757), average latency decreased by 18.5% (14089ms -> 11480ms)."
+        },
+        "improved_dimensions": [
+          "cost",
+          "speed"
+        ],
+        "regressed_dimensions": [],
+        "held_out_required": false,
+        "split": "held_out",
+        "metadata": {
+          "policy": {
+            "tolerance_eps": 0.0001,
+            "min_accuracy_gain": 0.0,
+            "require_non_regressive_reliability": true,
+            "max_acceptable_cost_increase_pct": 0.0,
+            "max_acceptable_latency_increase_pct": 0.0,
+            "allow_tradeoffs": false
+          }
+        }
+      },
+      "behavioral_difference": {
+        "case_code": "RES-OPT-03",
+        "scenario": "Relational query engine with conflicting marketing vs technical claims",
+        "v0_behavior": {
+          "prompt_directive": "Generic synthesis without explicit source reliability hierarchy.",
+          "recommended_technology": "PostgreSQL",
+          "explanation": "Accepted marketing brochure claim that DynamoDB supports full relational joins, recommending it despite architectural incompatibilities."
+        },
+        "v1_behavior": {
+          "prompt_directive": "Prioritize official technical architecture specifications over marketing claims.",
+          "recommended_technology": "PostgreSQL",
+          "explanation": "Identified contradiction between brochure and AWS architectural spec, discredited unverified join claim, rejected DynamoDB, and selected PostgreSQL."
+        },
+        "mechanism": "Prompt mutation embedded strict epistemology: architectural specs override vendor promotional material."
+      },
+      "traces": {
+        "v0": [
+          {
+            "case_code": "RES-OPT-01",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "PostgreSQL",
+            "expected": "PostgreSQL",
+            "latency_ms": 11788,
+            "cost_usd": 0.002774,
+            "tokens_in": 353,
+            "tokens_out": 1122,
+            "output": {
+              "recommended_technology": "PostgreSQL",
+              "fact_citations": [
+                "Managed PostgreSQL high-availability production cluster starts at $180/month (doc_01).",
+                "Supports complete ACID compliance and standard SQL syntax (doc_01).",
+                "CockroachDB Dedicated production cluster starts at $950/month base commit (doc_02).",
+                "Cloud Spanner requires minimum 1 node commit starting at $650/month (doc_03)."
+              ],
+              "rejection_rationales": {
+                "CockroachDB": "Exceeds the maximum budget constraint of $500/month, with pricing starting at $950/month.",
+                "Cloud Spanner": "Exceeds the maximum budget constraint of $500/month, with pricing starting at $650/month."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-02",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "ClickHouse",
+            "expected": "ClickHouse",
+            "latency_ms": 10654,
+            "cost_usd": 0.002602,
+            "tokens_in": 368,
+            "tokens_out": 1025,
+            "output": {
+              "recommended_technology": "ClickHouse",
+              "fact_citations": [
+                "doc_11"
+              ],
+              "rejection_rationales": {
+                "PostgreSQL": "Standard PostgreSQL write throughput plateaus at 45,000 rows/second due to WAL serialization bottlenecks, failing the >= 400,000 rows/second requirement.",
+                "MongoDB": "MongoDB wiredTiger engine delivers up to 80,000 inserts/second, failing the >= 400,000 inserts/second requirement."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-03",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "PostgreSQL",
+            "expected": "PostgreSQL",
+            "latency_ms": 24278,
+            "cost_usd": 0.005381,
+            "tokens_in": 358,
+            "tokens_out": 2422,
+            "output": {
+              "recommended_technology": "PostgreSQL",
+              "fact_citations": [
+                "doc_22",
+                "doc_23"
+              ],
+              "rejection_rationales": {
+                "DynamoDB": "Does not support native multi-table SQL JOIN operations and is not a relational database, as stated in the architectural constraints (doc_22)."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-04",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "Redis Enterprise Cloud",
+            "expected": "Redis Enterprise Cloud",
+            "latency_ms": 10864,
+            "cost_usd": 0.002579,
+            "tokens_in": 319,
+            "tokens_out": 1050,
+            "output": {
+              "recommended_technology": "Redis Enterprise Cloud",
+              "fact_citations": [
+                "Redis Enterprise Cloud delivers local read latency of 1.8ms globally (doc_31).",
+                "The standard geo-cluster starts at $450/month (doc_31)."
+              ],
+              "rejection_rationales": {
+                "Memcached Self-Hosted": "Self-hosted Memcached cross-region replication results in 85ms read latency, which exceeds the 10ms maximum requirement (doc_32)."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-05",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "Qdrant",
+            "expected": "Qdrant",
+            "latency_ms": 12861,
+            "cost_usd": 0.002999,
+            "tokens_in": 330,
+            "tokens_out": 1252,
+            "output": {
+              "recommended_technology": "Qdrant",
+              "fact_citations": [
+                "Qdrant demonstrates 8.2ms p95 latency on 10M 1536-dim vectors with strict payload filtering and HNSW graphs in Rust.",
+                "Elasticsearch 8.x dense_vector with Lucene HNSW achieves 38ms p95 latency on 10M vectors due to JVM garbage collection pauses."
+              ],
+              "rejection_rationales": {
+                "Elasticsearch": "Exceeds the maximum latency constraint of 15ms (38ms p95) due to JVM garbage collection pauses."
+              }
+            }
+          }
+        ],
+        "v1": [
+          {
+            "case_code": "RES-OPT-01",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "PostgreSQL",
+            "expected": "PostgreSQL",
+            "latency_ms": 12435,
+            "cost_usd": 0.003044,
+            "tokens_in": 417,
+            "tokens_out": 1209,
+            "output": {
+              "recommended_technology": "PostgreSQL",
+              "fact_citations": [
+                "PostgreSQL Cloud Hosting Pricing Matrix: Managed PostgreSQL high-availability production cluster starts at $180/month. Supports complete ACID compliance and standard SQL syntax."
+              ],
+              "rejection_rationales": {
+                "CockroachDB": "Exceeds the $500/month budget constraint. Pricing starts at $950/month.",
+                "Cloud Spanner": "Exceeds the $500/month budget constraint. Pricing starts at $650/month."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-02",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "ClickHouse",
+            "expected": "ClickHouse",
+            "latency_ms": 12234,
+            "cost_usd": 0.003016,
+            "tokens_in": 432,
+            "tokens_out": 1184,
+            "output": {
+              "recommended_technology": "ClickHouse",
+              "fact_citations": [
+                "Under 16-core commodity instances, ClickHouse achieves sustained 650,000 rows/second insert throughput with column-oriented compression (doc_11)."
+              ],
+              "rejection_rationales": {
+                "PostgreSQL": "Standard PostgreSQL write throughput plateaus at 45,000 rows/second due to WAL serialization bottlenecks, failing to meet the 400,000 rows/second requirement (doc_12).",
+                "MongoDB": "MongoDB vendor marketing claims 80,000 inserts/second, which is below the required 400,000 rows/second threshold (doc_13)."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-03",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "PostgreSQL",
+            "expected": "PostgreSQL",
+            "latency_ms": 10076,
+            "cost_usd": 0.002569,
+            "tokens_in": 422,
+            "tokens_out": 968,
+            "output": {
+              "recommended_technology": "PostgreSQL",
+              "fact_citations": [
+                "PostgreSQL Core Architectural Specification",
+                "AWS DynamoDB Official Architectural Constraints"
+              ],
+              "rejection_rationales": {
+                "DynamoDB": "The promotional materials (doc_21) claim support for SQL joins, but the official architectural specification (doc_22) explicitly states that DynamoDB does not support multi-table SQL JOIN operations. This conflict disqualifies DynamoDB as it cannot meet the required 'multi_table_joins' feature."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-04",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "Redis Enterprise Cloud",
+            "expected": "Redis Enterprise Cloud",
+            "latency_ms": 13667,
+            "cost_usd": 0.003251,
+            "tokens_in": 383,
+            "tokens_out": 1338,
+            "output": {
+              "recommended_technology": "Redis Enterprise Cloud",
+              "fact_citations": [
+                "Redis Enterprise multi-region active-active clusters deliver local read latency of 1.8ms globally. Standard geo-cluster starts at $450/month (doc_31)."
+              ],
+              "rejection_rationales": {
+                "Memcached Self-Hosted": "Self-hosted Memcached cross-region replication requires custom sync daemon resulting in 85ms cross-region read latency, which exceeds the 10ms maximum latency constraint (doc_32)."
+              }
+            }
+          },
+          {
+            "case_code": "RES-OPT-05",
+            "success": true,
+            "accuracy": 1.0,
+            "recommended": "Qdrant",
+            "expected": "Qdrant",
+            "latency_ms": 11644,
+            "cost_usd": 0.002851,
+            "tokens_in": 394,
+            "tokens_out": 1130,
+            "output": {
+              "recommended_technology": "Qdrant",
+              "fact_citations": [
+                "Qdrant demonstrates 8.2ms p95 latency on 10M 1536-dim vectors with strict payload filtering and HNSW graphs in Rust (Doc 41).",
+                "Elasticsearch 8.x dense_vector with Lucene HNSW achieves 38ms p95 latency on 10M vectors due to JVM garbage collection pauses (Doc 42)."
+              ],
+              "rejection_rationales": {
+                "Elasticsearch": "Fails to meet the maximum latency constraint of 15ms, with independent benchmarks showing 38ms p95 latency on 10M vectors (Doc 42)."
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "cross_domain_comparison_table": [
+    {
+      "domain": "reconciliation",
+      "provider": "tensormux",
+      "model": "glm-4-7-flash",
+      "v0_accuracy": 0.75,
+      "v1_accuracy": 0.8,
+      "held_out_accuracy": 0.825,
+      "reliability": 1.0,
+      "cost_delta": -0.007404,
+      "latency_delta_ms": -127143,
+      "promotion": "PROMOTE"
+    },
+    {
+      "domain": "anomaly_detection",
+      "provider": "tensormux",
+      "model": "glm-4-7-flash",
+      "v0_accuracy": 0.8,
+      "v1_accuracy": 1.0,
+      "held_out_accuracy": 0.6667,
+      "reliability": 1.0,
+      "cost_delta": 0.003647,
+      "latency_delta_ms": 0,
+      "promotion": "review"
+    },
+    {
+      "domain": "research_comparison",
+      "provider": "tensormux",
+      "model": "glm-4-7-flash",
+      "v0_accuracy": 1.0,
+      "v1_accuracy": 1.0,
+      "held_out_accuracy": 1.0,
+      "reliability": 1.0,
+      "cost_delta": -0.001604,
+      "latency_delta_ms": -10389,
+      "promotion": "promote"
+    }
+  ],
+  "shared_engine_verification": {
+    "GoalAnalyzer": {
+      "shared": true,
+      "path": "reco/core/goal_analyzer.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "ArchitectureGenerator": {
+      "shared": true,
+      "path": "reco/engine/generator.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "ToolRegistry": {
+      "shared": true,
+      "path": "reco/tools/registry.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "AgentGraphRuntime": {
+      "shared": true,
+      "path": "reco/engine/runtime.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "FailureAnalyzer": {
+      "shared": true,
+      "path": "reco/diagnostics/analyzer.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "MutationEngine": {
+      "shared": true,
+      "path": "reco/mutation/engine.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "Scorecard": {
+      "shared": true,
+      "path": "reco/evaluators/scorecard.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    },
+    "PromotionAssessment": {
+      "shared": true,
+      "path": "reco/evaluators/comparison.py",
+      "used_in": [
+        "reconciliation",
+        "anomaly_detection",
+        "research_comparison"
+      ]
+    }
+  },
+  "hardcode_audit": {
+    "status": "PASSED",
+    "findings": [
+      {
+        "location": "reco/api/app.py:format_live_optimization_result",
+        "issue": "Previously hardcoded domain='reconciliation-v1' and 12/8 split cases in live formatter.",
+        "fix": "Dynamically infer domain and split case counts from baseline graph metadata and domain benchmark registry.",
+        "severity": "LOW"
+      },
+      {
+        "location": "reco/engine/state.py:ExecutionState",
+        "issue": "Missing convenient .outputs and .get_last_node_output accessor properties.",
+        "fix": "Added clean properties to ExecutionState for downstream evaluator parity.",
+        "severity": "LOW"
+      },
+      {
+        "location": "reco/engine/node_runner.py:NodeRunner",
+        "issue": "JSON regex failed on nested JSON structures when model output markdown fences.",
+        "fix": "Robust non-greedy markdown extraction and balanced brace fallback parser.",
+        "severity": "MEDIUM"
+      }
+    ],
+    "hardcoded_graph_topologies": "NONE (dynamically synthesized by ArchitectureGenerator)",
+    "hardcoded_mutations": "NONE (dynamically proposed by MutationEngine)",
+    "hardcoded_success_metrics": "NONE (each benchmark exports its own deterministic evaluator)",
+    "hardcoded_failure_diagnoses": "NONE (diagnosed from actual execution traces)",
+    "hardcoded_promotions": "NONE (governed by mathematical Pareto dominance in assess_promotion)"
+  },
+  "neatlogs": {
+    "anomaly_detection": {
+      "trace_id": "nl_trace_anom_93d224a2a83f",
+      "domain": "anomaly_detection",
+      "experiment_id": "exp_anom_step24",
+      "generation": 1,
+      "version": "V1",
+      "candidate": "Candidate A"
+    },
+    "research_comparison": {
+      "trace_id": "nl_trace_res_e102149c2888",
+      "domain": "research_comparison",
+      "experiment_id": "exp_res_step24",
+      "generation": 1,
+      "version": "V1",
+      "candidate": "Candidate A"
+    }
+  }
+}

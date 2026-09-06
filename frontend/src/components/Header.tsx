@@ -93,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 bg-white/95 backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md shadow-xs">
       {/* Top Utility Bar */}
       <div className="border-b border-zinc-100 px-4 sm:px-6 lg:px-8 py-2.5">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
@@ -103,11 +103,11 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onGoToLanding}
-                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 transition-colors cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer shadow-xs"
                 title="Return to Product Landing Page"
                 aria-label="Return to Product Landing Page"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-3.5 w-3.5 text-zinc-500" />
                 <span>Landing</span>
               </button>
             )}
@@ -115,11 +115,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="h-4 w-px bg-zinc-200 hidden sm:block" />
 
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-zinc-950 text-sm tracking-tight flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-zinc-900" />
+              <span className="font-semibold text-zinc-900 text-sm tracking-tight flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-indigo-600" />
                 Autonomous Agent Visual Engineering Console
               </span>
-              <span className="rounded-full bg-zinc-100 border border-zinc-200/80 px-2 py-0.5 text-[10px] font-mono font-medium text-zinc-600">
+              <span className="rounded-xl bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-mono font-medium text-indigo-700">
                 Track 1
               </span>
             </div>
@@ -127,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="h-4 w-px bg-zinc-200 hidden md:block" />
 
             {/* Domain Selector */}
-            <div className="hidden md:flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50/50 px-2 py-1 text-xs text-zinc-600">
+            <div className="hidden md:flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-700">
               <Database className="h-3 w-3 text-zinc-400" />
               <label htmlFor="domain-select" className="text-zinc-600 sr-only">
                 Select Domain
@@ -156,17 +156,17 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2.5">
             {/* View Mode Switcher: Overview vs Console */}
             <div
-              className="flex items-center rounded-md border border-zinc-200 bg-zinc-100/80 p-0.5 text-xs"
+              className="flex items-center rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 text-xs"
               role="tablist"
               aria-label="View Mode Switcher"
             >
               <button
                 type="button"
                 onClick={() => onToggleViewMode?.("overview")}
-                className={`flex items-center gap-1 rounded px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 font-medium transition-all cursor-pointer ${
                   viewMode === "overview"
-                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
-                    : "text-zinc-500 hover:text-zinc-900"
+                    ? "bg-white text-zinc-900 shadow-xs font-semibold border border-zinc-200/80"
+                    : "text-zinc-600 hover:text-zinc-900"
                 }`}
                 role="tab"
                 aria-selected={viewMode === "overview"}
@@ -177,10 +177,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleViewMode?.("console")}
-                className={`flex items-center gap-1 rounded px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 font-medium transition-all cursor-pointer ${
                   viewMode === "console"
-                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
-                    : "text-zinc-500 hover:text-zinc-900"
+                    ? "bg-white text-zinc-900 shadow-xs font-semibold border border-zinc-200/80"
+                    : "text-zinc-600 hover:text-zinc-900"
                 }`}
                 role="tab"
                 aria-selected={viewMode === "console"}
@@ -192,17 +192,17 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Execution Mode Switcher */}
             <div
-              className="hidden sm:flex items-center rounded-md border border-zinc-200 bg-zinc-100/80 p-0.5 text-xs"
+              className="hidden sm:flex items-center rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 text-xs"
               role="radiogroup"
               aria-label="Execution Mode"
             >
               <button
                 type="button"
                 onClick={() => handleToggleMode("demo")}
-                className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-1 font-medium transition-all cursor-pointer ${
                   mode === "demo"
-                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
-                    : "text-zinc-500 hover:text-zinc-900"
+                    ? "bg-white text-zinc-900 shadow-xs font-semibold border border-zinc-200/80"
+                    : "text-zinc-600 hover:text-zinc-900"
                 }`}
                 aria-checked={mode === "demo"}
                 role="radio"
@@ -213,10 +213,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => handleToggleMode("live")}
-                className={`flex items-center gap-1.5 rounded px-2 py-1 font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1 font-medium transition-all cursor-pointer ${
                   mode === "live" || mode === "tensormux"
-                    ? "bg-white text-emerald-700 shadow-2xs font-semibold"
-                    : "text-zinc-500 hover:text-zinc-900"
+                    ? "bg-white text-emerald-700 shadow-xs font-semibold border border-zinc-200/80"
+                    : "text-zinc-600 hover:text-zinc-900"
                 }`}
                 aria-checked={mode === "live" || mode === "tensormux"}
                 role="radio"
@@ -248,7 +248,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenBilling}
-                className="flex items-center gap-1.5 rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs font-mono"
+                className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-xs font-mono"
                 aria-label="Open Dodo Payments Pricing and Billing"
                 data-testid="open-billing-modal-button"
               >
@@ -266,16 +266,16 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={onOpenExperiments}
-                  className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-cyan-700 hover:text-cyan-900 hover:bg-cyan-50/50 hover:border-cyan-300 transition-colors cursor-pointer shadow-2xs"
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer shadow-xs"
                   title="View my persisted experiments"
                   data-testid="open-my-experiments-button"
                 >
-                  <FolderGit2 className="h-3.5 w-3.5 text-cyan-600" />
+                  <FolderGit2 className="h-3.5 w-3.5 text-indigo-600" />
                   <span className="hidden sm:inline font-mono">My Experiments</span>
                 </button>
 
-                <div className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-mono">
-                  <User className="h-3.5 w-3.5 text-cyan-600" />
+                <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-mono">
+                  <User className="h-3.5 w-3.5 text-indigo-600" />
                   <span className="text-zinc-800 font-semibold max-w-[120px] truncate" title={user.email || ""}>
                     {user.user_metadata?.display_name || user.email?.split("@")[0] || "User"}
                   </span>
@@ -297,11 +297,11 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 rounded-md border border-cyan-500/50 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 text-xs font-bold text-cyan-800 transition-colors cursor-pointer shadow-2xs font-mono"
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors cursor-pointer shadow-xs font-mono"
                 data-testid="open-auth-modal-button"
                 aria-label="Sign In to Reco"
               >
-                <LogIn className="h-3.5 w-3.5 text-cyan-600" />
+                <LogIn className="h-3.5 w-3.5 text-white" />
                 <span>Sign In</span>
               </button>
             )}
@@ -310,7 +310,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 5-Stage Engineering Navigator Strip */}
-      <div className="bg-zinc-50/70 px-4 sm:px-6 lg:px-8 py-2">
+      <div className="bg-zinc-50/70 border-t border-zinc-100 px-4 sm:px-6 lg:px-8 py-2">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 overflow-x-auto">
           <nav
             className="flex items-center gap-1.5 w-full justify-between"
@@ -324,17 +324,17 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     type="button"
                     onClick={() => handleStageClick(s.id)}
-                    className={`flex-1 flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs transition-all cursor-pointer select-none ${
+                    className={`flex-1 flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all cursor-pointer select-none ${
                       isActive
-                        ? "border-zinc-900 bg-zinc-900 text-white shadow-xs font-semibold"
-                        : "border-zinc-200/80 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-950 hover:bg-zinc-50"
+                        ? "border-indigo-600 bg-indigo-50/80 text-indigo-900 shadow-xs font-semibold"
+                        : "border-zinc-200/80 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 hover:bg-zinc-50"
                     }`}
                     aria-current={isActive ? "step" : undefined}
                   >
                     <div className="flex items-center gap-2">
                       <Icon
                         className={`h-3.5 w-3.5 ${
-                          isActive ? "text-white" : "text-zinc-400"
+                          isActive ? "text-indigo-600" : "text-zinc-400"
                         }`}
                       />
                       <span className="uppercase tracking-wider text-[11px] font-medium">
@@ -343,7 +343,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <span
                       className={`text-[10px] font-mono font-bold ${
-                        isActive ? "text-zinc-300" : "text-zinc-400"
+                        isActive ? "text-indigo-600" : "text-zinc-400"
                       }`}
                     >
                       {s.num}
