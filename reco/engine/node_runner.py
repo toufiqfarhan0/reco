@@ -42,53 +42,71 @@ class NodeRunner:
         start_time = time.perf_counter()
         inputs = self._resolve_inputs(node, state, initial_inputs)
 
-        try:
-            if node.type == NodeType.INPUT:
-                output = self._execute_input_node(node, inputs)
-            elif node.type == NodeType.TOOL:
-                output = self._execute_tool_node(node, inputs)
-            elif node.type == NodeType.REASONING:
-                output = self._execute_reasoning_node(node, inputs, state)
-            elif node.type == NodeType.VERIFIER:
-                output = self._execute_verifier_node(node, inputs, state)
-            elif node.type == NodeType.OUTPUT:
-                output = self._execute_output_node(node, inputs, state)
-            else:
-                raise ValueError(f"Unsupported node type: {node.type}")
+        retry_policy = node.config.get("retry_policy", {})
+        max_retries = retry_policy.get("max_retries", 1) if retry_policy.get("enabled", False) else 1
+        backoff_factor = retry_policy.get("backoff_factor", 1.0)
 
-            end_time = time.perf_counter()
-            latency_ms = (end_time - start_time) * 1000.0
+        attempt = 0
+        last_exc = None
+        output = None
 
-            record = NodeExecutionRecord(
-                node_id=node.id,
-                node_type=node.type,
-                status=NodeStatus.COMPLETED,
-                inputs=inputs,
-                output=output,
-                error=None,
-                start_time=start_time,
-                end_time=end_time,
-                latency_ms=round(latency_ms, 3)
-            )
-            return record, output
+        while attempt < max_retries:
+            attempt += 1
+            try:
+                if node.type == NodeType.INPUT:
+                    output = self._execute_input_node(node, inputs)
+                elif node.type == NodeType.TOOL:
+                    output = self._execute_tool_node(node, inputs)
+                elif node.type == NodeType.REASONING:
+                    output = self._execute_reasoning_node(node, inputs, state)
+                elif node.type == NodeType.VERIFIER:
+                    output = self._execute_verifier_node(node, inputs, state)
+                elif node.type == NodeType.OUTPUT:
+                    output = self._execute_output_node(node, inputs, state)
+                else:
+                    raise ValueError(f"Unsupported node type: {node.type}")
 
-        except Exception as exc:
-            end_time = time.perf_counter()
-            latency_ms = (end_time - start_time) * 1000.0
-            error_msg = f"{type(exc).__name__}: {str(exc)}\n{traceback.format_exc()}"
+                end_time = time.perf_counter()
+                latency_ms = (end_time - start_time) * 1000.0
 
-            record = NodeExecutionRecord(
-                node_id=node.id,
-                node_type=node.type,
-                status=NodeStatus.FAILED,
-                inputs=inputs,
-                output=None,
-                error=error_msg,
-                start_time=start_time,
-                end_time=end_time,
-                latency_ms=round(latency_ms, 3)
-            )
-            return record, None
+                record = NodeExecutionRecord(
+                    node_id=node.id,
+                    node_type=node.type,
+                    status=NodeStatus.COMPLETED,
+                    inputs=inputs,
+                    output=output,
+                    error=None,
+                    start_time=start_time,
+                    end_time=end_time,
+                    latency_ms=round(latency_ms, 3)
+                )
+                return record, output
+
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_retries:
+                    time.sleep(0.001 * (backoff_factor ** (attempt - 1)))
+                    continue
+
+        end_time = time.perf_counter()
+        latency_ms = (end_time - start_time) * 1000.0
+        if max_retries > 1:
+            error_msg = f"Retry exhaustion ({max_retries} attempts failed): {type(last_exc).__name__}: {str(last_exc)}\n{traceback.format_exc()}"
+        else:
+            error_msg = f"{type(last_exc).__name__}: {str(last_exc)}\n{traceback.format_exc()}"
+
+        record = NodeExecutionRecord(
+            node_id=node.id,
+            node_type=node.type,
+            status=NodeStatus.FAILED,
+            inputs=inputs,
+            output=None,
+            error=error_msg,
+            start_time=start_time,
+            end_time=end_time,
+            latency_ms=round(latency_ms, 3)
+        )
+        return record, None
 
     def _resolve_inputs(
         self,
