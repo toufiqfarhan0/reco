@@ -137,4 +137,75 @@ describe("Stage 1: GoalInputSection", () => {
     expect(screen.queryByText("No architecture yet")).not.toBeInTheDocument();
     expect(screen.getByText("Nodes")).toBeInTheDocument();
   });
+
+  it("mentions you can use your goals below the input in the build stage", () => {
+    render(
+      <GoalInputSection
+        domain="financial_reconciliation"
+        currentDag={INITIAL_DAG_V0}
+        onSynthesize={vi.fn()}
+        onProceedToRun={vi.fn()}
+      />
+    );
+
+    // Explicitly verifies the mention below the input
+    expect(
+      screen.getByText(/You can use your goals below or type any custom task specification/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Domain Presets & Ready-to-Use Goals/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders and supports the 3 new domain presets: cybersecurity, biomedical, and devops", () => {
+    const onSelectDomain = vi.fn();
+
+    // 1. Cybersecurity Triage
+    const { unmount: unmountCyber } = render(
+      <GoalInputSection
+        domain="cybersecurity_triage"
+        currentDag={INITIAL_DAG_V0}
+        onSynthesize={vi.fn()}
+        onProceedToRun={vi.fn()}
+        onSelectDomain={onSelectDomain}
+      />
+    );
+
+    expect(screen.getAllByText(/Cybersecurity Incident Triage/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("alert_correlator")).toBeInTheDocument();
+    expect(screen.getByText("threat_intel_lookup")).toBeInTheDocument();
+    expect(screen.getByText("ioc_extractor")).toBeInTheDocument();
+    unmountCyber();
+
+    // 2. Biomedical Literature
+    const { unmount: unmountBio } = render(
+      <GoalInputSection
+        domain="biomedical_literature"
+        currentDag={INITIAL_DAG_V0}
+        onSynthesize={vi.fn()}
+        onProceedToRun={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByText(/Biomedical Literature Synthesis/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("mesh_entity_extractor")).toBeInTheDocument();
+    expect(screen.getByText("clinical_evidence_matcher")).toBeInTheDocument();
+    expect(screen.getByText("pubmed_citation_verifier")).toBeInTheDocument();
+    unmountBio();
+
+    // 3. DevOps Diagnostics
+    render(
+      <GoalInputSection
+        domain="devops_root_cause"
+        currentDag={INITIAL_DAG_V0}
+        onSynthesize={vi.fn()}
+        onProceedToRun={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByText(/DevOps Incident Diagnostics/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("trace_latency_analyzer")).toBeInTheDocument();
+    expect(screen.getByText("log_cluster_miner")).toBeInTheDocument();
+    expect(screen.getByText("metric_anomaly_detector")).toBeInTheDocument();
+  });
 });

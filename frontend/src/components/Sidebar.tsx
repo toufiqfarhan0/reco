@@ -240,6 +240,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <option value="financial_reconciliation">Financial Reconcile</option>
                   <option value="anomaly_detection">Anomaly Detection</option>
                   <option value="research_comparison">Research Comparison</option>
+                  <option value="cybersecurity_triage">Cybersecurity Triage</option>
+                  <option value="biomedical_literature">Biomedical Literature</option>
+                  <option value="devops_root_cause">DevOps Diagnostics</option>
                 </select>
               </div>
             </div>

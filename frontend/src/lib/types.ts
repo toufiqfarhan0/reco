@@ -24,7 +24,10 @@ export interface ToolSchema {
 export type DomainType =
   | "financial_reconciliation"
   | "anomaly_detection"
-  | "research_comparison";
+  | "research_comparison"
+  | "cybersecurity_triage"
+  | "biomedical_literature"
+  | "devops_root_cause";
 
 export type ExecutionMode = "demo" | "live";
 

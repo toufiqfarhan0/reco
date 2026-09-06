@@ -21,16 +21,30 @@ export const MyExperimentsModal: React.FC<MyExperimentsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loadingExpId, setLoadingExpId] = useState<string | null>(null);
 
+  const isMountedRef = React.useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const loadList = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await fetchUserExperiments(token);
-      setExperiments(data || []);
+      if (isMountedRef.current) {
+        setExperiments(data || []);
+      }
     } catch (err: any) {
-      setError(err?.message || "Failed to load experiments from Supabase");
+      if (isMountedRef.current) {
+        setError(err?.message || "Failed to load experiments from Supabase");
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

@@ -45,9 +45,9 @@ const SPAN_KIND_THEMES: Record<
     dot: "bg-emerald-600",
   },
   llm: {
-    badge: "bg-purple-50 text-purple-800 border-purple-200",
-    bar: "bg-purple-200/70 border border-purple-400/80 shadow-2xs",
-    dot: "bg-purple-600",
+    badge: "bg-violet-50 text-violet-700 border-violet-200",
+    bar: "bg-violet-200/70 border border-violet-400/80 shadow-2xs",
+    dot: "bg-violet-600",
   },
 };
 
@@ -127,7 +127,7 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
               href={traceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] font-geist border border-indigo-500/30 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] font-geist border border-indigo-500/30 cursor-pointer"
             >
               <ArrowSquareOut size={14} weight="bold" />
               <span>Inspect Live Trace on Neatlogs ↗</span>

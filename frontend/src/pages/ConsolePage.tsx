@@ -180,19 +180,16 @@ export const ConsolePage: React.FC = () => {
   };
 
   // Global console execution configuration
-  const presetParam = searchParams.get("preset") || searchParams.get("domain");
+  const rawPresetParam = searchParams.get("preset") || searchParams.get("domain");
+  const normalizedPreset = rawPresetParam === "reconciliation" ? "financial_reconciliation" : rawPresetParam;
   const initialDomain: DomainType | "" =
-    presetParam === "financial_reconciliation" || presetParam === "reconciliation"
-      ? "financial_reconciliation"
-      : presetParam === "anomaly_detection"
-      ? "anomaly_detection"
-      : presetParam === "research_comparison"
-      ? "research_comparison"
+    normalizedPreset && normalizedPreset in DOMAIN_PRESETS
+      ? (normalizedPreset as DomainType)
       : "";
 
   const [domain, setDomain] = useState<DomainType | "">(initialDomain);
   const [hasSynthesized, setHasSynthesized] = useState<boolean>(Boolean(initialDomain));
-  const [hasExecutedRun, setHasExecutedRun] = useState<boolean>(false);
+  const [hasExecutedRun, setHasExecutedRun] = useState<boolean>(Boolean(initialDomain));
 
   const handleSelectStage = (stage: StageType) => {
     setCurrentStage(stage);
@@ -342,7 +339,7 @@ export const ConsolePage: React.FC = () => {
         name: `Agent_${preset.name.replace(/\s+/g, "_")}_V0`,
       });
       setHasSynthesized(true);
-      // Keep hasExecutedRun = false so Stage 02 starts in clean pending state
+      setHasExecutedRun(true);
     }
   };
 
@@ -503,6 +500,7 @@ export const ConsolePage: React.FC = () => {
                 isSynthesizing={isSynthesizing}
                 hasSynthesized={hasSynthesized}
                 onOpenToolCatalog={() => setIsToolCatalogOpen(true)}
+                onSelectDomain={handleDomainChange}
               />
             </div>
           )}
@@ -596,6 +594,8 @@ export const ConsolePage: React.FC = () => {
 
           {currentStage === "IMPROVE" && (
             <div className="space-y-6">
+              <ModeHarnessBanner mode={mode} />
+
               {!isPipelineReady ? (
                 <StageAwaitingExecutionCard
                   title="Diagnostic Analysis Awaiting Run"
@@ -608,7 +608,6 @@ export const ConsolePage: React.FC = () => {
                 />
               ) : (
                 <>
-                  <ModeHarnessBanner mode={mode} />
                   <CandidateComparisonView
                     candidates={CANDIDATES_TOURNAMENT}
                     lineage={EVOLUTION_LINEAGE}
@@ -638,7 +637,7 @@ export const ConsolePage: React.FC = () => {
               ) : (
                 <>
                   {/* Stage 05: Neatlogs Live Trace Deep-Link Header */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-purple-50/30 to-white p-4 shadow-2xs">
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-zinc-50/50 p-4 shadow-2xs">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
                         <Broadcast size={20} weight="duotone" />
@@ -691,7 +690,7 @@ export const ConsolePage: React.FC = () => {
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] font-geist border border-indigo-500/30 cursor-pointer"
+                          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] font-geist border border-indigo-500/30 cursor-pointer"
                         >
                           <ArrowSquareOut size={16} weight="bold" />
                           <span>Inspect Live Trace on Neatlogs ↗</span>

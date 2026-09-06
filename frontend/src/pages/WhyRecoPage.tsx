@@ -2,6 +2,15 @@
 
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { motion } from "motion/react";
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  Radar,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 import {
   Terminal,
   ArrowRight,
@@ -190,6 +199,10 @@ export const WhyRecoPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeCaseTab, setActiveCaseTab] = useState<"problem" | "solution" | "diff">("solution");
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   const handleLaunchConsole = () => {
     navigate("/console");
   };
@@ -199,9 +212,9 @@ export const WhyRecoPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-[#f8f8f7] flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-700">
       {/* Slim Fixed Top Navbar */}
-      <nav className="sticky top-0 z-50 h-14 bg-white/95 backdrop-blur-sm border-b border-zinc-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-2xs">
+      <nav className="sticky top-0 z-50 h-14 bg-white/95 backdrop-blur-md border-b border-zinc-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-sm">
         {/* Left: Brand + Track 1 Badge */}
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2 group">
@@ -292,7 +305,18 @@ export const WhyRecoPage: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-20">
         {/* Hero Section */}
-        <section className="text-center space-y-6 max-w-4xl mx-auto">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          className="relative text-center space-y-6 max-w-4xl mx-auto overflow-hidden"
+        >
+          {/* Gradient bloom */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-25"
+            style={{ background: "radial-gradient(ellipse at center, #c7d2fe 0%, #e0e7ff 40%, transparent 75%)" }}
+          />
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-1.5 text-xs font-mono font-medium text-indigo-700 shadow-2xs">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
@@ -383,10 +407,16 @@ export const WhyRecoPage: React.FC = () => {
               </p>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Section 1: The Agent Engineering Crisis (The "Prompt & Pray" Trap) */}
-        <section className="space-y-8">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="space-y-8"
+        >
           <div className="max-w-3xl space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold uppercase tracking-wider text-rose-600">
               <WarningCircle size={15} weight="bold" />
@@ -518,10 +548,17 @@ export const WhyRecoPage: React.FC = () => {
               <span>Compile Your First Agent &rarr;</span>
             </button>
           </div>
-        </section>
+        </motion.section>
 
         {/* Section 2: Competitive Benchmark Comparison Matrix */}
-        <section id="matrix" className="space-y-8 scroll-mt-20">
+        <motion.section
+          id="matrix"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="space-y-8 scroll-mt-20"
+        >
           <div className="max-w-3xl space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold uppercase tracking-wider text-indigo-600">
               <Scales size={15} weight="duotone" />
@@ -613,10 +650,16 @@ export const WhyRecoPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </section>
+        </motion.section>
 
         {/* Section 3: Empirical Benchmark Results & ROI */}
-        <section className="space-y-8">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="space-y-8"
+        >
           <div className="max-w-3xl space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600">
               <TrendUp size={15} weight="bold" />
@@ -754,7 +797,7 @@ export const WhyRecoPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Section 4: Real-World Failure Cluster Case Study */}
         <section className="space-y-8">

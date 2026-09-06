@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { HeroLandingView } from "@/components/HeroLandingView";
 
 describe("HeroLandingView Component", () => {
@@ -8,10 +9,12 @@ describe("HeroLandingView Component", () => {
     const onExploreLineage = vi.fn();
 
     render(
-      <HeroLandingView
-        onLaunchConsole={onLaunchConsole}
-        onExploreLineage={onExploreLineage}
-      />
+      <MemoryRouter>
+        <HeroLandingView
+          onLaunchConsole={onLaunchConsole}
+          onExploreLineage={onExploreLineage}
+        />
+      </MemoryRouter>
     );
 
     // Track 1 top badge
@@ -32,10 +35,12 @@ describe("HeroLandingView Component", () => {
 
   it("renders all 4 live production tech stack badges", () => {
     render(
-      <HeroLandingView
-        onLaunchConsole={vi.fn()}
-        onExploreLineage={vi.fn()}
-      />
+      <MemoryRouter>
+        <HeroLandingView
+          onLaunchConsole={vi.fn()}
+          onExploreLineage={vi.fn()}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText(/Inference:/i)).toBeInTheDocument();
@@ -54,10 +59,12 @@ describe("HeroLandingView Component", () => {
 
   it("renders all 5 pipeline stage steps and animates the execution cycle", () => {
     render(
-      <HeroLandingView
-        onLaunchConsole={vi.fn()}
-        onExploreLineage={vi.fn()}
-      />
+      <MemoryRouter>
+        <HeroLandingView
+          onLaunchConsole={vi.fn()}
+          onExploreLineage={vi.fn()}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText(/01/)).toBeInTheDocument();
@@ -84,10 +91,12 @@ describe("HeroLandingView Component", () => {
     const onExploreLineage = vi.fn();
 
     render(
-      <HeroLandingView
-        onLaunchConsole={onLaunchConsole}
-        onExploreLineage={onExploreLineage}
-      />
+      <MemoryRouter>
+        <HeroLandingView
+          onLaunchConsole={onLaunchConsole}
+          onExploreLineage={onExploreLineage}
+        />
+      </MemoryRouter>
     );
 
     const launchBtn = screen.getByRole("button", { name: /Launch Interactive Console/i });
