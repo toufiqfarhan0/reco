@@ -194,6 +194,12 @@ export const ConsolePage: React.FC = () => {
     }, 600);
   };
 
+  const handleProceedToRun = () => {
+    setCurrentStage("RUN");
+    navigate("/console?stage=2");
+  };
+
+
   return (
     <div className="min-h-screen bg-zinc-50 flex font-sans selection:bg-indigo-600 selection:text-white">
       {/* Fixed Left Sidebar (~220px) */}
@@ -289,7 +295,7 @@ export const ConsolePage: React.FC = () => {
               domain={domain}
               currentDag={currentDag}
               onSynthesize={handleSynthesize}
-              onProceedToRun={() => setCurrentStage("RUN")}
+              onProceedToRun={handleProceedToRun}
               isSynthesizing={isSynthesizing}
               hasSynthesized={hasSynthesized}
               onOpenToolCatalog={() => setIsToolCatalogOpen(true)}
@@ -376,6 +382,11 @@ export const ConsolePage: React.FC = () => {
         userId={user?.id || "usr_demo"}
         token={token}
         userEmail={user?.email}
+        isAuthenticated={Boolean(user && token)}
+        onOpenAuth={() => {
+          setIsBillingModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
       />
 
       {/* Supabase Cloud Auth Modal */}

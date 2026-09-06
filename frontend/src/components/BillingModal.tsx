@@ -27,6 +27,8 @@ export interface BillingModalProps {
   productId?: string;
   token?: string;
   userEmail?: string;
+  isAuthenticated?: boolean;
+  onOpenAuth?: () => void;
 }
 
 export const BillingModal: React.FC<BillingModalProps> = ({
@@ -37,7 +39,15 @@ export const BillingModal: React.FC<BillingModalProps> = ({
   userId = "usr_demo",
   productId,
   token,
+  userEmail,
+  isAuthenticated,
+  onOpenAuth,
 }) => {
+  const isAuthed =
+    isAuthenticated !== undefined
+      ? isAuthenticated
+      : Boolean(token || (userEmail && userId && userId !== "usr_demo"));
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"checkout" | "portal" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -73,10 +83,20 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
   // Handler for Upgrade to Pro (POST /billing/checkout)
   const handleUpgradeToPro = async () => {
+    if (!isAuthed) {
+      if (onOpenAuth) {
+        onOpenAuth();
+      } else {
+        setErrorMessage("A Supabase account is required to link and manage your Pro subscription.");
+      }
+      return;
+    }
+
     setIsLoading(true);
     setLoadingAction("checkout");
     setErrorMessage(null);
     setSuccessUrl(null);
+
 
     try {
       const checkoutBody: Record<string, any> = {
@@ -115,10 +135,20 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
   // Handler for Manage Subscription (POST /billing/portal)
   const handleManageSubscription = async () => {
+    if (!isAuthed) {
+      if (onOpenAuth) {
+        onOpenAuth();
+      } else {
+        setErrorMessage("A Supabase account is required to manage your subscription.");
+      }
+      return;
+    }
+
     setIsLoading(true);
     setLoadingAction("portal");
     setErrorMessage(null);
     setSuccessUrl(null);
+
 
     try {
       const headers = await getAuthHeaders();
@@ -431,44 +461,70 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             </div>
 
             {/* Interactive Actions */}
-            <div className="mt-8 pt-4 border-t border-zinc-100 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleUpgradeToPro}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
-              >
-                {isLoading && loadingAction === "checkout" ? (
-                  <>
-                    <CircleNotch size={14} className="animate-spin" />
-                    <span>Launching Dodo Checkout...</span>
-                  </>
-                ) : (
-                  <>
+            <div className="mt-8 pt-4 border-t border-zinc-100 flex flex-col gap-2.5">
+              {!isAuthed ? (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-center flex flex-col items-center gap-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-950 font-geist">
+                    <ShieldCheck size={16} weight="duotone" className="text-indigo-600 shrink-0" />
+                    <span>Supabase Authentication Required</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-600 leading-relaxed font-geist">
+                    A Supabase account is required to link and manage your Pro subscription.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenAuth) {
+                        onOpenAuth();
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer active:scale-[0.98] font-geist"
+                  >
                     <Lightning size={14} weight="fill" />
-                    <span>Upgrade to Pro ($29/mo)</span>
-                  </>
-                )}
-              </button>
+                    <span>Sign In to Upgrade</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleUpgradeToPro}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+                  >
+                    {isLoading && loadingAction === "checkout" ? (
+                      <>
+                        <CircleNotch size={14} className="animate-spin" />
+                        <span>Launching Dodo Checkout...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lightning size={14} weight="fill" />
+                        <span>Upgrade to Pro ($29/mo)</span>
+                      </>
+                    )}
+                  </button>
 
-              <button
-                type="button"
-                onClick={handleManageSubscription}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {isLoading && loadingAction === "portal" ? (
-                  <>
-                    <CircleNotch size={14} className="animate-spin" />
-                    <span>Loading Portal...</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowSquareOut size={14} />
-                    <span>Manage Subscription</span>
-                  </>
-                )}
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleManageSubscription}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {isLoading && loadingAction === "portal" ? (
+                      <>
+                        <CircleNotch size={14} className="animate-spin" />
+                        <span>Loading Portal...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ArrowSquareOut size={14} />
+                        <span>Manage Subscription</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
