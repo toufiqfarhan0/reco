@@ -192,26 +192,46 @@ export const ConsolePage: React.FC = () => {
   const [domain, setDomain] = useState<DomainType | "">(initialDomain);
   const [hasSynthesized, setHasSynthesized] = useState<boolean>(Boolean(initialDomain));
   const [hasExecutedRun, setHasExecutedRun] = useState<boolean>(false);
-  const [autoProgress, setAutoProgress] = useState<boolean>(true);
-  const autoTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const clearAutoTimer = () => {
-    if (autoTimerRef.current) {
-      clearTimeout(autoTimerRef.current);
-      autoTimerRef.current = null;
-    }
-  };
 
   const handleSelectStage = (stage: StageType) => {
-    clearAutoTimer();
     setCurrentStage(stage);
   };
-
-  useEffect(() => {
-    return () => clearAutoTimer();
-  }, []);
   const [mode, setMode] = useState<ExecutionMode>("demo");
   const [tier, setTier] = useState<"free" | "pro">("free");
+  const [dodoBanner, setDodoBanner] = useState<{
+    type: "success" | "failed";
+    message: string;
+  } | null>(null);
+
+  // Handle Dodo Payments checkout return parameters (?checkout=success&status=...)
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    const status = searchParams.get("status");
+
+    if (status === "failed") {
+      setDodoBanner({
+        type: "failed",
+        message:
+          "Test payment declined by sandbox. To test successful checkout, use card 4242 4242 4242 4242 with expiry 06/32 and country set to United States (or Indian test card 4576 2389 1277 1450).",
+      });
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    } else if (
+      checkout === "success" &&
+      (status === "active" || status === "succeeded" || !status || status !== "failed")
+    ) {
+      setTier("pro");
+      setDodoBanner({
+        type: "success",
+        message: "🎉 Welcome to Reco Pro! Subscription activated via Dodo Payments.",
+      });
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, [searchParams]);
+
   const [isCloudConnected] = useState<boolean>(true);
   const [isLiveRunning, setIsLiveRunning] = useState<boolean>(false);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
@@ -329,47 +349,16 @@ export const ConsolePage: React.FC = () => {
     setTimeout(() => {
       setIsSynthesizing(false);
       setCurrentDag(INITIAL_DAG_V0);
-      if (autoProgress) {
-        clearAutoTimer();
-        setCurrentStage("RUN");
-        navigate("/console?stage=2");
-      }
     }, 600);
   };
 
   const handleProceedToRun = () => {
     setHasSynthesized(true);
-    // Keep hasExecutedRun = false so Stage 02 starts in clean pending state
-    clearAutoTimer();
     setCurrentStage("RUN");
     navigate("/console?stage=2");
   };
 
   const isPipelineReady = Boolean((hasSynthesized || domain) && hasExecutedRun);
-
-  // Automated transition from Stage 03: UNDERSTAND -> Stage 04: IMPROVE (3s delay)
-  useEffect(() => {
-    if (currentStage === "UNDERSTAND" && autoProgress && isPipelineReady) {
-      clearAutoTimer();
-      autoTimerRef.current = setTimeout(() => {
-        setCurrentStage("IMPROVE");
-        navigate("/console?stage=4");
-      }, 3000);
-      return () => clearAutoTimer();
-    }
-  }, [currentStage, autoProgress, isPipelineReady]);
-
-  // Automated transition from Stage 04: IMPROVE -> Stage 05: VALIDATE (3s delay)
-  useEffect(() => {
-    if (currentStage === "IMPROVE" && autoProgress && isPipelineReady) {
-      clearAutoTimer();
-      autoTimerRef.current = setTimeout(() => {
-        setCurrentStage("VALIDATE");
-        navigate("/console?stage=5");
-      }, 3000);
-      return () => clearAutoTimer();
-    }
-  }, [currentStage, autoProgress, isPipelineReady]);
 
 
   return (
@@ -431,6 +420,44 @@ export const ConsolePage: React.FC = () => {
 
         {/* 5-Stage Interactive Console Workspace */}
         <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6 bg-zinc-50">
+          {/* Dodo Payments Checkout Redirect Banner */}
+          <AnimatePresence>
+            {dodoBanner && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -8 }}
+                animate={{ opacity: 1, height: "auto", y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <div
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs font-geist shadow-xs ${
+                    dodoBanner.type === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : "border-amber-200 bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="font-medium leading-relaxed">
+                      {dodoBanner.message}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDodoBanner(null)}
+                    className={`text-xs font-semibold hover:underline cursor-pointer shrink-0 text-left sm:text-right ${
+                      dodoBanner.type === "success"
+                        ? "text-emerald-700 hover:text-emerald-900"
+                        : "text-amber-800 hover:text-amber-950"
+                    }`}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* One-Time Onboarding Guide Banner */}
           <AnimatePresence>
             {!isOnboarded && (
@@ -464,37 +491,6 @@ export const ConsolePage: React.FC = () => {
 
           {currentStage === "BUILD" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2.5 text-xs font-geist">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-zinc-900">
-                    Auto-Play Pipeline:
-                  </span>
-                  <span className="text-zinc-500">
-                    Automatically advance through BUILD → RUN → UNDERSTAND → IMPROVE → VALIDATE with staged timings.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearAutoTimer();
-                    setAutoProgress((prev) => !prev);
-                  }}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    autoProgress ? "bg-indigo-600" : "bg-zinc-300"
-                  }`}
-                  role="switch"
-                  aria-checked={autoProgress}
-                  aria-label="Toggle Auto-Play Pipeline"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                      autoProgress ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-
               <GoalInputSection
                 domain={domain}
                 currentDag={currentDag}
@@ -517,7 +513,6 @@ export const ConsolePage: React.FC = () => {
                   title="No Benchmark Execution Yet"
                   description="Synthesize an agent graph in Stage 01 (BUILD) or select a domain preset to execute the baseline evaluation."
                   onGoToBuild={() => {
-                    clearAutoTimer();
                     setCurrentStage("BUILD");
                     navigate("/console?stage=1");
                   }}
@@ -527,7 +522,7 @@ export const ConsolePage: React.FC = () => {
                 <>
                   <RunProgressTracker
                     architecture={currentDag}
-                    autoStart={autoProgress}
+                    autoStart={false}
                     onExecutionStart={() => {
                       // hasExecutedRun only becomes true when execution completes
                     }}
@@ -537,13 +532,6 @@ export const ConsolePage: React.FC = () => {
                         setCurrentScorecard(V2_CANDIDATE_C_SCORECARD);
                         setCurrentComparison(COMPARISON_V0_VS_CANDIDATE_C);
                       }
-                      if (autoProgress) {
-                        clearAutoTimer();
-                        autoTimerRef.current = setTimeout(() => {
-                          setCurrentStage("UNDERSTAND");
-                          navigate("/console?stage=3");
-                        }, 3000);
-                      }
                     }}
                   />
                   {hasExecutedRun ? (
@@ -551,7 +539,6 @@ export const ConsolePage: React.FC = () => {
                       scorecard={currentScorecard}
                       comparison={currentComparison}
                       onProceedToUnderstand={() => {
-                        clearAutoTimer();
                         setCurrentStage("UNDERSTAND");
                         navigate("/console?stage=3");
                       }}
@@ -583,7 +570,6 @@ export const ConsolePage: React.FC = () => {
                   title="Diagnostic Analysis Awaiting Run"
                   description="Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation."
                   onGoToBuild={() => {
-                    clearAutoTimer();
                     setCurrentStage("BUILD");
                     navigate("/console?stage=1");
                   }}
@@ -594,7 +580,6 @@ export const ConsolePage: React.FC = () => {
                   <FailureExplorer
                     diagnostics={FAILURE_DIAGNOSTICS}
                     onProceedToImprove={() => {
-                      clearAutoTimer();
                       setCurrentStage("IMPROVE");
                       navigate("/console?stage=4");
                     }}
@@ -612,7 +597,6 @@ export const ConsolePage: React.FC = () => {
                   title="Diagnostic Analysis Awaiting Run"
                   description="Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation."
                   onGoToBuild={() => {
-                    clearAutoTimer();
                     setCurrentStage("BUILD");
                     navigate("/console?stage=1");
                   }}
@@ -625,7 +609,6 @@ export const ConsolePage: React.FC = () => {
                     candidates={CANDIDATES_TOURNAMENT}
                     lineage={EVOLUTION_LINEAGE}
                     onProceedToValidate={() => {
-                      clearAutoTimer();
                       setCurrentStage("VALIDATE");
                       navigate("/console?stage=5");
                     }}
@@ -643,7 +626,6 @@ export const ConsolePage: React.FC = () => {
                   title="Diagnostic Analysis Awaiting Run"
                   description="Complete Stage 01 (BUILD) and Stage 02 (RUN) to inspect failure clusters, mutation tournaments, and held-out validation."
                   onGoToBuild={() => {
-                    clearAutoTimer();
                     setCurrentStage("BUILD");
                     navigate("/console?stage=1");
                   }}

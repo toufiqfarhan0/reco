@@ -98,12 +98,15 @@ export const BillingModal: React.FC<BillingModalProps> = ({
     setSuccessUrl(null);
 
     try {
-      const checkoutBody: Record<string, any> = {
-        user_id: userId || "00000000-0000-0000-0000-000000000001",
+      const returnUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/console?checkout=success`
+          : "http://localhost:5173/console?checkout=success";
+      const checkoutBody = {
+        user_id: userId,
+        return_url: returnUrl,
+        ...(productId && productId !== "prod_pro_monthly" ? { product_id: productId } : {}),
       };
-      if (productId && productId !== "prod_pro_monthly") {
-        checkoutBody.product_id = productId;
-      }
 
       const headers = await getAuthHeaders();
 
@@ -249,7 +252,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         </div>
 
         {/* Test Mode Judge Credentials Callout Pill */}
-        <div className="mx-6 mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+        <div className="mx-6 mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
               <div className="mt-0.5 rounded-lg bg-amber-100 p-1 text-amber-800">
@@ -261,50 +264,94 @@ export const BillingModal: React.FC<BillingModalProps> = ({
                     TEST MODE ACTIVE
                   </span>
                   <span className="text-xs font-semibold text-amber-900">
-                    Judges & Evaluators Sandbox
+                    Judges &amp; Evaluators Sandbox
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-amber-800">
-                  Zero real charges. Use simulated test card details below during Dodo hosted checkout.
+                  Zero real charges. Use official Dodo sandbox test credentials below during hosted checkout.
                 </p>
               </div>
             </div>
+          </div>
 
-            {/* Test Card Quick Reference Box */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono bg-white border border-amber-200 rounded-xl p-2 text-zinc-900 shadow-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="text-zinc-400 font-sans">Card:</span>
-                <span className="text-zinc-900 font-semibold">4242 4242 4242 4242</span>
+          {/* Test Cards Quick Reference Box */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+            {/* Primary US Card */}
+            <div className="bg-white border border-amber-200 rounded-xl p-2.5 text-zinc-900 shadow-xs space-y-1.5 font-mono">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-amber-700 bg-amber-100/60 px-1.5 py-0.5 rounded">
+                  Primary (US)
+                </span>
+                <span className="text-[11px] text-zinc-500 font-sans">Country: United States</span>
+              </div>
+              <div className="flex items-center justify-between gap-1 pt-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-400 font-sans text-[11px]">Card:</span>
+                  <span className="text-zinc-900 font-semibold text-xs">4242 4242 4242 4242</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => copyToClipboard("4242424242424242", "card")}
-                  className="p-1 text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
-                  title="Copy card number"
-                  aria-label="Copy card number"
+                  onClick={() => copyToClipboard("4242424242424242", "card_us")}
+                  className="p-1 text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer rounded hover:bg-zinc-100"
+                  title="Copy US test card"
+                  aria-label="Copy US test card"
                 >
-                  {copiedField === "card" ? (
+                  {copiedField === "card_us" ? (
                     <CheckCircle size={14} weight="fill" className="text-emerald-600" />
                   ) : (
                     <Copy size={14} />
                   )}
                 </button>
               </div>
-              <span className="text-zinc-300 font-sans">|</span>
-              <div className="flex items-center gap-1">
-                <span className="text-zinc-400 font-sans">Exp:</span>
-                <span className="text-zinc-900 font-semibold">12/28</span>
-              </div>
-              <span className="text-zinc-300 font-sans">|</span>
-              <div className="flex items-center gap-1">
-                <span className="text-zinc-400 font-sans">CVC:</span>
-                <span className="text-zinc-900 font-semibold">123</span>
-              </div>
-              <span className="text-zinc-300 font-sans">|</span>
-              <div className="flex items-center gap-1">
-                <span className="text-zinc-400 font-sans">ZIP:</span>
-                <span className="text-zinc-900 font-semibold">90210</span>
+              <div className="flex items-center gap-2 text-[11px] text-zinc-600">
+                <span>Exp: <strong className="text-zinc-900">06/32</strong></span>
+                <span className="text-zinc-300 font-sans">|</span>
+                <span>CVC: <strong className="text-zinc-900">123</strong></span>
+                <span className="text-zinc-300 font-sans">|</span>
+                <span>ZIP: <strong className="text-zinc-900">90210</strong></span>
               </div>
             </div>
+
+            {/* Domestic India Card */}
+            <div className="bg-white border border-amber-200 rounded-xl p-2.5 text-zinc-900 shadow-xs space-y-1.5 font-mono">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                  Domestic (India)
+                </span>
+                <span className="text-[11px] text-zinc-500 font-sans">UPI: success@upi</span>
+              </div>
+              <div className="flex items-center justify-between gap-1 pt-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-400 font-sans text-[11px]">Card:</span>
+                  <span className="text-zinc-900 font-semibold text-xs">4576 2389 1277 1450</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard("4576238912771450", "card_in")}
+                  className="p-1 text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer rounded hover:bg-zinc-100"
+                  title="Copy Indian test card"
+                  aria-label="Copy Indian test card"
+                >
+                  {copiedField === "card_in" ? (
+                    <CheckCircle size={14} weight="fill" className="text-emerald-600" />
+                  ) : (
+                    <Copy size={14} />
+                  )}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-zinc-600">
+                <span>Exp: <strong className="text-zinc-900">06/32</strong></span>
+                <span className="text-zinc-300 font-sans">|</span>
+                <span>CVC: <strong className="text-zinc-900">123</strong></span>
+                <span className="text-zinc-300 font-sans">|</span>
+                <span>Country: <strong className="text-zinc-900 font-sans">India</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-100/60 rounded-lg px-3 py-1.5 font-sans border border-amber-200/60">
+            <span className="font-bold text-amber-950">Note:</span>
+            <span>When using 4242, ensure country is set to United States during checkout.</span>
           </div>
         </div>
 

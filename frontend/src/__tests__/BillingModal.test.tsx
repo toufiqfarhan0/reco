@@ -48,9 +48,10 @@ describe("BillingModal Component", () => {
     expect(screen.getByText(/TEST MODE ACTIVE/i)).toBeInTheDocument();
     expect(screen.getByText(/Judges & Evaluators Sandbox/i)).toBeInTheDocument();
     expect(screen.getByText(/4242 4242 4242 4242/i)).toBeInTheDocument();
-    expect(screen.getByText(/12\/28/i)).toBeInTheDocument();
-    expect(screen.getByText(/123/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/06\/32/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/123/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/90210/i)).toBeInTheDocument();
+    expect(screen.getByText(/4576 2389 1277 1450/i)).toBeInTheDocument();
   });
 
   it("displays guidance card and triggers onOpenAuth when unauthenticated user clicks to upgrade", () => {
@@ -109,6 +110,7 @@ describe("BillingModal Component", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "usr_demo",
+          return_url: `${window.location.origin}/console?checkout=success`,
         }),
       });
     });

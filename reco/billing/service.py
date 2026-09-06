@@ -143,7 +143,7 @@ class BillingService:
             raise RuntimeError("Payment gateway temporarily unavailable (Dodo client not configured).")
 
         product_id = self.settings.dodo_product_id or "pdt_0Nmvzbo4wJETkRyCMAEPt"
-        fallback_return_url = return_url or "http://localhost:3000/?checkout=success"
+        fallback_return_url = return_url or "http://localhost:5173/console?checkout=success"
 
         try:
             session = client.checkout_sessions.create(

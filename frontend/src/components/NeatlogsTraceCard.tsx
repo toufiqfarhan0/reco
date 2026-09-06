@@ -14,6 +14,51 @@ interface NeatlogsTraceCardProps {
   trace: NeatlogsTrace;
 }
 
+const SPAN_KIND_THEMES: Record<
+  string,
+  {
+    badge: string;
+    bar: string;
+    dot: string;
+  }
+> = {
+  dag: {
+    badge: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    bar: "bg-indigo-200/70 border border-indigo-400/80 shadow-2xs",
+    dot: "bg-indigo-600",
+  },
+  node: {
+    badge: "bg-blue-50 text-blue-700 border-blue-200",
+    bar: "bg-blue-200/70 border border-blue-400/80 shadow-2xs",
+    dot: "bg-blue-600",
+  },
+  tool: {
+    badge: "bg-amber-50 text-amber-800 border-amber-200",
+    bar: "bg-amber-200/70 border border-amber-400/80 shadow-2xs",
+    dot: "bg-amber-500",
+  },
+  verifier: {
+    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    bar: "bg-emerald-200/70 border border-emerald-400/80 shadow-2xs",
+    dot: "bg-emerald-600",
+  },
+  llm: {
+    badge: "bg-purple-50 text-purple-800 border-purple-200",
+    bar: "bg-purple-200/70 border border-purple-400/80 shadow-2xs",
+    dot: "bg-purple-600",
+  },
+};
+
+const getKindTheme = (kind: string) => {
+  return (
+    SPAN_KIND_THEMES[kind.toLowerCase()] || {
+      badge: "bg-zinc-100 text-zinc-700 border-zinc-200",
+      bar: "bg-zinc-200/70 border border-zinc-300 shadow-2xs",
+      dot: "bg-zinc-500",
+    }
+  );
+};
+
 export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
   trace,
 }) => {
@@ -62,7 +107,7 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
         </div>
       </div>
 
-      {/* Trace Timeline with Indigo Dots and Zinc Lines */}
+      {/* Trace Timeline with Colored Dots and Zinc Lines */}
       <div className="space-y-3">
         <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-400 block mb-2">
           Span Waterfall & Execution Latency Breakdown
@@ -71,6 +116,7 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
         <div className="relative pl-6 space-y-3 border-l-2 border-zinc-200 ml-2">
           {trace.spans.map((span) => {
             const isSelected = selectedSpan?.span_id === span.span_id;
+            const kindTheme = getKindTheme(span.kind);
             const widthPct = Math.max(
               (span.duration_ms / trace.total_duration_ms) * 100,
               8
@@ -79,10 +125,10 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
 
             return (
               <div key={span.span_id} className="relative">
-                {/* Indigo Dot on the Zinc Line */}
+                {/* Colored Dot on the Zinc Line */}
                 <span
                   className={`absolute -left-[31px] top-3.5 h-3 w-3 rounded-full border-2 border-white transition-transform ${
-                    isSelected ? "bg-indigo-600 ring-2 ring-indigo-300 scale-125" : "bg-indigo-500"
+                    isSelected ? `${kindTheme.dot} ring-2 ring-indigo-300 scale-125` : kindTheme.dot
                   }`}
                 />
 
@@ -98,7 +144,7 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
                     <span className="font-semibold text-zinc-900 font-geist">
                       {span.name}
                     </span>
-                    <span className="rounded-md bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 font-mono">
+                    <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-mono ${kindTheme.badge}`}>
                       {span.kind}
                     </span>
                   </div>
@@ -109,9 +155,9 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
                     </span>
                   </div>
 
-                  {/* Waterfall Latency Bar */}
+                  {/* Waterfall Latency Bar with Kind Color */}
                   <div
-                    className="absolute inset-y-1.5 bg-indigo-100/60 border border-indigo-200/80 rounded-lg pointer-events-none transition-all"
+                    className={`absolute inset-y-1.5 rounded-lg pointer-events-none transition-all ${kindTheme.bar}`}
                     style={{
                       left: `${leftOffsetPct}%`,
                       width: `${widthPct}%`,
@@ -126,21 +172,37 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
 
       {/* Selected Span Detail Card */}
       {selectedSpan && (
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-2 text-xs font-mono">
-          <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
-            <span className="text-zinc-950 font-bold">
-              Span: {selectedSpan.span_id} ({selectedSpan.name})
-            </span>
-            <span className="text-emerald-700 font-medium">
-              Offset: +{selectedSpan.start_offset_ms}ms | Duration: {selectedSpan.duration_ms}ms
-            </span>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 space-y-3 font-mono text-xs shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 pb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-zinc-950 font-bold font-geist">
+                Span: {selectedSpan.span_id}
+              </span>
+              <span className="text-zinc-500 font-sans text-xs">({selectedSpan.name})</span>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] font-mono">
+              <span className="text-zinc-500">Offset: <strong className="text-zinc-800">+{selectedSpan.start_offset_ms}ms</strong></span>
+              <span className="text-zinc-300">|</span>
+              <span className="text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                Duration: {selectedSpan.duration_ms}ms
+              </span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px]">
+          {/* Structured Telemetry Tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
             {Object.entries(selectedSpan.attributes).map(([k, v]) => (
-              <div key={k} className="flex justify-between py-1 border-b border-zinc-200/50">
-                <span className="text-zinc-400">{k}:</span>
-                <span className="text-zinc-950 font-semibold">{String(v)}</span>
+              <div
+                key={k}
+                className="rounded-lg border border-zinc-200 bg-white p-2.5 shadow-2xs font-mono transition-colors hover:border-zinc-300"
+              >
+                <div className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider truncate">
+                  {k.replace(/_/g, " ")}
+                </div>
+                <div className="text-xs font-bold text-zinc-900 mt-1 truncate">
+                  {String(v)}
+                </div>
               </div>
             ))}
           </div>
