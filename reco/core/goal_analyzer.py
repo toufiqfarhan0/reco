@@ -27,6 +27,14 @@ class GoalAnalyzer:
         "financial_audit": [
             r"financ", r"transaction", r"invoice", r"ledger", r"audit",
             r"reconcil", r"fraud", r"balance"
+        ],
+        "system_anomaly": [
+            r"system anomaly", r"metric time.?series", r"threshold alert", r"root.?cause",
+            r"z.?score", r"error log", r"server anomaly"
+        ],
+        "research_synthesis": [
+            r"research synthesis", r"cross.?referenc", r"entity extraction",
+            r"metric comparison", r"multi.?source summary", r"paper synthesis"
         ]
     }
 
@@ -44,7 +52,12 @@ class GoalAnalyzer:
         "summarization": [r"summar", r"overview", r"digest"],
         "transaction_parsing": [r"transaction", r"invoice", r"payment"],
         "reconciliation": [r"reconcil", r"balance", r"ledger"],
-        "fraud_detection": [r"fraud", r"suspicious", r"unauthorized"]
+        "fraud_detection": [r"fraud", r"suspicious", r"unauthorized"],
+        "zscore_computation": [r"z.?score", r"time.?series deviat"],
+        "threshold_monitoring": [r"threshold alert", r"threshold breach", r"check.?threshold"],
+        "error_extraction": [r"error log", r"log burst", r"extract.*error", r"root.?cause"],
+        "entity_extraction": [r"extract.*entit", r"entity extract"],
+        "metric_comparison": [r"compare.*metric", r"metric.*comparison", r"cross.?referenc"]
     }
 
     def __init__(self, default_latency_ms: float = 5000.0, default_cost_usd: float = 0.05):
@@ -144,6 +157,10 @@ class GoalAnalyzer:
             extracted = ["document_retrieval", "summarization"]
         elif domain == "financial_audit" and not extracted:
             extracted = ["transaction_parsing", "reconciliation"]
+        elif domain == "system_anomaly" and not extracted:
+            extracted = ["zscore_computation", "threshold_monitoring", "error_extraction"]
+        elif domain == "research_synthesis" and not extracted:
+            extracted = ["entity_extraction", "metric_comparison", "summarization"]
 
         # If available tools are provided, match their capabilities
         if available_tools:

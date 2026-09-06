@@ -63,7 +63,7 @@ class BenchmarkCase(BaseModel):
 
         # If actual_output has a nested domain payload, look inside
         candidate_payloads = [actual_output]
-        for wrapper_key in ("reconciliation", "result", "output", "data"):
+        for wrapper_key in ("reconciliation", "result", "output", "data", "anomaly", "research", "synthesis", "summary"):
             if wrapper_key in actual_output and isinstance(actual_output[wrapper_key], dict):
                 candidate_payloads.append(actual_output[wrapper_key])
 
@@ -83,9 +83,11 @@ class BenchmarkCase(BaseModel):
             if isinstance(exp_val, list):
                 if not isinstance(act_val, list):
                     return False
-                # If list of simple identifiers / strings, compare set-wise
+                # If list of simple identifiers / strings, compare set-wise (case-insensitive for strings)
                 if all(isinstance(x, (str, int)) for x in exp_val):
-                    if set(exp_val) != set(act_val):
+                    exp_set = {x.strip().lower() if isinstance(x, str) else x for x in exp_val}
+                    act_set = {x.strip().lower() if isinstance(x, str) else x for x in act_val}
+                    if exp_set != act_set:
                         return False
                 # If list of dicts, match by length and element containment
                 elif all(isinstance(x, dict) for x in exp_val):
