@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate, MemoryRouter, useInRouterContext } from "react-router-dom";
 import { LandingPage } from "@/pages/LandingPage";
 import { ConsolePage } from "@/pages/ConsolePage";
+import { ArchitecturePage } from "@/pages/ArchitecturePage";
 
 export interface AppProps {
   initialViewMode?: "overview" | "console";
@@ -14,6 +15,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/console" element={<ConsolePage />} />
+      <Route path="/architecture" element={<ArchitecturePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

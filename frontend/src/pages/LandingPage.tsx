@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { StageType } from "@/lib/types";
 import { HeroLandingView } from "@/components/HeroLandingView";
 import { BillingModal } from "@/components/BillingModal";
@@ -83,6 +83,12 @@ export const LandingPage: React.FC = () => {
             >
               How it works
             </a>
+            <Link
+              to="/architecture"
+              className="hover:text-zinc-900 transition-colors cursor-pointer text-indigo-600 font-semibold"
+            >
+              Architecture
+            </Link>
             <a
               href="#pricing"
               className="hover:text-zinc-900 transition-colors cursor-pointer"
@@ -124,8 +130,29 @@ export const LandingPage: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-zinc-200 bg-white py-6 text-center text-xs font-mono text-zinc-500">
-        <p>Reco • Autonomous Agent Engineering System</p>
+      <footer className="w-full border-t border-zinc-200 bg-white py-6 text-xs font-mono text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>Reco • Autonomous Agent Engineering System</p>
+          <div className="flex items-center gap-4 text-xs font-geist text-zinc-500">
+            <Link to="/architecture" className="hover:text-zinc-900 transition-colors cursor-pointer font-medium">
+              Architecture
+            </Link>
+            <a href="#how-it-works" className="hover:text-zinc-900 transition-colors cursor-pointer">
+              How it works
+            </a>
+            <a href="#pricing" className="hover:text-zinc-900 transition-colors cursor-pointer">
+              Pricing
+            </a>
+            <a
+              href="https://github.com/toufiqfarhan0/reco"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-zinc-900 transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
       </footer>
 
       {/* Dodo Payments Hosted Billing Modal */}
