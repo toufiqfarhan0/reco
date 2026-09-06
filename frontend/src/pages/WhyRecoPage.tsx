@@ -151,6 +151,23 @@ const COMPARISON_DATA: ComparisonRow[] = [
     },
   },
   {
+    dimension: "Cloud Persistence & Multi-Tenant Ledger (Supabase)",
+    description: "Durable PostgreSQL ledger for immutable versioned DAGs, candidate lineage, and tenant isolation",
+    manual: {
+      status: "bad",
+      text: "Local scratch files or SQLite wiped on container restarts",
+    },
+    frameworks: {
+      status: "bad",
+      text: "Ephemeral in-memory state or unauthenticated local checkpoints",
+    },
+    reco: {
+      status: "good",
+      text: "Supabase PostgreSQL cloud ledger with Row-Level Security (RLS) & 1-Click Judge Demo Auth",
+      highlight: true,
+    },
+  },
+  {
     dimension: "Billing & Monetization (Dodo Payments)",
     description: "Integrated subscription tiers, metered token gates, and checkout portals",
     manual: {
@@ -1059,6 +1076,64 @@ export const WhyRecoPage: React.FC = () => {
                 Every agent graph synthesized by Reco incorporates strict typed schema verification nodes,
                 preventing malformed payloads, unescaped quotes, or missing properties from reaching downstream systems.
               </p>
+            </div>
+          </div>
+
+          {/* Spotlight: Why We Added Supabase */}
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/30 p-6 sm:p-8 space-y-4 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <Database size={22} weight="fill" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-700">
+                    Architectural Deep-Dive
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-950 font-geist">
+                    Why We Added Supabase: The Cloud Ledger for Autonomous Agent Evolution
+                  </h3>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-mono font-medium text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-md border border-emerald-200 self-start sm:self-auto">
+                <span>PostgreSQL 16 + GoTrue RLS</span>
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-zinc-600 font-geist leading-relaxed">
+              Autonomous agent systems fail in production when they treat agent memory as ephemeral in-memory variables or local flat files. Container restarts, worker autoscaling, and blue-green redeployments silently wipe candidate mutation histories, Pareto evaluation metrics, and postmortems. We added Supabase to serve as an immutable cloud ledger with mathematical rollback and cryptographic multi-tenancy.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <div className="p-3.5 rounded-xl bg-white border border-emerald-100 space-y-1.5 shadow-2xs">
+                <div className="text-xs font-bold text-zinc-900 font-geist flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-emerald-600" />
+                  Immutable Versioned DAGs
+                </div>
+                <p className="text-[11px] text-zinc-500 font-geist leading-relaxed">
+                  Every generation ($V_0 \to V_1 \to V_2$) produces candidate DAGs, prompt diffs, and tool contracts immutably recorded in PostgreSQL for instant reproducible rollbacks.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white border border-emerald-100 space-y-1.5 shadow-2xs">
+                <div className="text-xs font-bold text-zinc-900 font-geist flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-emerald-600" />
+                  Multi-Tenant RLS Isolation
+                </div>
+                <p className="text-[11px] text-zinc-500 font-geist leading-relaxed">
+                  GoTrue JWT authentication enforces database-level Row-Level Security (<code className="text-[10px] bg-zinc-100 px-1 py-0.5 rounded font-mono">auth.uid() = user_id</code>), ensuring sensitive enterprise prompts never leak across tenants.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white border border-emerald-100 space-y-1.5 shadow-2xs">
+                <div className="text-xs font-bold text-zinc-900 font-geist flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-emerald-600" />
+                  Cross-Run Epistemic Memory
+                </div>
+                <p className="text-[11px] text-zinc-500 font-geist leading-relaxed">
+                  Learned failure invariants (e.g., currency float drift, datetime coercion) are persisted across sessions and re-injected into subsequent runs, permanently eliminating regression loops.
+                </p>
+              </div>
             </div>
           </div>
         </section>
