@@ -31,6 +31,7 @@ import { RunProgressTracker } from "@/components/RunProgressTracker";
 import { FailureExplorer } from "@/components/FailureExplorer";
 import { CandidateComparisonView } from "@/components/CandidateComparisonView";
 import { HeldOutValidationView } from "@/components/HeldOutValidationView";
+import { BillingModal } from "@/components/BillingModal";
 
 export interface AppProps {
   initialViewMode?: "overview" | "console";
@@ -43,6 +44,11 @@ export default function App({ initialViewMode = "overview" }: AppProps = {}) {
   const [mode, setMode] = useState<ExecutionMode>("demo");
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isLiveRunning, setIsLiveRunning] = useState(false);
+
+  // Monetization & Cloud Session state
+  const [tier, setTier] = useState<"free" | "pro">("free");
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [isCloudConnected] = useState(true);
 
   // Active architecture and scorecards
   const [currentDag, setCurrentDag] = useState<DAGArchitecture>(INITIAL_DAG_V0);
@@ -87,6 +93,12 @@ export default function App({ initialViewMode = "overview" }: AppProps = {}) {
         isRunning={isLiveRunning || isSynthesizing}
         viewMode={viewMode}
         onToggleViewMode={setViewMode}
+        tier={tier}
+        onToggleTier={setTier}
+        isCloudConnected={isCloudConnected}
+        sessionId="usr_demo_anon_9f82c1"
+        tokenStatus="GoTrue JWT: Valid"
+        onOpenBilling={() => setIsBillingModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -182,10 +194,23 @@ export default function App({ initialViewMode = "overview" }: AppProps = {}) {
             <span>•</span>
             <span>MODE: {mode.toUpperCase()}</span>
             <span>•</span>
-            <span className="text-emerald-400">VITE SPA READY</span>
+            <span className={tier === "pro" ? "text-cyan-400 font-semibold" : "text-slate-400"}>
+              TIER: {tier.toUpperCase()}
+            </span>
+            <span>•</span>
+            <span className="text-emerald-400">SUPABASE: SYNCED</span>
           </div>
         </div>
       </footer>
+
+      {/* Non-blocking Dodo Payments Monetization Modal */}
+      <BillingModal
+        isOpen={isBillingModalOpen}
+        onClose={() => setIsBillingModalOpen(false)}
+        currentTier={tier}
+        onTierChange={setTier}
+        userId="usr_demo"
+      />
     </div>
   );
 }

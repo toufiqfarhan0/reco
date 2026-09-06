@@ -64,8 +64,8 @@ class CheckoutRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     user_id: str = Field(description="GoTrue authenticated user UUID")
-    email: str = Field(description="Customer billing email address")
-    return_url: str = Field(description="URL to redirect user after payment completion")
+    email: str = Field(default="usr_demo@reco.ai", description="Customer billing email address")
+    return_url: str = Field(default="https://app.reco.ai/console", description="URL to redirect user after payment completion")
     product_id: str = Field(
         default_factory=lambda: os.getenv("DODO_PRO_PRODUCT_ID", DEFAULT_PRO_PRODUCT_ID),
         description="Target Dodo Payments product ID (defaults to Reco Pro)"

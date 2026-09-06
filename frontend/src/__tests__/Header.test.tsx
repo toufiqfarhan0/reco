@@ -88,4 +88,27 @@ describe("Header Component", () => {
     fireEvent.change(select, { target: { value: "anomaly_detection" } });
     expect(onChangeDomain).toHaveBeenCalledWith("anomaly_detection");
   });
+
+  it("renders CloudAuthPill and billing button in Header", () => {
+    const onOpenBilling = vi.fn();
+
+    render(
+      <Header
+        currentStage="BUILD"
+        onSelectStage={vi.fn()}
+        domain="financial_reconciliation"
+        onChangeDomain={vi.fn()}
+        mode="demo"
+        onToggleMode={vi.fn()}
+        tier="free"
+        onOpenBilling={onOpenBilling}
+      />
+    );
+
+    expect(screen.getByText(/FREE TIER \(LOCAL\)/i)).toBeInTheDocument();
+    const upgradeBtn = screen.getByRole("button", { name: /Open Dodo Payments Pricing and Billing/i });
+    expect(upgradeBtn).toBeInTheDocument();
+    fireEvent.click(upgradeBtn);
+    expect(onOpenBilling).toHaveBeenCalled();
+  });
 });

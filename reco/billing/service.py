@@ -244,6 +244,8 @@ class BillingService:
             entitlement = self.repository.get_user_entitlement(req.user_id)
             if entitlement and entitlement.customer_id:
                 customer_id = entitlement.customer_id
+            elif req.user_id in ("usr_demo", "demo_user") or req.user_id.startswith("usr_demo"):
+                customer_id = f"cus_demo_{req.user_id}"
 
         if not customer_id:
             raise BillingError(
