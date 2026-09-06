@@ -56,22 +56,46 @@ class SupabaseRepository(ExperimentRepository):
         self,
         supabase_url: Optional[str] = None,
         supabase_key: Optional[str] = None,
+        auth_token: Optional[str] = None,
         client: Optional[Client] = None,
     ):
         if not SUPABASE_AVAILABLE:
             raise ImportError("supabase package is required to use SupabaseRepository.")
 
         self.supabase_url = supabase_url or os.getenv("SUPABASE_URL", "")
+        # Prefer anon key over service role key to ensure RLS policies are enforced
         self.supabase_key = (
             supabase_key
-            or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-            or os.getenv("SUPABASE_KEY", "")
+            or os.getenv("SUPABASE_ANON_KEY")
+            or os.getenv("SUPABASE_KEY")
+            or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
         )
+        self.auth_token = auth_token
 
         if client:
             self.client: Client = client
         else:
             self.client: Client = create_client(self.supabase_url, self.supabase_key)
+
+        if self.auth_token:
+            self.set_auth(self.auth_token)
+
+    def set_auth(self, token: str) -> None:
+        """Set user GoTrue JWT token on the Supabase client so PostgREST enforces RLS via auth.uid()."""
+        self.auth_token = token
+        if hasattr(self.client, "postgrest") and hasattr(self.client.postgrest, "auth"):
+            self.client.postgrest.auth(token)
+
+    def with_user_token(self, token: str) -> SupabaseRepository:
+        """Create a repository instance authenticated as a specific user with RLS active."""
+        repo = SupabaseRepository(
+            supabase_url=self.supabase_url,
+            supabase_key=self.supabase_key,
+            auth_token=token,
+            client=self.client,
+        )
+        repo.set_auth(token)
+        return repo
 
     def _verify_experiment_ownership(self, experiment_id: str, user_id: str) -> None:
         """Verify experiment exists and belongs to the specified user."""
@@ -414,6 +438,18 @@ class SupabaseRepository(ExperimentRepository):
         architecture_id: Optional[str] = None
     ) -> TraceRecord:
         self._verify_experiment_ownership(experiment_id, user_id)
+
+        # Immutability check: historical traces cannot be overwritten
+        existing = (
+            self.client.table("traces")
+            .select("id")
+            .eq("id", trace.trace_id)
+            .execute()
+        )
+        if existing.data:
+            raise ImmutabilityError(
+                f"Trace '{trace.trace_id}' already exists and cannot be overwritten."
+            )
 
         spans_data = [s.model_dump() for s in trace.spans]
 

@@ -175,11 +175,12 @@ class NeatlogsTrace(BaseModel):
             self.status = "warning"
 
     def finalize(self, base_url: str = DEFAULT_NEATLOGS_APP_URL) -> NeatlogsTrace:
-        """Compute final duration, totals, and deep link."""
+        """Compute final duration, totals, deep link, and preserve strict chronological span order."""
         if not self.deep_link:
             self.deep_link = f"{base_url.rstrip('/')}/traces/{self.trace_id}"
         if self.spans:
-            # Total duration from min start_time to max end_time
+            # Sort spans chronologically so root span is first and child spans follow execution order
+            self.spans.sort(key=lambda s: (s.start_time, s.start_offset_ms))
             start = min(s.start_time for s in self.spans)
             end = max((s.end_time or s.start_time) for s in self.spans)
             self.total_duration_ms = max(0.0, round((end - start) * 1000.0, 2))
@@ -346,6 +347,9 @@ class NeatlogsTracer:
         stack.append(span)
         _span_stack_var.set(stack)
 
+        # Register span in start order immediately so root is first and children follow
+        active_trace.spans.append(span)
+
         try:
             yield span
             span.end(status=span.status or "ok")
@@ -359,8 +363,13 @@ class NeatlogsTracer:
                 cur_stack.pop()
                 _span_stack_var.set(cur_stack)
 
-            # Record span into active trace
-            active_trace.add_span(span)
+            # Update trace running aggregates and export span
+            active_trace.total_tokens += span.tokens
+            active_trace.total_cost_usd = round(active_trace.total_cost_usd + span.cost_usd, 6)
+            if span.status == "error":
+                active_trace.status = "error"
+            elif span.status == "warn" and active_trace.status != "error":
+                active_trace.status = "warning"
             self._export_span(span)
 
             # If this was an ad-hoc trace that just emptied its stack, finalize & export trace

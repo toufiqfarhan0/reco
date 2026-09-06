@@ -498,3 +498,68 @@ def test_multi_tenant_user_isolation_strictly_enforced():
     # User B cannot query User A's traces
     with pytest.raises(UserIsolationError, match="belongs to a different user"):
         repo.get_traces(exp_a.id, user_id=user_b)
+
+
+def test_gotrue_jwt_authentication_fails_secure_without_secret():
+    """Verify GoTrueAuthHandler fails securely if signature verification is active but secret is unconfigured."""
+    auth_handler = GoTrueAuthHandler(jwt_secret=None)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.delenv("SUPABASE_JWT_SECRET", raising=False)
+        handler_no_secret = GoTrueAuthHandler()
+        token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature"
+
+        with pytest.raises(AuthenticationError, match="SUPABASE_JWT_SECRET is not configured"):
+            handler_no_secret.verify_token(token)
+
+        # But explicit bypass with verify_signature=False is allowed for dev/debug
+        with pytest.raises(AuthenticationError, match="Invalid GoTrue JWT token"):
+            # Fails due to malformed payload, not missing secret
+            handler_no_secret.verify_token(token, verify_signature=False)
+
+
+def test_supabase_repository_trace_duplicate_immutability_and_user_token():
+    """Verify SupabaseRepository enforces trace immutability on duplicates and attaches user token for RLS."""
+    mock_client = MagicMock()
+    mock_postgrest = MagicMock()
+    mock_client.postgrest = mock_postgrest
+
+    # Setup mock to simulate existing experiment and existing trace
+    mock_table = MagicMock()
+    mock_client.table.return_value = mock_table
+
+    # Experiment check returns existing experiment owned by user
+    mock_exp_exec = MagicMock()
+    mock_exp_exec.data = [{"id": "exp_1", "user_id": "user_1"}]
+
+    # Trace check returns existing trace
+    mock_trace_exec = MagicMock()
+    mock_trace_exec.data = [{"id": "tr_duplicate_1"}]
+
+    def mock_table_select(query):
+        mock_query = MagicMock()
+        mock_query.eq.return_value = mock_query
+        if query == "id, user_id":
+            mock_query.execute.return_value = mock_exp_exec
+        else:
+            mock_query.execute.return_value = mock_trace_exec
+        return mock_query
+
+    mock_table.select.side_effect = mock_table_select
+
+    repo = SupabaseRepository(
+        supabase_url="https://test.supabase.co",
+        supabase_key="anon_key",
+        client=mock_client,
+    )
+
+    trace = NeatlogsTrace(trace_id="tr_duplicate_1", architecture_id="Agent_V0")
+
+    # Must raise ImmutabilityError matching InMemoryRepository
+    with pytest.raises(ImmutabilityError, match="already exists and cannot be overwritten"):
+        repo.save_trace(trace, experiment_id="exp_1", user_id="user_1")
+
+    # Test with_user_token sets client auth for RLS
+    user_repo = repo.with_user_token("user_jwt_token_xyz")
+    assert user_repo.auth_token == "user_jwt_token_xyz"
+    mock_postgrest.auth.assert_called_with("user_jwt_token_xyz")
+

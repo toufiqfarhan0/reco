@@ -128,6 +128,13 @@ def test_5_tier_hierarchical_spans_lineage_and_parent_ids():
     assert spans_by_kind["node_execution"].parent_span_id == spans_by_kind["candidate_eval"].span_id
     assert spans_by_kind["tool_invocation"].parent_span_id == spans_by_kind["node_execution"].span_id
 
+    # Verify strict chronological order: root span is first, deepest child is last
+    assert root_trace.spans[0].kind == "optimization_run"
+    assert root_trace.spans[1].kind == "generation_N"
+    assert root_trace.spans[2].kind == "candidate_eval"
+    assert root_trace.spans[3].kind == "node_execution"
+    assert root_trace.spans[4].kind == "tool_invocation"
+
     # Verify all share identical trace_id
     for s in root_trace.spans:
         assert s.trace_id == root_trace.trace_id

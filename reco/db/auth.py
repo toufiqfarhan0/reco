@@ -10,7 +10,13 @@ import logging
 import os
 import time
 from typing import Any, Dict, Optional
-import jwt
+try:
+    import jwt
+    JWT_AVAILABLE = True
+except ImportError:
+    JWT_AVAILABLE = False
+    jwt = None  # type: ignore
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from reco.db.models import AuthenticationError
@@ -36,7 +42,7 @@ class GoTrueAuthHandler:
         """Initialize with optional JWT secret for cryptographic verification.
 
         If jwt_secret is not set, attempts to read SUPABASE_JWT_SECRET from environment.
-        In local dev/test mode without a secret, claims (including expiration) are validated.
+        Signature verification is enforced by default to prevent impersonation.
         """
         self.jwt_secret = jwt_secret or os.getenv("SUPABASE_JWT_SECRET")
 
@@ -63,21 +69,32 @@ class GoTrueAuthHandler:
 
         Args:
             token: The raw JWT token string.
-            verify_signature: Whether to verify cryptographic signature. Defaults to True
-                              if jwt_secret is configured, False otherwise.
+            verify_signature: Whether to verify cryptographic signature. Defaults to True.
+                              Fails securely if True and jwt_secret is unconfigured.
 
         Returns:
             UserContext containing user_id (sub), email, and claims.
 
         Raises:
-            AuthenticationError: If the token is invalid, expired, or missing 'sub'.
+            AuthenticationError: If the token is invalid, expired, missing 'sub',
+                                 or if secret is missing while verification is required.
         """
+        if not JWT_AVAILABLE or jwt is None:
+            raise AuthenticationError(
+                "PyJWT package is required for GoTrue authentication. Install with 'pip install pyjwt'."
+            )
+
         if not token or not isinstance(token, str):
             raise AuthenticationError("JWT token string cannot be empty.")
 
-        should_verify_sig = (
-            verify_signature if verify_signature is not None else bool(self.jwt_secret)
-        )
+        # Fail-secure: verify_signature defaults to True
+        should_verify_sig = verify_signature if verify_signature is not None else True
+
+        if should_verify_sig and not self.jwt_secret:
+            raise AuthenticationError(
+                "Token signature verification failed: SUPABASE_JWT_SECRET is not configured. "
+                "Provide jwt_secret to prevent impersonation."
+            )
 
         try:
             decode_options = {
@@ -153,6 +170,11 @@ class GoTrueAuthHandler:
         Returns:
             Signed JWT token string.
         """
+        if not JWT_AVAILABLE or jwt is None:
+            raise AuthenticationError(
+                "PyJWT package is required for GoTrue authentication. Install with 'pip install pyjwt'."
+            )
+
         now = int(time.time())
         payload = {
             "sub": str(user_id),
