@@ -11,9 +11,11 @@ import {
   PlayCircle,
   Database,
   ShieldCheck,
+  Compass,
+  Terminal,
 } from "lucide-react";
 
-interface HeaderProps {
+export interface HeaderProps {
   currentStage: StageType;
   onSelectStage: (stage: StageType) => void;
   domain: DomainType;
@@ -21,6 +23,8 @@ interface HeaderProps {
   mode: ExecutionMode;
   onToggleMode: (m: ExecutionMode) => void;
   isRunning?: boolean;
+  viewMode?: "overview" | "console";
+  onToggleViewMode?: (mode: "overview" | "console") => void;
 }
 
 const STAGES: { id: StageType; label: string; num: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -39,11 +43,20 @@ export const Header: React.FC<HeaderProps> = ({
   mode,
   onToggleMode,
   isRunning = false,
+  viewMode = "console",
+  onToggleViewMode,
 }) => {
+  const handleStageClick = (stageId: StageType) => {
+    onSelectStage(stageId);
+    if (viewMode === "overview" && onToggleViewMode) {
+      onToggleViewMode("console");
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        {/* Top bar: Brand, Domain Selector, Execution Mode, Status */}
+        {/* Top bar: Brand, View Mode Switcher, Domain Selector, Execution Mode, Status */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400 ring-1 ring-cyan-500/30">
@@ -65,6 +78,42 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Top-Level View Mode Switcher: Overview vs Console */}
+            <div
+              className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs"
+              role="tablist"
+              aria-label="View Mode Switcher"
+            >
+              <button
+                type="button"
+                onClick={() => onToggleViewMode?.("overview")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
+                  viewMode === "overview"
+                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40 font-semibold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                role="tab"
+                aria-selected={viewMode === "overview"}
+              >
+                <Compass className="h-3.5 w-3.5" />
+                Overview
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleViewMode?.("console")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
+                  viewMode === "console"
+                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40 font-semibold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                role="tab"
+                aria-selected={viewMode === "console"}
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                Console
+              </button>
+            </div>
+
             {/* Domain Selector */}
             <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
               <Database className="h-3.5 w-3.5 text-slate-400" />
@@ -99,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleMode("demo")}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-all ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
                   mode === "demo"
                     ? "bg-cyan-500/20 text-cyan-300 shadow-xs ring-1 ring-cyan-500/40"
                     : "text-slate-400 hover:text-slate-200"
@@ -113,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleMode("live")}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-all ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
                   mode === "live"
                     ? "bg-emerald-500/20 text-emerald-300 shadow-xs ring-1 ring-emerald-500/40"
                     : "text-slate-400 hover:text-slate-200"
@@ -142,12 +191,12 @@ export const Header: React.FC<HeaderProps> = ({
         >
           {STAGES.map((s) => {
             const Icon = s.icon;
-            const isActive = currentStage === s.id;
+            const isActive = currentStage === s.id && viewMode === "console";
             return (
               <button
                 key={s.id}
-                onClick={() => onSelectStage(s.id)}
-                className={`group flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-all ${
+                onClick={() => handleStageClick(s.id)}
+                className={`group flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-all cursor-pointer ${
                   isActive
                     ? "border-cyan-500/40 bg-cyan-950/30 text-cyan-200 ring-1 ring-cyan-500/30"
                     : "border-slate-800/80 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-900 hover:text-slate-200"
