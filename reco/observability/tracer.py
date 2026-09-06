@@ -136,6 +136,10 @@ class SpanContext:
         if self.parent:
             self.attributes["parent_span"] = self.parent.name
             self.attributes["parent_span_id"] = getattr(self.parent, "span_id", None)
+            self._trace_id_int: int = getattr(self.parent, "_trace_id_int", int(uuid4().hex, 16))
+        else:
+            self._trace_id_int = int(uuid4().hex, 16)
+        self._span_id_int: int = int(uuid4().hex[:16], 16)
         self.start_time: float = time.time()
         self.end_time: Optional[float] = None
         self.duration_ms: int = 0
@@ -144,18 +148,87 @@ class SpanContext:
         self._token: Optional[Token] = None
         self._otel_token = None
 
+        # Record trace_id immediately
+        self.attributes["trace_id"] = self.trace_id
+        self.tracer.current_trace_id = self.trace_id
+
+    def get_span_context(self) -> Any:
+        """Return OpenTelemetry span context or compatible mock context."""
+        if self._otel_span is not None and hasattr(self._otel_span, "get_span_context"):
+            return self._otel_span.get_span_context()
+
+        class _SpanContextWrapper:
+            def __init__(self, trace_id_val: int, span_id_val: int):
+                self.trace_id = trace_id_val
+                self.span_id = span_id_val
+
+        return _SpanContextWrapper(self._trace_id_int, self._span_id_int)
+
+    @property
+    def trace_id(self) -> str:
+        """Return 32-character hexadecimal trace ID (16 bytes) formatted for OpenTelemetry OTLP."""
+        try:
+            sc = self.get_span_context()
+            if hasattr(sc, "trace_id") and sc.trace_id:
+                return format(sc.trace_id, "032x")
+        except Exception:
+            pass
+        return format(self._trace_id_int, "032x")
+
     def set_attribute(self, key: str, value: Any) -> "SpanContext":
         """Set a single attribute safely."""
-        sanitized = sanitize_attributes({key: value})
+        return self.set_attributes({key: value})
+
+    def set_attributes(self, attributes: Dict[str, Any]) -> "SpanContext":
+        """Set multiple attributes safely, syncing with OpenTelemetry span if active."""
+        if not attributes:
+            return self
+        sanitized = sanitize_attributes(attributes)
         if sanitized:
             self.attributes.update(sanitized)
-            if self._otel_span is not None and hasattr(self._otel_span, "set_attribute"):
-                try:
+            if self._otel_span is not None:
+                if hasattr(self._otel_span, "set_attributes"):
+                    try:
+                        self._otel_span.set_attributes(sanitized)
+                    except Exception:
+                        for sk, sv in sanitized.items():
+                            try:
+                                self._otel_span.set_attribute(sk, sv)
+                            except Exception:
+                                pass
+                elif hasattr(self._otel_span, "set_attribute"):
                     for sk, sv in sanitized.items():
-                        self._otel_span.set_attribute(sk, sv)
-                except Exception:
-                    pass
+                        try:
+                            self._otel_span.set_attribute(sk, sv)
+                        except Exception:
+                            pass
         return self
+
+    def tag_evaluation(
+        self,
+        scorecard: Any,
+        promotion_decision: str = "REVIEW",
+        domain_name: str = "reconciliation",
+        generation_number: int = 1,
+        candidate_id: str = "",
+        is_pareto_dominant: bool = False,
+    ) -> "SpanContext":
+        """Attach the 4-axis scorecard as official OpenTelemetry span attributes."""
+        cost_val = getattr(scorecard, "total_cost_usd", getattr(scorecard, "cost_usd", 0.0))
+        lat_val = getattr(scorecard, "total_latency_ms", getattr(scorecard, "latency_ms", 0.0))
+        acc_val = getattr(scorecard, "accuracy", 0.0)
+        rel_val = getattr(scorecard, "reliability", 0.0)
+        return self.set_attributes({
+            "eval.accuracy": float(acc_val),
+            "eval.reliability": float(rel_val),
+            "eval.cost_usd": float(cost_val),
+            "eval.latency_ms": float(lat_val),
+            "eval.decision": str(promotion_decision),
+            "eval.domain": str(domain_name),
+            "eval.generation": int(generation_number),
+            "eval.candidate_id": str(candidate_id),
+            "reco.pareto_dominant": bool(is_pareto_dominant),
+        })
 
     def end(self) -> None:
         """End the span, calculate latency, export telemetry, and record in trace history."""
@@ -186,13 +259,13 @@ class SpanContext:
         self.tracer.record_span_history({
             "span_id": self.span_id,
             "parent_span_id": getattr(self.parent, "span_id", None),
+            "trace_id": self.trace_id,
             "name": self.name,
             "duration_ms": self.attributes.get("duration_ms", self.duration_ms),
             "parent_span": self.parent.name if self.parent else None,
             "attributes": dict(self.attributes),
             "timestamp": self.start_time,
         })
-
 
     def __enter__(self) -> "SpanContext":
         if self._token is None:
@@ -204,6 +277,10 @@ class SpanContext:
                 if self.parent and self.parent._otel_span:
                     ctx = otel_trace.set_span_in_context(self.parent._otel_span)
                 self._otel_span = self.tracer._tracer.start_span(self.name, context=ctx)
+                if hasattr(self._otel_span, "get_span_context"):
+                    sc = self._otel_span.get_span_context()
+                    if hasattr(sc, "trace_id") and sc.trace_id:
+                        self._trace_id_int = sc.trace_id
                 for k, v in self.attributes.items():
                     self._otel_span.set_attribute(k, v)
                 self.tracer.stats["spans_exported"] += 1
@@ -211,6 +288,9 @@ class SpanContext:
                 logger.warning("Neatlogs start_span error contained: %s", exc)
                 self.tracer.stats["errors"] += 1
                 self.tracer.stats["last_error"] = str(exc)
+
+        self.tracer.current_trace_id = self.trace_id
+        self.attributes["trace_id"] = self.trace_id
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -303,6 +383,9 @@ class NeatlogsTracer(Tracer):
         # In-memory recorded spans history for inspection and demo generation
         self.recorded_spans: List[Dict[str, Any]] = []
 
+        # Current or most recent distributed trace ID
+        self.current_trace_id: Optional[str] = None
+
         # Lazy OpenTelemetry provider setup
         self._otel_exporter = otel_exporter
         self._provider = None
@@ -310,6 +393,15 @@ class NeatlogsTracer(Tracer):
 
         if self.enabled:
             self._init_otel_pipeline()
+
+    def get_current_trace_id(self) -> str:
+        """Return current or most recent 32-character hex trace ID."""
+        return self.current_trace_id or format(uuid4().int & ((1 << 128) - 1), "032x")
+
+    def get_trace_url(self, trace_id: Optional[str] = None) -> str:
+        """Return direct inspection URL for a trace on Neatlogs Cloud."""
+        tid = trace_id or self.get_current_trace_id()
+        return f"https://app.neatlogs.com/traces/{tid}"
 
     def _init_otel_pipeline(self) -> None:
         """Initialize OpenTelemetry tracer pipeline with failure containment."""

@@ -16,11 +16,13 @@ import {
 interface HeldOutValidationViewProps {
   data?: HeldOutValidationData;
   trace?: NeatlogsTrace;
+  isDemo?: boolean;
 }
 
 export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
   data = HELD_OUT_VALIDATION_DATA,
   trace = NEATLOGS_TRACE,
+  isDemo = false,
 }) => {
   const [decisionState, setDecisionState] = useState<
     "PROMOTED" | "REQUIRES_REVIEW" | "REJECTED"
@@ -309,7 +311,7 @@ export const HeldOutValidationView: React.FC<HeldOutValidationViewProps> = ({
       </div>
 
       {/* Neatlogs Production Trace Integration */}
-      <NeatlogsTraceCard trace={trace} />
+      <NeatlogsTraceCard trace={trace} isDemo={isDemo} />
     </motion.div>
   );
 };

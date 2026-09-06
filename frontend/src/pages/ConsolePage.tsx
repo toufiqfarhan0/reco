@@ -41,6 +41,7 @@ import { ToolCatalogModal } from "@/components/ToolCatalogModal";
 import { fetchTools } from "@/services/api";
 import { getSession, signOut, onAuthStateChange } from "@/lib/supabaseClient";
 import { Clock, Cpu } from "lucide-react";
+import { ArrowSquareOut, Broadcast } from "@phosphor-icons/react";
 
 export const ModeHarnessBanner: React.FC<{ mode: ExecutionMode }> = ({ mode }) => {
   if (mode === "demo") {
@@ -293,7 +294,10 @@ export const ConsolePage: React.FC = () => {
     setToken(undefined);
   };
 
+  const [activeExperiment, setActiveExperiment] = useState<any>(null);
+
   const handleLoadExperiment = (expData: any) => {
+    setActiveExperiment(expData);
     if (expData.domain) {
       handleDomainChange(expData.domain as DomainType);
     }
@@ -632,10 +636,81 @@ export const ConsolePage: React.FC = () => {
                   onLoadDemo={() => handleDomainChange("reconciliation")}
                 />
               ) : (
-                <HeldOutValidationView
-                  data={HELD_OUT_VALIDATION_DATA}
-                  trace={NEATLOGS_TRACE}
-                />
+                <>
+                  {/* Stage 05: Neatlogs Live Trace Deep-Link Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-purple-50/30 to-white p-4 shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
+                        <Broadcast size={20} weight="duotone" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold uppercase tracking-wider text-indigo-950">
+                            Neatlogs Distributed Telemetry
+                          </span>
+                          {mode === "demo" && !(activeExperiment?.neatlogs_trace_url || activeExperiment?.neatlogs?.trace_url) ? (
+                            <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono font-bold text-zinc-600 border border-zinc-200">
+                              DEMO ARTIFACT REPLAY
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-800 border border-emerald-200">
+                              LIVE CLOUD LINKED
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-600 font-geist mt-0.5">
+                          {mode === "demo" && !(activeExperiment?.neatlogs_trace_url || activeExperiment?.neatlogs?.trace_url)
+                            ? "Displaying canonical verification trace. Configure your NEATLOGS_API_KEY in .env to stream live flamegraphs."
+                            : "Real-time OpenTelemetry trace exported to Neatlogs Cloud with 4-axis evaluation scorecards."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1">
+                      {mode === "demo" && !(activeExperiment?.neatlogs_trace_url || activeExperiment?.neatlogs?.trace_url) ? (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            disabled
+                            title="Demo trace — configure your Neatlogs API key to see live traces"
+                            className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 text-zinc-400 border border-zinc-200 px-4 py-2 text-xs font-semibold cursor-not-allowed shadow-none font-geist"
+                          >
+                            <ArrowSquareOut size={16} weight="bold" className="text-zinc-400" />
+                            <span>Inspect Live Trace on Neatlogs ↗</span>
+                          </button>
+                          <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block z-30 w-72 rounded-lg bg-zinc-900 text-zinc-100 text-[11px] p-2.5 shadow-lg border border-zinc-800 font-sans leading-snug pointer-events-none">
+                            Demo trace — configure your Neatlogs API key to see live traces
+                          </div>
+                        </div>
+                      ) : (
+                        <a
+                          href={
+                            activeExperiment?.neatlogs_trace_url ||
+                            activeExperiment?.neatlogs?.trace_url ||
+                            (NEATLOGS_TRACE.neatlogs_trace_url || NEATLOGS_TRACE.trace_url || `https://app.neatlogs.com/traces/${NEATLOGS_TRACE.trace_id}`)
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] font-geist border border-indigo-500/30 cursor-pointer"
+                        >
+                          <ArrowSquareOut size={16} weight="bold" />
+                          <span>Inspect Live Trace on Neatlogs ↗</span>
+                        </a>
+                      )}
+                      {mode === "demo" && !(activeExperiment?.neatlogs_trace_url || activeExperiment?.neatlogs?.trace_url) && (
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          (Demo trace — set up your Neatlogs key to see live traces)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <HeldOutValidationView
+                    data={HELD_OUT_VALIDATION_DATA}
+                    trace={NEATLOGS_TRACE}
+                    isDemo={mode === "demo" && !(activeExperiment?.neatlogs_trace_url || activeExperiment?.neatlogs?.trace_url)}
+                  />
+                </>
               )}
             </div>
           )}

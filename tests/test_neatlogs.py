@@ -538,3 +538,79 @@ def test_27_observability_disabled_zero_overhead(mock_otel_exporter):
     trace_res = tracer.send_structured_trace({"name": "disabled_test"})
     assert trace_res["success"] is False
     assert "disabled" in trace_res["error"].lower()
+
+
+def test_28_trace_id_hex_formatting_and_deep_link():
+    """Verify trace ID is formatted as 32-hex chars and deep link URL is constructed properly."""
+    tracer = NeatlogsTracer(api_key="mock_key", enabled=True, otel_exporter=MagicMock())
+    with tracer.start_span("optimization_run") as span:
+        trace_id = format(span.get_span_context().trace_id, "032x")
+        assert len(trace_id) == 32
+        assert all(c in "0123456789abcdef" for c in trace_id)
+        assert span.trace_id == trace_id
+
+        url = tracer.get_trace_url(trace_id)
+        assert url == f"https://app.neatlogs.com/traces/{trace_id}"
+        assert tracer.get_current_trace_id() == trace_id
+
+
+def test_29_candidate_benchmark_eval_scorecard_tagging():
+    """Verify candidate_benchmark spans carry all required 4-axis eval.* attributes."""
+    tracer = NeatlogsTracer(api_key="mock_key", enabled=True, otel_exporter=MagicMock())
+    with tracer.start_span("candidate_benchmark.cand_v1") as span:
+        span.set_attributes({
+            "eval.accuracy": 0.95,
+            "eval.reliability": 1.0,
+            "eval.cost_usd": 0.0031,
+            "eval.latency_ms": 312.0,
+            "eval.decision": "PROMOTE",
+            "eval.domain": "reconciliation",
+            "eval.generation": 1,
+            "eval.candidate_id": "cand_v1",
+            "reco.pareto_dominant": True,
+        })
+
+    spans = tracer.get_recorded_spans()
+    cand_spans = [s for s in spans if "candidate_benchmark" in s["name"]]
+    assert len(cand_spans) == 1
+    attrs = cand_spans[0]["attributes"]
+    assert attrs["eval.accuracy"] == 0.95
+    assert attrs["eval.reliability"] == 1.0
+    assert attrs["eval.cost_usd"] == 0.0031
+    assert attrs["eval.latency_ms"] == 312.0
+    assert attrs["eval.decision"] == "PROMOTE"
+    assert attrs["eval.domain"] == "reconciliation"
+    assert attrs["eval.generation"] == 1
+    assert attrs["eval.candidate_id"] == "cand_v1"
+    assert attrs["reco.pareto_dominant"] is True
+
+
+def test_30_root_optimization_run_reco_attributes():
+    """Verify optimization_run root span carries reco.* lineage and performance attributes."""
+    tracer = NeatlogsTracer(api_key="mock_key", enabled=True, otel_exporter=MagicMock())
+    with tracer.start_span("optimization_run") as span:
+        span.set_attributes({
+            "reco.experiment_id": "exp_test_001",
+            "reco.total_generations": 2,
+            "reco.final_accuracy": 0.95,
+            "reco.baseline_accuracy": 0.80,
+            "reco.accuracy_lift_pct": 18.75,
+        })
+
+    spans = tracer.get_recorded_spans()
+    root_spans = [s for s in spans if s["name"] == "optimization_run"]
+    assert len(root_spans) == 1
+    attrs = root_spans[0]["attributes"]
+    assert attrs["reco.experiment_id"] == "exp_test_001"
+    assert attrs["reco.total_generations"] == 2
+    assert attrs["reco.final_accuracy"] == 0.95
+    assert attrs["reco.baseline_accuracy"] == 0.80
+    assert attrs["reco.accuracy_lift_pct"] == 18.75
+
+
+def test_31_api_demo_data_contains_neatlogs_trace_url():
+    """Verify that demo experiment payloads surface neatlogs_trace_url."""
+    from reco.api.demo_data import get_demo_experiment
+    data = get_demo_experiment("reconciliation")
+    assert "neatlogs_trace_url" in data
+    assert data["neatlogs_trace_url"].startswith("https://app.neatlogs.com/traces/")

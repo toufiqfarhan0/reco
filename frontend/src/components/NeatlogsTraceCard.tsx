@@ -8,10 +8,12 @@ import {
   Coins,
   Cpu,
   CheckCircle,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 
 interface NeatlogsTraceCardProps {
   trace: NeatlogsTrace;
+  isDemo?: boolean;
 }
 
 const SPAN_KIND_THEMES: Record<
@@ -61,6 +63,7 @@ const getKindTheme = (kind: string) => {
 
 export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
   trace,
+  isDemo = false,
 }) => {
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(
     trace.spans[0]?.span_id || null
@@ -68,6 +71,11 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
 
   const selectedSpan =
     trace.spans.find((s) => s.span_id === selectedSpanId) || trace.spans[0];
+
+  const traceUrl =
+    trace.neatlogs_trace_url ||
+    trace.trace_url ||
+    `https://app.neatlogs.com/traces/${trace.trace_id}`;
 
   return (
     <div className="space-y-4 pt-6 border-t border-zinc-100">
@@ -85,24 +93,60 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
                 VERIFIED TRACE
               </span>
             </div>
-            <p className="text-xs font-mono text-zinc-500">
-              Trace ID: <span className="text-zinc-900 font-semibold">{trace.trace_id}</span>
-            </p>
+            <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 mt-0.5">
+              <p>
+                Trace ID: <span className="text-zinc-900 font-semibold">{trace.trace_id}</span>
+              </p>
+              {isDemo && (
+                <span className="text-[10px] text-zinc-400 font-sans italic">
+                  (Demo trace — set up your Neatlogs key to see live traces)
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-          <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
-            <Clock size={13} className="text-zinc-400" />
-            <span>{trace.total_duration_ms} ms</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
-            <Coins size={13} className="text-emerald-600" />
-            <span>${trace.total_cost_usd.toFixed(4)}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
-            <Cpu size={13} className="text-zinc-400" />
-            <span>{trace.total_tokens} tokens</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {isDemo ? (
+            <div className="relative group">
+              <button
+                type="button"
+                disabled
+                title="Demo trace — configure your Neatlogs API key to see live traces"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 text-zinc-400 border border-zinc-200 px-3 py-1.5 text-xs font-semibold cursor-not-allowed shadow-none font-geist select-none"
+              >
+                <ArrowSquareOut size={14} weight="bold" className="text-zinc-400" />
+                <span>Inspect Live Trace on Neatlogs ↗</span>
+              </button>
+              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block z-30 w-64 rounded-lg bg-zinc-900 text-zinc-100 text-[11px] p-2 shadow-lg border border-zinc-800 font-sans leading-snug pointer-events-none">
+                Demo trace — configure your Neatlogs API key to see live traces
+              </div>
+            </div>
+          ) : (
+            <a
+              href={traceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] font-geist border border-indigo-500/30 cursor-pointer"
+            >
+              <ArrowSquareOut size={14} weight="bold" />
+              <span>Inspect Live Trace on Neatlogs ↗</span>
+            </a>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+            <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
+              <Clock size={13} className="text-zinc-400" />
+              <span>{trace.total_duration_ms} ms</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
+              <Coins size={13} className="text-emerald-600" />
+              <span>${trace.total_cost_usd.toFixed(4)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
+              <Cpu size={13} className="text-zinc-400" />
+              <span>{trace.total_tokens} tokens</span>
+            </div>
           </div>
         </div>
       </div>

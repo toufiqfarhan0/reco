@@ -221,6 +221,8 @@ export interface NeatlogsSpan {
 
 export interface NeatlogsTrace {
   trace_id: string;
+  trace_url?: string;
+  neatlogs_trace_url?: string;
   architecture_id: string;
   status: "success" | "warning" | "error";
   total_duration_ms: number;
@@ -232,6 +234,8 @@ export interface NeatlogsTrace {
 
 export interface ExperimentData {
   experiment_id?: string;
+  neatlogs_trace_url?: string;
+  trace_id?: string;
   name?: string;
   goal?: string;
   domain?: string;
