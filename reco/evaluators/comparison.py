@@ -540,7 +540,9 @@ class HeldOutValidationGate:
         ]
 
         # Severe Tradeoff check: cost > 3x or latency > 3x
-        has_notable_tradeoff = (cost_ratio > 3.0) or (lat_ratio > 3.0)
+        has_notable_tradeoff = (cost_ratio > 3.0) or (
+            lat_ratio > 3.0 and (cand_held_scorecard.latency_ms - base_held_scorecard.latency_ms) > 10.0
+        )
 
         if acc_delta < -1e-4:
             # Overfitting detected: candidate regressed on held-out split

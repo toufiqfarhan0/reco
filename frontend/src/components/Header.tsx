@@ -14,6 +14,7 @@ import {
   Compass,
   Terminal,
 } from "lucide-react";
+import { CloudAuthPill } from "./CloudAuthPill";
 
 export interface HeaderProps {
   currentStage: StageType;
@@ -25,6 +26,12 @@ export interface HeaderProps {
   isRunning?: boolean;
   viewMode?: "overview" | "console";
   onToggleViewMode?: (mode: "overview" | "console") => void;
+  tier?: "free" | "pro";
+  onToggleTier?: (tier: "free" | "pro") => void;
+  isCloudConnected?: boolean;
+  sessionId?: string;
+  tokenStatus?: string;
+  onOpenBilling?: () => void;
 }
 
 const STAGES: { id: StageType; label: string; num: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -45,6 +52,12 @@ export const Header: React.FC<HeaderProps> = ({
   isRunning = false,
   viewMode = "console",
   onToggleViewMode,
+  tier = "free",
+  onToggleTier,
+  isCloudConnected = true,
+  sessionId = "usr_demo_anon_9f82c1",
+  tokenStatus = "GoTrue JWT: Valid",
+  onOpenBilling,
 }) => {
   const handleStageClick = (stageId: StageType) => {
     onSelectStage(stageId);
@@ -181,6 +194,29 @@ export const Header: React.FC<HeaderProps> = ({
                 Live Mode
               </button>
             </div>
+
+            {/* Supabase Cloud Auth & Entitlement Status Pill */}
+            <CloudAuthPill
+              tier={tier}
+              isCloudConnected={isCloudConnected}
+              sessionId={sessionId}
+              tokenStatus={tokenStatus}
+              onOpenBilling={onOpenBilling}
+              onToggleTier={onToggleTier}
+            />
+
+            {/* Direct Monetization / Billing Modal Button */}
+            {onOpenBilling && (
+              <button
+                type="button"
+                onClick={onOpenBilling}
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/30 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-900/40 transition-all cursor-pointer"
+                aria-label="Open Dodo Payments Pricing and Billing"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span>{tier === "pro" ? "Manage Pro" : "Upgrade $29/mo"}</span>
+              </button>
+            )}
           </div>
         </div>
 
