@@ -206,3 +206,25 @@ export interface NeatlogsTrace {
   timestamp: string;
   spans: NeatlogsSpan[];
 }
+
+export interface ExperimentData {
+  experiment_id?: string;
+  name?: string;
+  goal?: string;
+  domain?: string;
+  status?: string;
+  created_at?: string;
+  active_model?: string;
+  benchmark_summary?: any;
+  graph?: any;
+  v0_scorecard?: any;
+  v1_scorecard?: any;
+  held_out_scorecard?: any;
+  scorecard_comparison?: any;
+  diagnoses?: any[];
+  mutations?: any[];
+  candidates?: any[];
+  evolution_timeline?: any[];
+  promotion_assessment?: any;
+  neatlogs?: any;
+}

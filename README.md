@@ -180,12 +180,14 @@ Reco deeply integrates all hackathon sponsor technologies into its core architec
 
 ### 3. Supabase (Cloud Persistence & RLS Ledger)
 - **Relational Data Model**: Persists experiments, architecture definitions, benchmark runs, mutation diffs, evaluation scorecards, and traces in PostgreSQL.
-- **Row-Level Security (RLS)**: Enforces multi-tenant data isolation via GoTrue JWT tokens (`auth.uid()`).
+- **Row-Level Security (RLS)**: Enforces multi-tenant data isolation via GoTrue JWT tokens (`auth.uid() = user_id`).
+- **Interactive UI Components**: Full `AuthModal` supporting Email/Password Sign Up, Sign In, and an instant **1-Click Judge / Evaluator Demo Sign In** with pre-configured session credentials. The `MyExperimentsModal` lets users browse, load, and inspect their persisted optimization histories.
 - **Graceful Fallback**: Automatically falls back to an in-memory repository if cloud credentials are unset, ensuring zero friction during local testing.
 
 ### 4. Dodo Payments (Monetization & Pro Entitlements)
-- **Hosted Checkout Sessions**: Generates checkout sessions for the Reco Pro subscription tier ($9.00/month) via `POST /billing/checkout`.
-- **Hosted Customer Portal**: Provides subscription management via `POST /billing/portal`.
+- **Configured Product**: Reco Pro subscription tier (`pdt_0Nmvzbo4wJETkRyCMAEPt`, $29/mo or $9/mo recurring).
+- **Hosted Checkout Sessions**: Generates checkout sessions for Reco Pro via `POST /billing/checkout`. Automatically resolves the configured `DODO_PAYMENTS_PRODUCT_ID` without hardcoded frontend slugs.
+- **Hosted Customer Portal**: Provides subscription management, card updates, and invoice downloads via `POST /billing/portal`.
 - **HMAC Webhook Verification**: Uses `standardwebhooks` to verify cryptographically signed webhooks from Dodo Payments at `POST /billing/webhook` with anti-replay timestamp validation and idempotent event processing (`payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`).
 - **Strict Decoupling**: Billing checks never block core agent synthesis or benchmark evaluation.
 
@@ -195,15 +197,126 @@ Reco deeply integrates all hackathon sponsor technologies into its core architec
 
 ---
 
-## 5. Unified Single-Service Deployment Architecture (Render)
+## 5. End-to-End Environment Setup & Configuration
 
-Reco is deployed as a single unified Web Service on Render, eliminating CORS complexity and ensuring synchronized releases:
+### 1. Prerequisites & API Keys
 
-- **Backend**: FastAPI (`reco/api/app.py`) serving core health APIs (`/health`, `/api/health`), monetization routes (`/billing/*`), and static files from `frontend/dist`.
-- **Frontend**: Vite + React 19 (TypeScript, Tailwind CSS) Single Page Application (SPA).
-- **SPA Fallback Routing**: Client-side routes (e.g. `/stages/*`) automatically fall back to `frontend/dist/index.html` while preserving 404 semantics for `/api/*` and `/billing/*` endpoints.
+Copy `.env.example` to `.env` and configure the following sponsor and infrastructure environment variables:
 
-### Render Web Service Specification (`render.yaml`)
+```bash
+cp .env.example .env
+```
+
+| Category | Environment Variable | Required | Description | Example / Default |
+|---|---|---|---|---|
+| **TensorMux** | `TENSORMUX_API_KEY` | Optional | TensorMux API token for live LLM inference | `tmx_...` |
+| | `TENSORMUX_BASE_URL` | Optional | TensorMux OpenAI-compatible API base URL | `https://api.tensormux.com/v1` |
+| | `TENSORMUX_MODEL` | Optional | Target model identifier | `glm-4-7-flash` |
+| **Neatlogs** | `NEATLOGS_API_KEY` | Optional | Neatlogs API token for distributed execution tracing | `nl_...` |
+| | `NEATLOGS_BASE_URL` | Optional | Neatlogs ingestion endpoint | `https://ingest.neatlogs.com` |
+| **Supabase** | `SUPABASE_URL` | Optional | Supabase Project REST / Auth URL | `https://xyz.supabase.co` |
+| | `SUPABASE_ANON_KEY` | Optional | Public anonymous client API key | `eyJhbGci...` |
+| | `SUPABASE_SERVICE_ROLE_KEY` | Optional | Elevated service role key for backend ledger access | `eyJhbGci...` |
+| | `SUPABASE_JWT_SECRET` | Optional | JWT secret for GoTrue token cryptographic verification | `your_supabase_jwt_secret` |
+| **Dodo Payments** | `DODO_PAYMENTS_API_KEY` | Optional | Dodo Payments API secret key | `test_...` |
+| | `DODO_PAYMENTS_ENVIRONMENT` | Optional | Dodo mode (`test_mode` or `live_mode`) | `test_mode` |
+| | `DODO_PAYMENTS_WEBHOOK_KEY` | Optional | Dodo Payments HMAC webhook signing secret | `whsec_...` |
+| | `DODO_WEBHOOK_SECRET` | Optional | Alias for Dodo webhook secret key | `whsec_...` |
+| | `DODO_PAYMENTS_PRODUCT_ID` | Optional | Configured Reco Pro subscription product ID | `pdt_0Nmvzbo4wJETkRyCMAEPt` |
+
+> [!NOTE]
+> Reco boots out of the box with offline mock providers and local in-memory storage if external API keys are omitted. External API keys can be supplied for live mode evaluation without breaking local development.
+
+---
+
+## 6. Supabase Database & Auth Setup
+
+### Step 1: Execute Database Migrations
+1. Navigate to the [Supabase Dashboard](https://supabase.com/dashboard) and select your project.
+2. In the left navigation menu, open the **SQL Editor**.
+3. Copy the contents of [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql) and paste into the editor.
+4. Click **Run** to execute the migration.
+
+### Step 2: Schema Architecture & Tables Created
+The migration provisions the following relational tables with Row-Level Security (RLS):
+- `profiles`: User identity, display names, and tenant roles.
+- `experiments`: Autonomous engineering sessions partitioned by user.
+- `agent_versions`: Immutable DAG architectures (nodes, edges, task specs, complexity metrics).
+- `optimization_runs`: Generational optimization cycles and raw outcome payloads.
+- `candidate_evaluations`: Tournament candidates with accuracy, cost, and latency metrics.
+- `diagnoses`: Classified failure signatures mapping observable symptoms to root causes.
+- `held_out_scorecards`: Air-gapped validation results with generalization gap calculations.
+- `promotion_records`: Formal promotion audit log (`PROMOTED`, `REQUIRES_REVIEW`, `REJECTED`).
+- `user_entitlements`: Dodo Payments customer ID, subscription status, and active Pro tier flag.
+
+### Step 3: Row-Level Security (RLS) Policies
+Each table enforces strict user isolation:
+```sql
+ALTER TABLE experiments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own experiments" ON experiments
+  FOR ALL USING (auth.uid() = user_id);
+```
+
+### Step 4: Authentication in Frontend & Judge Demo
+The frontend connects dynamically using credentials exposed via `GET /api/config`:
+- **Engineer Sign Up / Sign In**: Authenticates directly with Supabase Auth via email/password.
+- **Judge / Evaluator Demo Sign In**: Instant 1-click evaluator login that loads a pre-configured, authenticated session with demo experiments, allowing evaluators to test all features without creating accounts.
+
+---
+
+## 7. Dodo Payments Product & Webhook Configuration
+
+### Step 1: Create the Reco Pro Product in Dodo Dashboard
+1. Log in to the [Dodo Payments Dashboard](https://app.dodopayments.com) (in **Test Mode**).
+2. Go to **Products** $\to$ **New Product**.
+3. Set the product details:
+   - **Name**: `Reco Pro`
+   - **Type**: Recurring Subscription
+   - **Billing Interval**: Monthly
+   - **Price**: `$29.00 / month` (or `$9.00 / month`)
+   - **Currency**: `USD`
+4. Save the product and copy the generated **Product ID**:
+   ```
+   DODO_PAYMENTS_PRODUCT_ID=pdt_0Nmvzbo4wJETkRyCMAEPt
+   ```
+
+### Step 2: Configure Webhook Delivery
+1. Go to **Developers** $\to$ **Webhooks** in the Dodo Payments Dashboard.
+2. Click **Add Webhook Endpoint**.
+3. Set **Endpoint URL**:
+   ```
+   https://<your-deployed-service>.onrender.com/billing/webhook
+   ```
+   *(For local testing with ngrok/localtunnel, use `https://<tunnel-id>.ngrok-free.app/billing/webhook`)*.
+4. Subscribe to the canonical subscription lifecycle events:
+   - `payment.succeeded`
+   - `subscription.active`
+   - `subscription.cancelled`
+   - `subscription.renewed`
+5. Copy the generated **Webhook Signing Secret** (`whsec_...`) and assign it to:
+   ```
+   DODO_PAYMENTS_WEBHOOK_KEY=whsec_...
+   ```
+
+### Step 3: Verify Checkout Flow
+1. Click **Upgrade to Pro** in the Reco visual console.
+2. The frontend invokes `POST /billing/checkout`, which resolves `DODO_PAYMENTS_PRODUCT_ID` and returns a hosted checkout URL from Dodo Payments.
+3. In Test Mode, use the simulated test card credentials provided directly on the UI banner:
+   - **Card Number**: `4242 4242 4242 4242`
+   - **Expiry**: `12/28`
+   - **CVC**: `123`
+   - **ZIP**: `90210`
+4. Upon successful payment, Dodo dispatches a signed webhook to `/billing/webhook`, which verifies the HMAC signature and updates the user entitlement to `pro`.
+
+---
+
+## 8. Single-Service Render Deployment Guide
+
+Reco is packaged for zero-friction deployment on Render as a single unified Web Service.
+
+### Blueprint Deployment (`render.yaml`)
+
+The repository includes a production Render Blueprint specification:
 
 ```yaml
 services:
@@ -217,41 +330,80 @@ services:
         value: 3.11.4
       - key: DODO_PAYMENTS_ENVIRONMENT
         value: test_mode
+      - key: DODO_PAYMENTS_PRODUCT_ID
+        value: pdt_0Nmvzbo4wJETkRyCMAEPt
 ```
+
+### Manual Deployment via Render Dashboard
+1. Create a new **Web Service** on [Render](https://dashboard.render.com).
+2. Connect your GitHub repository (`toufiqfarhan0/reco`).
+3. Set the build and runtime parameters:
+   - **Runtime**: `Python`
+   - **Build Command**: `npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt`
+   - **Start Command**: `uvicorn reco.api.app:app --host 0.0.0.0 --port $PORT`
+4. Add the required environment variables under **Environment**:
+   - `DODO_PAYMENTS_PRODUCT_ID`: `pdt_0Nmvzbo4wJETkRyCMAEPt`
+   - `DODO_PAYMENTS_ENVIRONMENT`: `test_mode`
+   - `DODO_PAYMENTS_API_KEY`: *(your Dodo test API key)*
+   - `DODO_PAYMENTS_WEBHOOK_KEY`: *(your Dodo webhook secret)*
+   - `SUPABASE_URL`: *(your Supabase URL)*
+   - `SUPABASE_ANON_KEY`: *(your Supabase anon key)*
+   - `SUPABASE_SERVICE_ROLE_KEY`: *(your Supabase service role key)*
+   - `TENSORMUX_API_KEY`: *(your TensorMux key)*
+   - `NEATLOGS_API_KEY`: *(your Neatlogs key)*
+5. Click **Create Web Service**. Render builds the Vite SPA into `frontend/dist` and launches the unified FastAPI server.
+
+### Architecture & Routing Guarantees
+- **Root Route (`/`)**: Serves the pre-compiled `frontend/dist/index.html`.
+- **Public Config (`GET /api/config`)**: Serves safe, public client configuration to bootstrap Supabase and Dodo Payments without leaking secrets.
+- **Monetization Routes (`/billing/*`)**: Hosted checkout, customer portal, and HMAC webhooks.
+- **Health Check (`GET /health`, `GET /api/health`)**: Responds with HTTP 200 for Render health probes.
+- **SPA Fallback Routing**: Any client-side routes (such as `/stages/*`) automatically fall back to `frontend/dist/index.html` while preserving 404 JSON responses for missing API routes.
 
 ---
 
-## 6. Local Development & Reproduction Commands
+## 9. Local Development & Reproduction Commands
 
-### 1. Prerequisites
+### 1. System Requirements
 - Python 3.11+
 - Node.js 20+ and npm
+- Git
 
-### 2. Run Backend Pytest Suite
+### 2. Dependency Installation
+```bash
+# Install Python backend dependencies
+pip install -r requirements.txt
+
+# Install React frontend dependencies
+npm install --prefix frontend
+```
+
+### 3. Run Backend Pytest Suite
 ```bash
 python -m pytest tests/ -q
 ```
-*Result: 145 passed tests verifying DAG execution, failure diagnostics, mutation engine, multi-candidate tournaments, multi-domain benchmarks, Supabase persistence, and Dodo Payments monetization.*
+*Result: 145 passed tests verifying DAG execution, failure diagnostics, mutation engine, multi-candidate tournaments, multi-domain benchmarks, Supabase persistence, public config, and Dodo Payments monetization.*
 
-### 3. Run Frontend Vitest Suite
+### 4. Run Frontend Vitest Suite
 ```bash
 npm test --prefix frontend
 ```
-*Result: 11 test files passed (40/40 tests) verifying all 5 console stages, Epistemic Memory Ledger, Failure Explorer, Candidate Comparison, and Billing Modal.*
+*Result: 12 test files passed (45/45 tests) verifying all 5 console stages, Epistemic Memory Ledger, Failure Explorer, Candidate Comparison, Billing Modal, AuthModal, and MyExperimentsModal.*
 
-### 4. Build Frontend Production Assets
+### 5. Build Production Frontend Bundle
 ```bash
 npm run build --prefix frontend
 ```
-*Compiles TypeScript and bundles production Vite assets into `frontend/dist`.*
+*Result: Compiles TypeScript and bundles production Vite assets into `frontend/dist` with 0 errors.*
 
-### 5. Launch Unified Server Locally
+### 6. Launch Unified Server Locally
 ```bash
 uvicorn reco.api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
-Navigate to `http://localhost:8000` to interact with the full 5-stage Reco console.
+Navigate to `http://localhost:8000` to interact with the full 5-stage Reco console with Supabase Auth and Dodo Payments checkout.
 
 ---
+
 
 ## 7. Built with AO (Agent Orchestrator) Development Lineage
 

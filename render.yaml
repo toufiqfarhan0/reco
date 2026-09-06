@@ -9,3 +9,5 @@ services:
         value: 3.11.4
       - key: DODO_PAYMENTS_ENVIRONMENT
         value: test_mode
+      - key: DODO_PAYMENTS_PRODUCT_ID
+        value: pdt_0Nmvzbo4wJETkRyCMAEPt

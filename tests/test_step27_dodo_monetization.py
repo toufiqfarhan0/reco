@@ -99,7 +99,7 @@ def _generate_webhook_headers(
 
 def test_reco_pro_product_tier_configuration():
     """Verify Reco Pro tier pricing matches $9.00/month (900 cents) specifications."""
-    assert DEFAULT_PRO_PRODUCT_ID == "pdt_reco_pro"
+    assert DEFAULT_PRO_PRODUCT_ID == "pdt_0Nmvzbo4wJETkRyCMAEPt"
     assert DEFAULT_PRO_PRICE_CENTS == 900
     assert DEFAULT_PRO_PRICE_USD == 9.00
     assert DEFAULT_PRO_CURRENCY == "USD"
