@@ -77,18 +77,24 @@ export const LandingPage: React.FC = () => {
         {/* Right: Anchors + GitHub + Launch Console CTA */}
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-5 text-xs font-medium text-zinc-600 font-geist">
+            <Link
+              to="/why-reco"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors cursor-pointer"
+            >
+              Why Reco?
+            </Link>
+            <Link
+              to="/architecture"
+              className="hover:text-zinc-900 transition-colors cursor-pointer"
+            >
+              Architecture
+            </Link>
             <a
               href="#how-it-works"
               className="hover:text-zinc-900 transition-colors cursor-pointer"
             >
               How it works
             </a>
-            <Link
-              to="/architecture"
-              className="hover:text-zinc-900 transition-colors cursor-pointer text-indigo-600 font-semibold"
-            >
-              Architecture
-            </Link>
             <a
               href="#pricing"
               className="hover:text-zinc-900 transition-colors cursor-pointer"
@@ -133,7 +139,10 @@ export const LandingPage: React.FC = () => {
       <footer className="w-full border-t border-zinc-200 bg-white py-6 text-xs font-mono text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>Reco • Autonomous Agent Engineering System</p>
-          <div className="flex items-center gap-4 text-xs font-geist text-zinc-500">
+          <div className="flex flex-wrap items-center gap-4 text-xs font-geist text-zinc-500">
+            <Link to="/why-reco" className="hover:text-indigo-600 transition-colors cursor-pointer font-semibold text-indigo-600">
+              Why Reco?
+            </Link>
             <Link to="/architecture" className="hover:text-zinc-900 transition-colors cursor-pointer font-medium">
               Architecture
             </Link>
