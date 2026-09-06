@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { StageType } from "@/lib/types";
 import {
@@ -326,6 +327,73 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
           >
             <span>Launch Console &rarr;</span>
           </button>
+        </div>
+      </section>
+
+      {/* Why Reco Exists: Paradigm Shift Section */}
+      <section id="why-reco" className="mx-auto w-full max-w-7xl pt-10 scroll-mt-20 border-t border-zinc-200">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1 text-xs font-mono font-medium text-indigo-700">
+              <Sparkle size={14} weight="fill" />
+              <span>THE PARADIGM SHIFT</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 font-geist">
+              Why Reco: Beyond Heuristic Prompting
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 max-w-2xl font-geist leading-relaxed">
+              Building reliable AI agents requires moving past fragile &ldquo;vibe-coding.&rdquo; Reco turns agent construction into an automated compiler pipeline with formal verification and mathematical guarantees.
+            </p>
+          </div>
+
+          <Link
+            to="/architecture"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors shrink-0 font-geist"
+          >
+            <span>Read Full Architecture &amp; Research Monograph</span>
+            <ArrowRight size={14} weight="bold" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3">
+            <div className="flex items-center gap-2 text-indigo-600 font-mono text-xs font-bold uppercase">
+              <Cpu size={16} weight="duotone" />
+              <span>Formal DAG Synthesis</span>
+            </div>
+            <h3 className="text-sm font-bold text-zinc-900 font-geist">
+              Guaranteed Acyclic Topologies
+            </h3>
+            <p className="text-xs text-zinc-500 leading-relaxed font-geist">
+              Manual multi-agent architectures often suffer from infinite loops and unbound tools. Reco synthesizes typed DAG contracts and mathematically proves acyclicity in O(|V|+|E|) before any LLM inference begins.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3">
+            <div className="flex items-center gap-2 text-indigo-600 font-mono text-xs font-bold uppercase">
+              <Pulse size={16} weight="duotone" />
+              <span>Diagnostic Taxonomy</span>
+            </div>
+            <h3 className="text-sm font-bold text-zinc-900 font-geist">
+              12-Class Failure Attribution
+            </h3>
+            <p className="text-xs text-zinc-500 leading-relaxed font-geist">
+              Rather than guessing why a prompt broke, Reco maps runtime failures to a rigorous 12-category diagnostic taxonomy, synthesizing targeted mutations that fix root causes rather than symptoms.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3">
+            <div className="flex items-center gap-2 text-indigo-600 font-mono text-xs font-bold uppercase">
+              <ShieldCheck size={16} weight="duotone" />
+              <span>Air-Gapped Held-Out Gate</span>
+            </div>
+            <h3 className="text-sm font-bold text-zinc-900 font-geist">
+              Zero-Leakage Promotion
+            </h3>
+            <p className="text-xs text-zinc-500 leading-relaxed font-geist">
+              To prevent prompt overfitting, every candidate is evaluated against blind, held-out test partitions secured by SHA-256 test integrity checksums, ensuring genuine generalization before production release.
+            </p>
+          </div>
         </div>
       </section>
 
