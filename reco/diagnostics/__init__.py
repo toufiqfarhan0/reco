@@ -1,19 +1,29 @@
-"""Failure Diagnostics Taxonomy package."""
+"""Diagnostics module for failure analysis, root cause diagnosis, and mutation recommendations."""
 
+from reco.diagnostics.analyzer import FailureAnalyzer
+from reco.diagnostics.models import (
+    DiagnosisEvidence,
+    FailureCluster,
+    RecommendedMutation,
+    RootCauseDiagnosis,
+)
+from reco.diagnostics.reconciliation import ReconciliationDiagnosisAdapter
 from reco.diagnostics.taxonomy import (
     FailureCategory,
-    FailureDiagnostic,
-    DiagnosticReport,
-    CATEGORY_DESCRIPTIONS,
-    CATEGORY_DEFAULT_MUTATORS,
+    FailureSource,
+    MutationType,
+    Severity,
 )
-from reco.diagnostics.analyzer import FailureAnalyzer
 
 __all__ = [
-    "FailureCategory",
-    "FailureDiagnostic",
-    "DiagnosticReport",
     "FailureAnalyzer",
-    "CATEGORY_DESCRIPTIONS",
-    "CATEGORY_DEFAULT_MUTATORS",
+    "FailureCategory",
+    "FailureSource",
+    "MutationType",
+    "Severity",
+    "DiagnosisEvidence",
+    "RecommendedMutation",
+    "RootCauseDiagnosis",
+    "FailureCluster",
+    "ReconciliationDiagnosisAdapter",
 ]

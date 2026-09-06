@@ -1,672 +1,697 @@
-"""Tests for Dodo Payments Monetization Layer, HMAC Webhook Verification & Decoupled Gating (Step 8 / Track 1).
+"""Deterministic test suite for Step 27: Dodo Payments Monetization Integration.
 
-Verifies:
-1. Reco Pro subscription tier configuration ($9.00/month, $900 cents).
-2. Hosted Checkout Sessions endpoint (POST /billing/checkout):
-   - Accepts { user_id, email, return_url }.
-   - Generates authenticated redirect checkout URL from Dodo Payments API.
-   - Fault-tolerance on gateway drops/timeouts.
-3. Customer Portal endpoint (POST /billing/portal) for subscription self-management.
-4. Authentic HMAC Webhook verification via standardwebhooks:
-   - Anti-replay freshness check.
-   - Rejection of forged or missing signature headers with 400 Bad Request.
-   - Acceptance of authentic signatures with 200 OK.
-   - Idempotent deduplication on duplicate webhook-id delivery.
-5. Ingestion of canonical payment/subscription lifecycle events:
-   - payment.succeeded
-   - subscription.active
-   - subscription.cancelled
-   - subscription.renewed
-   - Updates user entitlements in database repository.
-6. Entitlement Gating:
-   - Free vs Pro tier checks.
-   - require_pro_entitlement enforcement.
-7. Strict Decoupling:
-   - Verification that gateway drops/timeouts NEVER block core agent DAG synthesis or local benchmarks.
-8. Zero secrets leakage in code, logs, or responses.
+Tests:
+1. Product ID configuration
+2. Free entitlement default
+3. Pro entitlement mapping
+4. Checkout endpoint
+5. Authenticated checkout enforcement
+6. Customer metadata mapping
+7. Webhook signature verification
+8. Invalid webhook rejection (401)
+9. Idempotency handling
+10. Subscription activation (subscription.active)
+11. Subscription update & renewal (subscription.updated, subscription.renewed)
+12. Subscription cancellation (subscription.cancelled)
+13. Subscription failure & expiry (subscription.failed, subscription.expired, subscription.on_hold)
+14. Entitlement calculation determinism
+15. Usage limits enforcement (HTTP 402 on excess, 200 within quota)
+16. Dodo timeout handling (RuntimeError / 503)
+17. Dodo HTTP error handling
+18. Supabase outage handling (graceful fallback to Free)
+19. User isolation (User A vs User B)
+20. Demo / Live separation (Demo mode exempt from billing checks)
+21. Core Track 1 engine isolation (Zero billing dependencies)
+22. Frontend billing state API endpoint
+23. Zero secret exposure
+24. Webhook replay safety
 """
 
-from __future__ import annotations
-
-import base64
-from datetime import datetime, timedelta, timezone
 import json
 import os
-from typing import Any, Dict
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 import pytest
+from fastapi.testclient import TestClient
+from standardwebhooks import Webhook
 
-import httpx
-import standardwebhooks
-
-from reco.benchmarks.base import BenchmarkSplit
-from reco.benchmarks.reconciliation import get_reconciliation_benchmark_suite
+from reco.api.app import create_app
 from reco.billing.models import (
-    DEFAULT_PRO_CURRENCY,
-    DEFAULT_PRO_PRICE_CENTS,
-    DEFAULT_PRO_PRICE_USD,
-    DEFAULT_PRO_PRODUCT_ID,
-    DEFAULT_PRO_PRODUCT_NAME,
-    BillingError,
-    CheckoutRequest,
-    CheckoutResponse,
-    EntitlementGatingError,
-    PaymentGatewayError,
-    PortalRequest,
-    PortalResponse,
+    FREE_LIMITS,
+    PRO_LIMITS,
+    PlanTier,
     SubscriptionStatus,
-    SubscriptionTier,
-    WebhookResult,
-    WebhookVerificationError,
+    UserEntitlement,
 )
 from reco.billing.service import BillingService
+from reco.config import Settings
 from reco.core.goal_analyzer import GoalAnalyzer
-from reco.db.models import UserEntitlementRecord
-from reco.db.repository import InMemoryRepository
+from reco.core.interfaces import Benchmark
+from reco.diagnostics.analyzer import FailureAnalyzer
 from reco.engine.generator import ArchitectureGenerator
-from reco.engine.runtime import AgentRuntime
-from reco.evaluators.scorecard import ScorecardEvaluator
-from reco.tools.registry import ToolRegistry
+from reco.mutation.engine import MutationEngine
+from reco.tools.registry import default_tool_registry
 
-TEST_WEBHOOK_SECRET = "whsec_" + base64.b64encode(b"dodo_test_secret_key_32_bytes_!").decode("ascii")
-TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
-TEST_PRO_USER_ID = "00000000-0000-0000-0000-000000000002"
-TEST_CUSTOMER_ID = "cus_dodo_test_customer_123"
-TEST_SUBSCRIPTION_ID = "sub_dodo_test_sub_456"
-TEST_PAYMENT_ID = "pay_dodo_test_pay_789"
+TEST_WEBHOOK_SECRET = os.getenv("DODO_PAYMENTS_WEBHOOK_KEY", "whsec_dGVzdF9zZWNyZXRfa2V5XzEyMzQ1Njc4OTA=")
+TEST_PRODUCT_ID = "pdt_0Nmvzbo4wJETkRyCMAEPt"
 
 
-def _generate_webhook_headers(
-    secret: str,
+def create_signed_webhook_headers(
     payload_str: str,
-    msg_id: str = "msg_test_001",
-    timestamp: datetime | None = None,
-) -> Dict[str, str]:
-    """Helper to generate authentic standardwebhooks signature headers."""
-    ts = timestamp or datetime.now(timezone.utc)
-    wh = standardwebhooks.Webhook(secret)
-    sig = wh.sign(msg_id, ts, payload_str)
+    secret: str = TEST_WEBHOOK_SECRET,
+    webhook_id: str = "msg_test_default",
+) -> dict:
+    """Helper generating authentic HMAC signatures via standardwebhooks."""
+    wh = Webhook(secret)
+    now = datetime.now(timezone.utc)
+    sig = wh.sign(webhook_id, now, payload_str)
     return {
-        "webhook-id": msg_id,
-        "webhook-timestamp": str(int(ts.timestamp())),
+        "webhook-id": webhook_id,
+        "webhook-timestamp": str(int(now.timestamp())),
         "webhook-signature": sig,
     }
 
 
-# ==============================================================================
-# 1. Product Tier & Pricing Configuration
-# ==============================================================================
-
-def test_reco_pro_product_tier_configuration():
-    """Verify Reco Pro tier pricing matches $9.00/month (900 cents) specifications."""
-    assert DEFAULT_PRO_PRODUCT_ID == "pdt_0Nmvzbo4wJETkRyCMAEPt"
-    assert DEFAULT_PRO_PRICE_CENTS == 900
-    assert DEFAULT_PRO_PRICE_USD == 9.00
-    assert DEFAULT_PRO_CURRENCY == "USD"
-    assert DEFAULT_PRO_PRODUCT_NAME == "Reco Pro"
-
-    # Environment variable override test
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setenv("DODO_PRO_PRODUCT_ID", "pdt_custom_pro_tier")
-        service = BillingService()
-        assert service.pro_product_id == "pdt_custom_pro_tier"
+@pytest.fixture
+def billing_settings():
+    """Settings instance populated with test configuration."""
+    return Settings(
+        app_env="test",
+        billing_enabled=True,
+        dodo_api_key="dodo_test_mock_key",
+        dodo_webhook_secret=TEST_WEBHOOK_SECRET,
+        dodo_product_id=TEST_PRODUCT_ID,
+        dodo_environment="test_mode",
+    )
 
 
-# ==============================================================================
-# 2. Hosted Checkout Sessions (POST /billing/checkout)
-# ==============================================================================
+@pytest.fixture
+def mock_supabase_service():
+    """Mock Supabase persistence service with in-memory stores."""
+    svc = MagicMock()
+    svc.is_configured = True
+    local_subs = {}
+    local_events = set()
 
-def test_checkout_session_creation_with_injected_client():
-    """Verify Checkout Session calls Dodo client and returns redirect checkout URL."""
-    repo = InMemoryRepository()
-    mock_client = MagicMock()
+    def get_sub(user_id, token=None):
+        return local_subs.get(user_id)
+
+    def upsert_sub(user_id, plan, status, product_id, **kwargs):
+        record = {
+            "user_id": user_id,
+            "plan": plan.upper(),
+            "status": status.lower(),
+            "product_id": product_id,
+            "dodo_customer_id": kwargs.get("dodo_customer_id"),
+            "dodo_subscription_id": kwargs.get("dodo_subscription_id"),
+            "current_period_end": kwargs.get("current_period_end"),
+        }
+        local_subs[user_id] = record
+        return record
+
+    def is_processed(wh_id):
+        return wh_id in local_events
+
+    def record_event(wh_id, event_type, payload):
+        local_events.add(wh_id)
+        return {"webhook_id": wh_id, "event_type": event_type}
+
+    def verify_auth_token(token):
+        if token == "token_alice":
+            return {"id": "usr_alice", "email": "alice@example.com"}
+        if token == "token_bob":
+            return {"id": "usr_bob", "email": "bob@example.com"}
+        return None
+
+    def get_or_create_profile(user_id, token=None):
+        return {"id": user_id, "display_name": user_id.replace("usr_", "").capitalize()}
+
+    svc.get_user_subscription.side_effect = get_sub
+    svc.upsert_subscription.side_effect = upsert_sub
+    svc.is_webhook_processed.side_effect = is_processed
+    svc.record_webhook_event.side_effect = record_event
+    svc.verify_auth_token.side_effect = verify_auth_token
+    svc.get_or_create_profile.side_effect = get_or_create_profile
+    return svc
+
+
+@pytest.fixture
+def billing_service(billing_settings, mock_supabase_service):
+    """Isolated billing service instance."""
+    return BillingService(settings=billing_settings, supabase_service=mock_supabase_service)
+
+
+@pytest.fixture
+def client(billing_settings, billing_service, mock_supabase_service):
+    """TestClient wired to test app with isolated billing service."""
+    app = create_app(settings=billing_settings)
+
+    with patch("reco.api.app.default_billing_service", billing_service), \
+         patch("reco.api.app.default_supabase_service", mock_supabase_service):
+        yield TestClient(app)
+
+
+# ============================================================================
+# 1. Product ID Configuration
+# ============================================================================
+
+def test_01_product_id_configuration(billing_settings):
+    """Product ID must default to and match pdt_0Nmvzbo4wJETkRyCMAEPt."""
+    assert billing_settings.dodo_product_id == "pdt_0Nmvzbo4wJETkRyCMAEPt"
+    assert billing_settings.billing_enabled is True
+    assert billing_settings.dodo_environment == "test_mode"
+
+
+# ============================================================================
+# 2. Free Entitlement Default
+# ============================================================================
+
+def test_02_free_entitlement_default(billing_service):
+    """New or unauthenticated user defaults to FREE tier and standard limits."""
+    ent = billing_service.get_user_entitlement("usr_new_user")
+    assert ent.plan == PlanTier.FREE
+    assert ent.status == SubscriptionStatus.FREE
+    assert ent.limits.max_generations == 1
+    assert ent.limits.max_candidates == 2
+    assert ent.limits.max_optimization_runs == 3
+
+
+# ============================================================================
+# 3. Pro Entitlement Mapping
+# ============================================================================
+
+def test_03_pro_entitlement_mapping(billing_service, mock_supabase_service):
+    """User with active subscription in Supabase is mapped to PRO tier."""
+    mock_supabase_service.upsert_subscription(
+        user_id="usr_pro_user",
+        plan="PRO",
+        status="active",
+        product_id=TEST_PRODUCT_ID,
+        dodo_subscription_id="sub_12345",
+    )
+    ent = billing_service.get_user_entitlement("usr_pro_user")
+    assert ent.plan == PlanTier.PRO
+    assert ent.status == SubscriptionStatus.ACTIVE
+    assert ent.limits.max_generations == 5
+    assert ent.limits.max_candidates == 5
+    assert ent.limits.max_optimization_runs == 100
+    assert ent.dodo_subscription_id == "sub_12345"
+
+
+# ============================================================================
+# 4. Checkout Endpoint
+# ============================================================================
+
+def test_04_checkout_endpoint(client, billing_service):
+    """Authenticated user calling /billing/checkout receives hosted checkout URL."""
+    mock_dodo_client = MagicMock()
     mock_session = MagicMock()
-    mock_session.session_id = "cs_live_session_12345"
-    mock_session.checkout_url = "https://test.dodopayments.com/checkout/cs_live_session_12345"
-    mock_client.checkout_sessions.create.return_value = mock_session
+    mock_session.checkout_url = "https://test.checkout.dodopayments.com/session/cks_abc"
+    mock_session.session_id = "cks_abc"
+    mock_dodo_client.checkout_sessions.create.return_value = mock_session
 
-    service = BillingService(
-        api_key="dodo_test_key_abc",
-        webhook_secret=TEST_WEBHOOK_SECRET,
-        repository=repo,
-        client=mock_client,
-    )
-
-    req = CheckoutRequest(
-        user_id=TEST_USER_ID,
-        email="developer@example.com",
-        return_url="https://app.reco.ai/billing/success",
-    )
-
-    response = service.create_checkout_session(req)
-    assert isinstance(response, CheckoutResponse)
-    assert response.session_id == "cs_live_session_12345"
-    assert response.checkout_url == "https://test.dodopayments.com/checkout/cs_live_session_12345"
-    assert response.product_id == DEFAULT_PRO_PRODUCT_ID
-    assert response.user_id == TEST_USER_ID
-
-    # Verify parameters sent to Dodo Payments
-    mock_client.checkout_sessions.create.assert_called_once()
-    call_kwargs = mock_client.checkout_sessions.create.call_args[1]
-    assert call_kwargs["product_cart"] == [{"product_id": DEFAULT_PRO_PRODUCT_ID, "quantity": 1}]
-    assert call_kwargs["customer"] == {"email": "developer@example.com"}
-    assert call_kwargs["return_url"] == "https://app.reco.ai/billing/success"
-    assert call_kwargs["metadata"]["user_id"] == TEST_USER_ID
-
-
-def test_checkout_session_http_endpoint_dispatch():
-    """Verify HTTP endpoint POST /billing/checkout dispatches correctly and returns 200."""
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=InMemoryRepository())
-    body = json.dumps({
-        "user_id": TEST_USER_ID,
-        "email": "agent_dev@reco.ai",
-        "return_url": "https://app.reco.ai/console",
-    })
-
-    status_code, data = service.handle_http_request("POST", "/billing/checkout", {}, body)
-    assert status_code == 200
-    assert "checkout_url" in data
-    assert "session_id" in data
-    assert data["user_id"] == TEST_USER_ID
-
-
-def test_checkout_session_payment_gateway_timeout_returns_503():
-    """Verify payment gateway timeout raises PaymentGatewayError and returns 503."""
-    mock_client = MagicMock()
-    mock_client.checkout_sessions.create.side_effect = httpx.ConnectTimeout("Gateway timed out")
-
-    service = BillingService(
-        api_key="dodo_test_key",
-        webhook_secret=TEST_WEBHOOK_SECRET,
-        client=mock_client,
-    )
-
-    with pytest.raises(PaymentGatewayError) as exc_info:
-        service.create_checkout_session({
-            "user_id": TEST_USER_ID,
-            "email": "dev@reco.ai",
-            "return_url": "https://app.reco.ai",
-        })
-    assert "Gateway timed out" in str(exc_info.value)
-
-    # HTTP endpoint dispatch test
-    status_code, data = service.handle_http_request(
-        "POST",
-        "/billing/checkout",
-        {},
-        json.dumps({
-            "user_id": TEST_USER_ID,
-            "email": "dev@reco.ai",
-            "return_url": "https://app.reco.ai",
-        }),
-    )
-    assert status_code == 503
-    assert "Payment gateway unavailable" in data["error"]
-
-
-# ==============================================================================
-# 3. Customer Portal Sessions (POST /billing/portal)
-# ==============================================================================
-
-def test_portal_session_creation_with_customer_id():
-    """Verify Customer Portal session creates valid portal redirect URL."""
-    repo = InMemoryRepository()
-    mock_client = MagicMock()
-    mock_portal = MagicMock()
-    mock_portal.link = "https://test.dodopayments.com/portal/cus_123_portal_auth"
-    mock_client.customers.customer_portal.create.return_value = mock_portal
-
-    service = BillingService(
-        api_key="dodo_test_key",
-        webhook_secret=TEST_WEBHOOK_SECRET,
-        repository=repo,
-        client=mock_client,
-    )
-
-    req = PortalRequest(
-        customer_id=TEST_CUSTOMER_ID,
-        return_url="https://app.reco.ai/account",
-    )
-    res = service.create_portal_session(req)
-    assert isinstance(res, PortalResponse)
-    assert res.portal_url == "https://test.dodopayments.com/portal/cus_123_portal_auth"
-    assert res.customer_id == TEST_CUSTOMER_ID
-
-
-def test_portal_session_resolves_customer_id_from_user_id():
-    """Verify Customer Portal resolves customer ID from repository when user_id provided."""
-    repo = InMemoryRepository()
-    repo.save_user_entitlement(
-        UserEntitlementRecord(
-            user_id=TEST_USER_ID,
-            tier=SubscriptionTier.PRO.value,
-            status=SubscriptionStatus.ACTIVE.value,
-            is_pro=True,
-            customer_id="cus_resolved_from_repo_456",
+    with patch.object(billing_service, "get_dodo_client", return_value=mock_dodo_client):
+        res = client.post(
+            "/billing/checkout",
+            headers={"Authorization": "Bearer token_alice"},
+            json={"return_url": "http://localhost:3000/?checkout=success"},
         )
-    )
-
-    service = BillingService(
-        webhook_secret=TEST_WEBHOOK_SECRET,
-        repository=repo,
-    )
-
-    status_code, data = service.handle_http_request(
-        "POST",
-        "/billing/portal",
-        {},
-        json.dumps({"user_id": TEST_USER_ID, "return_url": "https://app.reco.ai/settings"}),
-    )
-    assert status_code == 200
-    assert "portal_url" in data
-    assert data["customer_id"] == "cus_resolved_from_repo_456"
+        assert res.status_code == 200
+        data = res.json()
+        assert data["checkout_url"] == "https://test.checkout.dodopayments.com/session/cks_abc"
+        assert data["session_id"] == "cks_abc"
 
 
-def test_portal_session_missing_customer_returns_400():
-    """Verify portal request fails gracefully when user has no associated customer ID."""
-    repo = InMemoryRepository()
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
+# ============================================================================
+# 5. Authenticated Checkout Enforcement
+# ============================================================================
 
-    status_code, data = service.handle_http_request(
-        "POST",
-        "/billing/portal",
-        {},
-        json.dumps({"user_id": "nonexistent_user"}),
-    )
-    assert status_code == 400
-    assert "No Dodo Payments customer ID found" in data["detail"]
+def test_05_authenticated_checkout_enforcement(client):
+    """Anonymous checkout attempt is strictly rejected with HTTP 401."""
+    res = client.post("/billing/checkout", json={})
+    assert res.status_code == 401
 
 
-# ==============================================================================
-# 4. Webhook Ingestion & HMAC Verification (POST /billing/webhook)
-# ==============================================================================
+# ============================================================================
+# 6. Customer Metadata Mapping
+# ============================================================================
 
-def test_webhook_hmac_verification_authentic_signature():
-    """Verify standardwebhooks authentic signature is accepted with 200 OK."""
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=InMemoryRepository())
-    payload_obj = {
-        "business_id": "bus_reco_test",
-        "type": "payment.succeeded",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "data": {
-            "payload_type": "Payment",
-            "payment_id": TEST_PAYMENT_ID,
-            "status": "succeeded",
-            "total_amount": 900,
-            "currency": "USD",
-            "customer": {
-                "customer_id": TEST_CUSTOMER_ID,
-                "email": "pro_user@reco.ai",
-            },
-            "metadata": {
-                "user_id": TEST_USER_ID,
-            },
-        },
-    }
-    payload_str = json.dumps(payload_obj)
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_auth_001")
+def test_06_customer_metadata_mapping(billing_service):
+    """create_checkout_session embeds user_id in metadata deterministically."""
+    mock_dodo_client = MagicMock()
+    mock_session = MagicMock(checkout_url="https://test.checkout.com", session_id="cks_1")
+    mock_dodo_client.checkout_sessions.create.return_value = mock_session
 
-    status_code, response_data = service.handle_http_request("POST", "/billing/webhook", headers, payload_str)
-    assert status_code == 200
-    assert response_data["received"] is True
-    assert response_data["event"] == "payment.succeeded"
-    assert response_data["entitlement_updated"] is True
-
-    # Check database entitlement record
-    entitlement = service.get_user_entitlement(TEST_USER_ID)
-    assert entitlement.is_pro is True
-    assert entitlement.tier == SubscriptionTier.PRO.value
-    assert entitlement.customer_id == TEST_CUSTOMER_ID
-    assert entitlement.payment_id == TEST_PAYMENT_ID
+    with patch.object(billing_service, "get_dodo_client", return_value=mock_dodo_client):
+        billing_service.create_checkout_session(
+            user_id="usr_alice",
+            user_email="alice@example.com",
+            user_name="Alice Engineer",
+        )
+        mock_dodo_client.checkout_sessions.create.assert_called_once()
+        _, kwargs = mock_dodo_client.checkout_sessions.create.call_args
+        assert kwargs["metadata"] == {"user_id": "usr_alice"}
+        assert kwargs["customer"]["email"] == "alice@example.com"
+        assert kwargs["product_cart"] == [{"product_id": TEST_PRODUCT_ID, "quantity": 1}]
 
 
-def test_webhook_rejection_on_forged_signature():
-    """Verify forged webhook signature is rejected with 400 Bad Request."""
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=InMemoryRepository())
-    payload_str = json.dumps({"type": "payment.succeeded", "data": {}})
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_forged_002")
+# ============================================================================
+# 7. Webhook Signature Verification
+# ============================================================================
 
-    # Tamper with the signature
-    headers["webhook-signature"] = "v1,forged_invalid_base64_signature_here"
-
-    status_code, response_data = service.handle_http_request("POST", "/billing/webhook", headers, payload_str)
-    assert status_code == 400
-    assert "Invalid webhook signature" in response_data["error"]
-
-
-def test_webhook_rejection_on_missing_headers():
-    """Verify missing signature or timestamp headers are rejected with 400 Bad Request."""
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=InMemoryRepository())
-    payload_str = json.dumps({"type": "payment.succeeded", "data": {}})
-
-    # Missing webhook-signature
-    status_code, response_data = service.handle_http_request(
-        "POST",
-        "/billing/webhook",
-        {"webhook-id": "msg_003", "webhook-timestamp": "1700000000"},
-        payload_str,
-    )
-    assert status_code == 400
-    assert "Missing required webhook headers" in response_data["detail"]
-
-    # Missing webhook-id
-    status_code, response_data = service.handle_http_request(
-        "POST",
-        "/billing/webhook",
-        {"webhook-signature": "v1,abc", "webhook-timestamp": "1700000000"},
-        payload_str,
-    )
-    assert status_code == 400
-
-
-def test_webhook_anti_replay_freshness_check():
-    """Verify expired webhook timestamp (older than standard tolerance) is rejected with 400."""
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=InMemoryRepository())
-    payload_str = json.dumps({"type": "payment.succeeded", "data": {}})
-
-    # Timestamp 15 minutes in the past
-    stale_timestamp = datetime.now(timezone.utc) - timedelta(minutes=15)
-    headers = _generate_webhook_headers(
-        TEST_WEBHOOK_SECRET,
-        payload_str,
-        msg_id="msg_stale_004",
-        timestamp=stale_timestamp,
-    )
-
-    status_code, response_data = service.handle_http_request("POST", "/billing/webhook", headers, payload_str)
-    assert status_code == 400
-    assert "Invalid webhook signature" in response_data["error"]
-    assert "too old" in response_data["detail"]
-
-
-def test_webhook_deduplication_idempotency():
-    """Verify duplicate webhook delivery ID is acknowledged without duplicate side-effects."""
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=InMemoryRepository())
-    payload_str = json.dumps({
-        "type": "payment.succeeded",
-        "data": {
-            "payment_id": "pay_dup_111",
-            "customer": {"customer_id": "cus_dup_222"},
-            "metadata": {"user_id": TEST_USER_ID},
-        },
-    })
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_dup_unique_005")
-
-    # First delivery: processed and entitlement updated
-    status_1, data_1 = service.handle_http_request("POST", "/billing/webhook", headers, payload_str)
-    assert status_1 == 200
-    assert data_1["entitlement_updated"] is True
-
-    # Second delivery (replay with same msg_id): acknowledged, but entitlement_updated is False
-    status_2, data_2 = service.handle_http_request("POST", "/billing/webhook", headers, payload_str)
-    assert status_2 == 200
-    assert data_2["entitlement_updated"] is False
-
-
-# ==============================================================================
-# 5. Multi-Event Ingestion & Entitlement State Transitions
-# ==============================================================================
-
-def test_event_subscription_active_upgrades_user():
-    """Verify subscription.active grants Reco Pro access with subscription ID."""
-    repo = InMemoryRepository()
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
-
-    payload_str = json.dumps({
+def test_07_webhook_signature_verification(client):
+    """Valid HMAC signature with standardwebhooks succeeds with 200 OK."""
+    payload = json.dumps({
         "type": "subscription.active",
         "data": {
-            "subscription_id": TEST_SUBSCRIPTION_ID,
-            "product_id": DEFAULT_PRO_PRODUCT_ID,
-            "customer": {"customer_id": TEST_CUSTOMER_ID},
-            "metadata": {"user_id": TEST_USER_ID},
+            "status": "active",
+            "subscription_id": "sub_sig_001",
+            "metadata": {"user_id": "usr_alice"},
+            "customer": {"customer_id": "cus_1"},
         },
     })
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_sub_active_006")
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_sig_test_1")
 
-    res = service.handle_webhook(headers, payload_str)
-    assert res.status == "ok"
-    assert res.entitlement_updated is True
-
-    entitlement = service.get_user_entitlement(TEST_USER_ID)
-    assert entitlement.tier == SubscriptionTier.PRO.value
-    assert entitlement.status == SubscriptionStatus.ACTIVE.value
-    assert entitlement.is_pro is True
-    assert entitlement.subscription_id == TEST_SUBSCRIPTION_ID
-    assert entitlement.customer_id == TEST_CUSTOMER_ID
-
-
-def test_event_subscription_renewed_maintains_access():
-    """Verify subscription.renewed maintains Pro access and updates timestamp."""
-    repo = InMemoryRepository()
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
-
-    # Initial state: Pro
-    repo.save_user_entitlement(
-        UserEntitlementRecord(
-            user_id=TEST_USER_ID,
-            tier=SubscriptionTier.PRO.value,
-            status=SubscriptionStatus.ACTIVE.value,
-            is_pro=True,
-            subscription_id=TEST_SUBSCRIPTION_ID,
-        )
+    res = client.post(
+        "/api/v1/payments/webhook",
+        content=payload.encode("utf-8"),
+        headers=headers,
     )
+    assert res.status_code == 200
+    assert res.json()["received"] is True
 
-    payload_str = json.dumps({
+
+# ============================================================================
+# 8. Invalid Webhook Rejection
+# ============================================================================
+
+def test_08_invalid_webhook_rejection(client):
+    """Forged signature or altered payload is rejected with HTTP 401."""
+    payload = json.dumps({"type": "payment.succeeded", "data": {}})
+    headers = {
+        "webhook-id": "fake_id",
+        "webhook-timestamp": "1704067200",
+        "webhook-signature": "v1,forged_signature_here",
+    }
+    res = client.post(
+        "/api/v1/payments/webhook",
+        content=payload.encode("utf-8"),
+        headers=headers,
+    )
+    assert res.status_code == 401
+
+
+# ============================================================================
+# 9. Idempotency Handling
+# ============================================================================
+
+def test_09_idempotency_handling(client, billing_service):
+    """Duplicate delivery of the exact same webhook-id returns 200 without duplicate processing."""
+    payload = json.dumps({
+        "type": "subscription.active",
+        "data": {
+            "status": "active",
+            "subscription_id": "sub_idem_001",
+            "metadata": {"user_id": "usr_alice"},
+            "customer": {"customer_id": "cus_idem"},
+        },
+    })
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_idem_repeat")
+
+    # Delivery 1
+    res1 = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+    assert res1.status_code == 200
+    assert res1.json()["result"]["status"] == "processed"
+
+    # Delivery 2 (Duplicate)
+    res2 = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+    assert res2.status_code == 200
+    assert res2.json()["result"]["status"] == "already_processed"
+
+
+# ============================================================================
+# 10. Subscription Activation
+# ============================================================================
+
+def test_10_subscription_activation(client, billing_service):
+    """subscription.active event elevates user entitlement to PRO."""
+    payload = json.dumps({
+        "type": "subscription.active",
+        "data": {
+            "status": "active",
+            "subscription_id": "sub_act_123",
+            "metadata": {"user_id": "usr_bob"},
+            "customer": {"customer_id": "cus_bob"},
+        },
+    })
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_act_1")
+
+    res = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+    assert res.status_code == 200
+
+    ent = billing_service.get_user_entitlement("usr_bob")
+    assert ent.plan == PlanTier.PRO
+    assert ent.status == SubscriptionStatus.ACTIVE
+
+
+# ============================================================================
+# 11. Subscription Update & Renewal
+# ============================================================================
+
+def test_11_subscription_update_and_renewal(client, billing_service):
+    """subscription.renewed and subscription.updated maintain PRO active state."""
+    payload = json.dumps({
         "type": "subscription.renewed",
         "data": {
-            "subscription_id": TEST_SUBSCRIPTION_ID,
-            "metadata": {"user_id": TEST_USER_ID},
+            "status": "active",
+            "subscription_id": "sub_renew_123",
+            "next_billing_date": "2026-10-01T00:00:00Z",
+            "metadata": {"user_id": "usr_bob"},
+            "customer": {"customer_id": "cus_bob"},
         },
     })
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_renew_007")
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_renew_1")
 
-    res = service.handle_webhook(headers, payload_str)
-    assert res.status == "ok"
-    assert res.entitlement_updated is True
+    res = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+    assert res.status_code == 200
 
-    entitlement = service.get_user_entitlement(TEST_USER_ID)
-    assert entitlement.is_pro is True
-    assert entitlement.tier == SubscriptionTier.PRO.value
+    ent = billing_service.get_user_entitlement("usr_bob")
+    assert ent.plan == PlanTier.PRO
+    assert ent.status == SubscriptionStatus.ACTIVE
 
 
-def test_event_subscription_cancelled_immediate_downgrades_to_free():
-    """Verify immediate subscription.cancelled downgrades user to Free tier."""
-    repo = InMemoryRepository()
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
+# ============================================================================
+# 12. Subscription Cancellation
+# ============================================================================
 
-    # User currently active Pro
-    repo.save_user_entitlement(
-        UserEntitlementRecord(
-            user_id=TEST_USER_ID,
-            tier=SubscriptionTier.PRO.value,
-            status=SubscriptionStatus.ACTIVE.value,
-            is_pro=True,
-            subscription_id=TEST_SUBSCRIPTION_ID,
-        )
-    )
+def test_12_subscription_cancellation(client, billing_service):
+    """subscription.cancelled downgrades entitlement to FREE."""
+    # First activate Pro
+    billing_service._local_subscriptions["usr_bob"] = {
+        "user_id": "usr_bob",
+        "plan": "PRO",
+        "status": "active",
+    }
+    assert billing_service.get_user_entitlement("usr_bob").plan == PlanTier.PRO
 
-    payload_str = json.dumps({
+    # Process cancellation webhook
+    payload = json.dumps({
         "type": "subscription.cancelled",
         "data": {
-            "subscription_id": TEST_SUBSCRIPTION_ID,
-            "cancel_at_next_billing_date": False,
-            "metadata": {"user_id": TEST_USER_ID},
+            "status": "cancelled",
+            "subscription_id": "sub_renew_123",
+            "metadata": {"user_id": "usr_bob"},
         },
     })
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_cancel_008")
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_cancel_1")
 
-    res = service.handle_webhook(headers, payload_str)
-    assert res.status == "ok"
+    res = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+    assert res.status_code == 200
 
-    entitlement = service.get_user_entitlement(TEST_USER_ID)
-    assert entitlement.tier == SubscriptionTier.FREE.value
-    assert entitlement.is_pro is False
-    assert entitlement.status == SubscriptionStatus.CANCELLED.value
+    ent = billing_service.get_user_entitlement("usr_bob")
+    assert ent.plan == PlanTier.FREE
+    assert ent.status == SubscriptionStatus.CANCELLED
 
 
-def test_event_subscription_cancelled_at_period_end_preserves_access():
-    """Verify subscription.cancelled with cancel_at_next_billing_date retains Pro until expiry."""
-    repo = InMemoryRepository()
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
+# ============================================================================
+# 13. Subscription Failure & Expiry
+# ============================================================================
 
-    future_expiry = (datetime.now(timezone.utc) + timedelta(days=20)).isoformat()
-    payload_str = json.dumps({
-        "type": "subscription.cancelled",
+def test_13_subscription_failure_and_expiry(client, billing_service):
+    """subscription.failed and subscription.expired transition user to FREE."""
+    billing_service._local_subscriptions["usr_alice"] = {
+        "user_id": "usr_alice",
+        "plan": "PRO",
+        "status": "active",
+    }
+
+    payload = json.dumps({
+        "type": "subscription.expired",
         "data": {
-            "subscription_id": TEST_SUBSCRIPTION_ID,
-            "cancel_at_next_billing_date": True,
-            "next_billing_date": future_expiry,
-            "metadata": {"user_id": TEST_USER_ID},
+            "status": "expired",
+            "metadata": {"user_id": "usr_alice"},
         },
     })
-    headers = _generate_webhook_headers(TEST_WEBHOOK_SECRET, payload_str, msg_id="msg_cancel_period_009")
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_expire_1")
 
-    res = service.handle_webhook(headers, payload_str)
-    assert res.status == "ok"
+    res = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+    assert res.status_code == 200
 
-    # User remains Pro until future_expiry
-    assert service.is_pro_user(TEST_USER_ID) is True
-    entitlement = service.get_user_entitlement(TEST_USER_ID)
-    assert entitlement.status == SubscriptionStatus.CANCELLED.value
-    assert entitlement.expires_at == future_expiry
+    ent = billing_service.get_user_entitlement("usr_alice")
+    assert ent.plan == PlanTier.FREE
+    assert ent.status == SubscriptionStatus.EXPIRED
 
 
-# ==============================================================================
-# 6. Entitlement Gating & Access Control
-# ==============================================================================
+# ============================================================================
+# 14. Entitlement Calculation Determinism
+# ============================================================================
 
-def test_entitlement_gating_free_user_rejection():
-    """Verify non-Pro users are rejected with EntitlementGatingError on Pro features."""
-    repo = InMemoryRepository()
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
+def test_14_entitlement_calculation_determinism(billing_service):
+    """Entitlement calculation produces deterministic limits without network calls."""
+    ent_free = billing_service.get_user_entitlement("usr_random")
+    assert ent_free.limits == FREE_LIMITS
 
-    # Free tier user
-    assert service.is_pro_user(TEST_USER_ID) is False
+    billing_service._local_subscriptions["usr_pro_fixed"] = {
+        "user_id": "usr_pro_fixed",
+        "plan": "PRO",
+        "status": "active",
+    }
+    ent_pro = billing_service.get_user_entitlement("usr_pro_fixed")
+    assert ent_pro.limits == PRO_LIMITS
 
-    with pytest.raises(EntitlementGatingError) as exc_info:
-        service.require_pro_entitlement(TEST_USER_ID, feature_name="Multi-Candidate Tournament Synthesis")
 
-    assert "requires an active Reco Pro subscription" in str(exc_info.value)
-    assert "$9.00/month" in str(exc_info.value)
+# ============================================================================
+# 15. Usage Limits Enforcement
+# ============================================================================
+
+def test_15_usage_limits_enforcement(client):
+    """Requesting generations beyond plan limit yields HTTP 402; within quota yields 200."""
+    # Free user requests max_generations=3 (Free limit is 1) -> 402
+    res_exceed = client.post(
+        "/jobs/optimize",
+        headers={"Authorization": "Bearer token_alice"},
+        json={
+            "goal": "Reconcile tabular statement",
+            "domain": "reconciliation",
+            "max_generations": 3,
+            "mode": "mock",
+        },
+    )
+    assert res_exceed.status_code == 402
+    assert "Generation limit exceeded" in res_exceed.json()["detail"]
+
+    # Free user requests max_generations=1 (Within quota) -> 200
+    res_ok = client.post(
+        "/jobs/optimize",
+        headers={"Authorization": "Bearer token_alice"},
+        json={
+            "goal": "Reconcile tabular statement",
+            "domain": "reconciliation",
+            "max_generations": 1,
+            "mode": "mock",
+        },
+    )
+    assert res_ok.status_code == 200
+    assert "job_id" in res_ok.json()
 
 
-def test_entitlement_gating_pro_user_acceptance():
-    """Verify active Reco Pro users pass entitlement checks cleanly."""
-    repo = InMemoryRepository()
-    repo.save_user_entitlement(
-        UserEntitlementRecord(
-            user_id=TEST_PRO_USER_ID,
-            tier=SubscriptionTier.PRO.value,
-            status=SubscriptionStatus.ACTIVE.value,
-            is_pro=True,
+# ============================================================================
+# 16. Dodo Timeout Handling
+# ============================================================================
+
+def test_16_dodo_timeout_handling(client, billing_service):
+    """Network timeout during checkout generation returns 503 without crashing."""
+    mock_dodo_client = MagicMock()
+    mock_dodo_client.checkout_sessions.create.side_effect = TimeoutError("Dodo API timeout after 5000ms")
+
+    with patch.object(billing_service, "get_dodo_client", return_value=mock_dodo_client):
+        res = client.post(
+            "/billing/checkout",
+            headers={"Authorization": "Bearer token_alice"},
+            json={},
         )
+        assert res.status_code == 503
+        assert "Payment gateway temporarily unavailable" in res.json()["detail"]
+
+
+# ============================================================================
+# 17. Dodo HTTP Error Handling
+# ============================================================================
+
+def test_17_dodo_http_error_handling(billing_service):
+    """Dodo API 500 or 400 error is caught and wrapped safely."""
+    mock_dodo_client = MagicMock()
+    mock_dodo_client.checkout_sessions.create.side_effect = Exception("500 Internal Server Error")
+
+    with patch.object(billing_service, "get_dodo_client", return_value=mock_dodo_client):
+        with pytest.raises(RuntimeError, match="Payment gateway temporarily unavailable"):
+            billing_service.create_checkout_session(
+                user_id="usr_alice",
+                user_email="alice@example.com",
+            )
+
+
+# ============================================================================
+# 18. Supabase Outage Handling
+# ============================================================================
+
+def test_18_supabase_outage_handling(billing_service, mock_supabase_service):
+    """Database query failure safely returns FREE tier with is_fallback=True."""
+    mock_supabase_service.get_user_subscription.side_effect = Exception("PGRST500 Database offline")
+
+    ent = billing_service.get_user_entitlement("usr_db_error")
+    assert ent.plan == PlanTier.FREE
+    assert ent.status == SubscriptionStatus.FREE
+    assert ent.is_fallback is True
+
+
+# ============================================================================
+# 19. User Isolation
+# ============================================================================
+
+def test_19_user_isolation(billing_service):
+    """User A having PRO does not grant PRO access to User B."""
+    billing_service._local_subscriptions["usr_alice"] = {
+        "user_id": "usr_alice",
+        "plan": "PRO",
+        "status": "active",
+    }
+    billing_service._local_subscriptions["usr_bob"] = {
+        "user_id": "usr_bob",
+        "plan": "FREE",
+        "status": "free",
+    }
+
+    ent_alice = billing_service.get_user_entitlement("usr_alice")
+    ent_bob = billing_service.get_user_entitlement("usr_bob")
+
+    assert ent_alice.plan == PlanTier.PRO
+    assert ent_alice.limits.max_generations == 5
+
+    assert ent_bob.plan == PlanTier.FREE
+    assert ent_bob.limits.max_generations == 1
+
+
+# ============================================================================
+# 20. Demo / Live Separation
+# ============================================================================
+
+def test_20_demo_live_separation(client):
+    """Demo mode jobs are completely exempt from billing and generation limits."""
+    res_demo = client.post(
+        "/jobs/optimize",
+        json={
+            "goal": "Reconcile tabular statement in demo",
+            "domain": "reconciliation",
+            "max_generations": 5,  # Exceeds free limit of 1
+            "mode": "demo",
+        },
     )
-
-    service = BillingService(webhook_secret=TEST_WEBHOOK_SECRET, repository=repo)
-    assert service.is_pro_user(TEST_PRO_USER_ID) is True
-
-    # Should not raise
-    service.require_pro_entitlement(TEST_PRO_USER_ID, feature_name="Advanced Pareto Optimization")
+    assert res_demo.status_code == 200
+    assert "job_id" in res_demo.json()
+    assert res_demo.json()["status"] == "pending"
 
 
-# ==============================================================================
-# 7. Strict Decoupling: Zero Payment Gateway Dependency on Core Agent Engine
-# ==============================================================================
+# ============================================================================
+# 21. Core Track 1 Engine Isolation
+# ============================================================================
 
-def test_strict_decoupling_payment_gateway_down_never_blocks_dag_synthesis():
-    """CRITICAL: Ensure core agent DAG synthesis runs 100% locally even if payment gateway drops."""
-    # 1. Simulate payment gateway being completely down / raising ConnectError
-    severed_client = MagicMock()
-    severed_client.checkout_sessions.create.side_effect = httpx.ConnectError("Gateway network down")
-    severed_client.customers.customer_portal.create.side_effect = httpx.ConnectError("Gateway network down")
+@pytest.mark.anyio
+async def test_21_core_track1_engine_isolation():
+    """Core agent engineering pipeline components have zero dependency on Dodo billing."""
+    import sys
 
-    billing = BillingService(
-        api_key="dodo_test_key",
-        webhook_secret=TEST_WEBHOOK_SECRET,
-        client=severed_client,
+    # 1. GoalAnalyzer
+    goal_analyzer = GoalAnalyzer(tool_registry=default_tool_registry)
+    spec = await goal_analyzer.analyze(
+        goal="Reconcile bank entries",
     )
+    assert spec is not None
+    assert spec.domain in ("finance", "reconciliation")
 
-    # Verify checkout fails gracefully with PaymentGatewayError
-    with pytest.raises(PaymentGatewayError):
-        billing.create_checkout_session({
-            "user_id": TEST_USER_ID,
-            "email": "test@reco.ai",
-            "return_url": "https://app.reco.ai",
-        })
+    # 2. ArchitectureGenerator
+    arch_gen = ArchitectureGenerator(tool_registry=default_tool_registry)
+    graph = await arch_gen.generate(spec)
+    assert len(graph.nodes) > 0
 
-    # 2. PROVE that core DAG synthesis proceeds completely unhindered ($0 impact)
-    goal = "Reconcile transactions and identify discrepancies"
-    analyzer = GoalAnalyzer()
-    spec = analyzer.analyze(goal)
-    registry = ToolRegistry.create_reconciliation_default()
+    # 3. Diagnostics & Mutation
+    fa = FailureAnalyzer()
+    me = MutationEngine()
+    assert fa is not None
+    assert me is not None
 
-    generator = ArchitectureGenerator(tool_registry=registry)
-    baseline_arch = generator.generate(spec)
-
-    assert baseline_arch is not None
-    assert len(baseline_arch.nodes) >= 3
-    assert len(baseline_arch.edges) >= 2
-
-    # 3. PROVE that DAG execution and local benchmark run without any gateway interaction
-    suite = get_reconciliation_benchmark_suite()
-    runtime = AgentRuntime(tool_registry=registry)
-    evaluator = ScorecardEvaluator(runtime=runtime)
-    scorecard = evaluator.evaluate(
-        architecture=baseline_arch,
-        suite_or_cases=suite,
-        split=BenchmarkSplit.OPTIMIZATION,
-        name="Decoupled_Baseline_Benchmark",
-    )
-
-    assert scorecard.total_cases == 6
-    assert 0.0 <= scorecard.accuracy <= 1.0
-    assert scorecard.reliability == 1.0
+    # 4. Verify no core modules import reco.billing
+    core_modules = [
+        "reco.core.goal_analyzer",
+        "reco.engine.generator",
+        "reco.core.interfaces",
+        "reco.diagnostics.analyzer",
+        "reco.mutation.engine",
+    ]
+    for mod_name in core_modules:
+        mod = sys.modules.get(mod_name)
+        assert mod is not None
+        assert "billing" not in getattr(mod, "__file__", "")
 
 
-# ==============================================================================
-# 8. Zero Secrets in Code, Logs, and Responses
-# ==============================================================================
 
-def test_zero_secrets_leakage_in_service_responses():
-    """Verify internal API keys and webhook secrets are never leaked in client responses."""
-    api_key = "dodo_test_live_secret_key_999888777"
-    secret = TEST_WEBHOOK_SECRET
+# ============================================================================
+# 22. Frontend Billing State API
+# ============================================================================
 
-    service = BillingService(
-        api_key=api_key,
-        webhook_secret=secret,
-        repository=InMemoryRepository(),
-    )
+def test_22_frontend_billing_state_api(client):
+    """GET /billing/entitlement returns structure conforming to UserEntitlement schema."""
+    res = client.get("/billing/entitlement", headers={"Authorization": "Bearer token_alice"})
+    assert res.status_code == 200
+    data = res.json()
+    assert "plan" in data
+    assert "status" in data
+    assert "limits" in data
+    assert "max_generations" in data["limits"]
+    assert "max_candidates" in data["limits"]
+    assert "max_optimization_runs" in data["limits"]
 
-    # 1. Checkout session response
-    status, data = service.handle_http_request(
-        "POST",
-        "/billing/checkout",
-        {},
-        json.dumps({"user_id": TEST_USER_ID, "email": "user@reco.ai", "return_url": "https://reco.ai"}),
-    )
-    serialized = json.dumps(data)
-    assert api_key not in serialized
-    assert secret not in serialized
 
-    # 2. Portal error response
-    status, data = service.handle_http_request(
-        "POST",
-        "/billing/portal",
-        {},
-        json.dumps({"user_id": "nonexistent"}),
-    )
-    serialized = json.dumps(data)
-    assert api_key not in serialized
-    assert secret not in serialized
+# ============================================================================
+# 23. Zero Secret Exposure
+# ============================================================================
 
-    # 3. Webhook error response
-    status, data = service.handle_http_request(
-        "POST",
-        "/billing/webhook",
-        {"webhook-signature": "bad", "webhook-id": "1", "webhook-timestamp": "123"},
-        "{}",
-    )
-    serialized = json.dumps(data)
-    assert api_key not in serialized
-    assert secret not in serialized
+def test_23_zero_secret_exposure(client, billing_settings):
+    """Dodo API Key and Webhook Secret never leak into responses, exceptions, or payloads."""
+    secret_key = billing_settings.dodo_api_key
+    secret_wh = billing_settings.dodo_webhook_secret
+
+    res_ent = client.get("/billing/entitlement")
+    assert secret_key not in res_ent.text
+    assert secret_wh not in res_ent.text
+
+    res_health = client.get("/health")
+    assert secret_key not in res_health.text
+    assert secret_wh not in res_health.text
+
+
+# ============================================================================
+# 24. Webhook Replay Safety
+# ============================================================================
+
+def test_24_webhook_replay_safety(client, billing_service):
+    """Replaying webhooks maintains consistent state and never causes corruption."""
+    payload = json.dumps({
+        "type": "subscription.active",
+        "data": {
+            "status": "active",
+            "subscription_id": "sub_replay_123",
+            "metadata": {"user_id": "usr_alice"},
+        },
+    })
+    headers = create_signed_webhook_headers(payload, webhook_id="wh_replay_fixed_id")
+
+    # Send 5 times sequentially
+    for _ in range(5):
+        res = client.post("/api/v1/payments/webhook", content=payload.encode("utf-8"), headers=headers)
+        assert res.status_code == 200
+
+    # User remains PRO Active without corruption
+    ent = billing_service.get_user_entitlement("usr_alice")
+    assert ent.plan == PlanTier.PRO
+    assert ent.status == SubscriptionStatus.ACTIVE

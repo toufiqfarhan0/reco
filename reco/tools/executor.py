@@ -1,129 +1,65 @@
-"""Sandboxed tool executor with schema validation and error isolation."""
-
-from __future__ import annotations
+"""Generic ToolExecutor for safely invoking tools with validation, timing, and error handling."""
 
 import time
-import traceback
 from typing import Any, Dict, Optional
-from pydantic import BaseModel, Field
+from reco.core.interfaces import ToolResult
+from reco.logging import get_logger
+from reco.tools.registry import ToolRegistry, default_tool_registry
 
-from reco.tools.registry import ToolDefinition
-
-
-class ToolResult(BaseModel):
-    """Execution output wrapper from a tool invocation."""
-
-    tool_name: str
-    success: bool
-    output: Any = None
-    error: Optional[str] = None
-    execution_time_ms: float = 0.0
+logger = get_logger("tools.executor")
 
 
 class ToolExecutor:
-    """Executes tools within a sandboxed runtime boundary with schema validation."""
+    """Dispatches tool calls through validation, execution timing, and error containment."""
 
-    def __init__(self, default_timeout_s: float = 30.0):
-        self.default_timeout_s = default_timeout_s
+    def __init__(self, registry: Optional[ToolRegistry] = None):
+        self.registry = registry or default_tool_registry
 
-    def execute(
-        self,
-        tool: ToolDefinition,
-        inputs: Dict[str, Any],
-        timeout_s: Optional[float] = None
-    ) -> ToolResult:
-        """Execute a tool handler with parameter verification and timing.
-
-        Args:
-            tool: The ToolDefinition to execute.
-            inputs: Dictionary of input arguments.
-            timeout_s: Optional timeout constraint in seconds.
-
-        Returns:
-            ToolResult containing status, payload, and latency telemetry.
-        """
-        start_time = time.perf_counter()
-
-        # 1. Validate inputs against tool parameter schema
-        validation_error = self._validate_parameters(tool.parameters, inputs)
-        if validation_error:
-            elapsed = (time.perf_counter() - start_time) * 1000.0
+    async def execute(self, tool_name: str, arguments: Dict[str, Any]) -> ToolResult:
+        """Execute a tool by name with strict argument validation and telemetry."""
+        tool = self.registry.get(tool_name)
+        if not tool:
+            logger.warning(f"Tool invocation failed: tool '{tool_name}' not found")
             return ToolResult(
-                tool_name=tool.name,
                 success=False,
-                output=None,
-                error=f"Parameter validation failed: {validation_error}",
-                execution_time_ms=round(elapsed, 3)
+                error=f"Tool '{tool_name}' not found in registry",
+                tool_name=tool_name,
+                metadata={"error_type": "TOOL_NOT_FOUND"},
             )
 
-        if not tool.handler:
-            elapsed = (time.perf_counter() - start_time) * 1000.0
-            return ToolResult(
-                tool_name=tool.name,
-                success=False,
-                output=None,
-                error=f"Tool '{tool.name}' has no registered executable handler",
-                execution_time_ms=round(elapsed, 3)
-            )
-
-        # 2. Invoke handler in isolated execution boundary
+        # 1. Argument Validation
         try:
-            # Filter inputs to those expected by schema properties if defined
-            call_kwargs = {}
-            properties = tool.parameters.get("properties", {})
-            for param_name in properties:
-                if param_name in inputs:
-                    call_kwargs[param_name] = inputs[param_name]
-
-            # If no properties were explicitly defined, pass all inputs
-            if not properties:
-                call_kwargs = inputs
-
-            output = tool.handler(**call_kwargs)
-            elapsed = (time.perf_counter() - start_time) * 1000.0
-
+            validated_args = tool.validate_arguments(arguments)
+        except Exception as val_err:
+            logger.warning(f"Tool validation error for '{tool_name}': {val_err}")
             return ToolResult(
-                tool_name=tool.name,
-                success=True,
-                output=output,
-                error=None,
-                execution_time_ms=round(elapsed, 3)
-            )
-
-        except Exception as exc:
-            elapsed = (time.perf_counter() - start_time) * 1000.0
-            tb = traceback.format_exc()
-            return ToolResult(
-                tool_name=tool.name,
                 success=False,
-                output=None,
-                error=f"{type(exc).__name__}: {str(exc)}\n{tb}",
-                execution_time_ms=round(elapsed, 3)
+                error=f"Invalid arguments for tool '{tool_name}': {str(val_err)}",
+                tool_name=tool_name,
+                metadata={"error_type": "VALIDATION_ERROR"},
             )
 
-    def _validate_parameters(
-        self,
-        schema: Dict[str, Any],
-        inputs: Dict[str, Any]
-    ) -> Optional[str]:
-        """Verify presence of required parameters and rudimentary types."""
-        required = schema.get("required", [])
-        for req in required:
-            if req not in inputs:
-                return f"Missing required parameter '{req}'"
+        # 2. Timed Execution
+        start_time = time.perf_counter()
+        try:
+            result = await tool.execute(validated_args)
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
 
-        properties = schema.get("properties", {})
-        for prop_name, prop_spec in properties.items():
-            if prop_name in inputs:
-                val = inputs[prop_name]
-                prop_type = prop_spec.get("type")
-                if prop_type == "array" and not isinstance(val, list):
-                    return f"Parameter '{prop_name}' must be an array/list, got {type(val).__name__}"
-                elif prop_type == "object" and not isinstance(val, dict):
-                    return f"Parameter '{prop_name}' must be an object/dict, got {type(val).__name__}"
-                elif prop_type == "string" and not isinstance(val, str):
-                    return f"Parameter '{prop_name}' must be a string, got {type(val).__name__}"
-                elif prop_type == "number" and not isinstance(val, (int, float)):
-                    return f"Parameter '{prop_name}' must be a number, got {type(val).__name__}"
+            # Ensure tool metadata and duration are set
+            result.tool_name = tool_name
+            if result.duration_ms == 0:
+                result.duration_ms = duration_ms
+                result.execution_time_ms = duration_ms
 
-        return None
+            return result
+        except Exception as exec_err:
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.error(f"Unhandled error executing tool '{tool_name}': {exec_err}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=f"Runtime error in tool '{tool_name}': {str(exec_err)}",
+                tool_name=tool_name,
+                duration_ms=duration_ms,
+                execution_time_ms=duration_ms,
+                metadata={"error_type": "RUNTIME_ERROR"},
+            )

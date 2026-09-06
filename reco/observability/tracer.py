@@ -1,578 +1,918 @@
-"""Neatlogs Distributed Tracer for Autonomous Agent System (Track 1).
+"""Neatlogs observability tracer adapter and workflow execution tracing for Reco.
 
-Implements end-to-end hierarchical distributed tracing across agent runs:
-optimization_run -> generation_N -> candidate_eval -> node_execution -> tool_invocation.
-
-Features:
-- Non-blocking, fault-tolerant telemetry exporter connecting to https://ingest.neatlogs.com.
-- Full span metadata capture: start/end timestamps, duration, status, model parameters,
-  token usage, tool arguments, and outputs.
-- Fault containment: If Neatlogs ingest fails or times out, core agent execution proceeds
-  completely uninterrupted ($0 failure impact).
-- Deep-link generation to inspect execution traces in the Neatlogs UI (https://app.neatlogs.com/traces/<trace_id>).
-- In-memory trace buffer for instant inspection, frontend hydration, and deterministic verification.
+Provides hierarchical structured telemetry, agent execution spans, and optimization traces.
+Strict architectural invariant: Observability failures must NEVER crash
+agent execution, benchmark evaluation, or alter scorecard outcomes.
 """
 
-from __future__ import annotations
-
 from contextlib import contextmanager
-import contextvars
+from contextvars import ContextVar, Token
 from datetime import datetime, timezone
+import hashlib
 import json
 import logging
 import os
-import threading
+import re
 import time
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
-import uuid
-from concurrent.futures import Future, ThreadPoolExecutor
-import httpx
-from pydantic import BaseModel, ConfigDict, Field
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from uuid import UUID, uuid4
 
-logger = logging.getLogger(__name__)
+from reco.config import get_settings
+from reco.core.interfaces import Tracer
 
-# Default Constants
-DEFAULT_NEATLOGS_INGEST_URL = "https://ingest.neatlogs.com"
-DEFAULT_NEATLOGS_APP_URL = "https://app.neatlogs.com"
+if TYPE_CHECKING:
+    from reco.optimization.events import OptimizationEvent, OptimizationEventType
+
+logger = logging.getLogger("reco.observability.neatlogs")
+
+# Sensitive key patterns that must never be sent in telemetry payloads
+SENSITIVE_KEY_PATTERNS = re.compile(
+    r"(?:key|secret|token|password|auth|credential|bearer|private)",
+    re.IGNORECASE,
+)
+
+# Protected held-out dataset attributes that must never leak to telemetry
+HELD_OUT_PROTECTED_KEYS = {
+    "bank_records",
+    "ledger_entries",
+    "ground_truth",
+    "expected_outcome",
+    "expected_matches",
+    "expected_discrepancies",
+    "records",
+    "entries",
+    "discrepancies",
+    "rule_violations",
+    "input_data",
+}
+
+DEFAULT_INGEST_ENDPOINT = "https://ingest.neatlogs.com/v1/traces"
+
+# ContextVar for hierarchical trace nesting across sync/async calls
+_active_span_var: ContextVar[Optional["SpanContext"]] = ContextVar("active_span_var", default=None)
+_global_tracer: Optional["NeatlogsTracer"] = None
 
 
-class NeatlogsSpan(BaseModel):
-    """Encapsulates a single telemetry span in the distributed execution graph."""
+def normalize_neatlogs_endpoint(url: Optional[str]) -> str:
+    """Normalize a base URL or endpoint into the OTLP traces endpoint."""
+    raw = (url or "").strip().rstrip("/")
+    if not raw or "api.neatlogs.com" in raw:
+        return DEFAULT_INGEST_ENDPOINT
+    if raw.endswith("/v1/traces"):
+        return raw
+    return f"{raw}/v1/traces"
 
-    model_config = ConfigDict(extra="ignore")
 
-    span_id: str = Field(
-        default_factory=lambda: f"sp_{uuid.uuid4().hex[:12]}",
-        description="Unique span identifier"
-    )
-    trace_id: str = Field(description="Trace ID this span belongs to")
-    parent_span_id: Optional[str] = Field(
-        default=None,
-        description="Parent span ID establishing hierarchical lineage"
-    )
-    name: str = Field(description="Human-readable span label")
-    kind: str = Field(
-        default="node_execution",
-        description="Span kind: optimization_run, generation_N, candidate_eval, node_execution, tool_invocation, etc."
-    )
-    status: str = Field(default="ok", description="Status outcome: 'ok', 'error', or 'warn'")
-    start_time: float = Field(
-        default_factory=time.time,
-        description="Unix epoch start timestamp (seconds)"
-    )
-    end_time: Optional[float] = Field(default=None, description="Unix epoch end timestamp (seconds)")
-    start_offset_ms: float = Field(
-        default=0.0,
-        description="Start offset in milliseconds relative to root trace start"
-    )
-    duration_ms: float = Field(default=0.0, description="Span duration in milliseconds")
-    tokens: int = Field(default=0, description="Total tokens consumed during this span")
-    cost_usd: float = Field(default=0.0, description="Inference cost in USD for this span")
-    attributes: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Structured key-value metadata (model params, tool args, outputs, etc.)"
-    )
-    error: Optional[str] = Field(default=None, description="Error detail if status is 'error'")
+def compute_prompt_hash(prompt: Optional[str]) -> str:
+    """Compute a deterministic short SHA-256 hash of a prompt for privacy."""
+    if not prompt:
+        return "empty"
+    return hashlib.sha256(str(prompt).encode("utf-8")).hexdigest()[:16]
 
-    def set_attribute(self, key: str, value: Any) -> NeatlogsSpan:
-        """Add or update an attribute entry."""
-        self.attributes[key] = value
+
+ALLOWED_METRIC_KEYS = {
+    "tokens_in",
+    "tokens_out",
+    "total_tokens",
+    "prompt_tokens",
+    "completion_tokens",
+    "token_count_delta",
+    "token_count",
+    "duration_ms",
+    "latency_ms",
+    "cost_usd",
+}
+
+
+def sanitize_attributes(
+    attrs: Optional[Dict[str, Any]],
+    is_held_out: bool = False,
+) -> Dict[str, Any]:
+    """Sanitize attributes dictionary to prevent secret or sensitive data leakage.
+
+    If is_held_out is True, all ground-truth and raw benchmark data are purged.
+    """
+    if not attrs:
+        return {}
+    clean: Dict[str, Any] = {}
+    for k, v in attrs.items():
+        k_str = str(k)
+        if k_str not in ALLOWED_METRIC_KEYS and SENSITIVE_KEY_PATTERNS.search(k_str):
+            continue
+        if is_held_out and k_str in HELD_OUT_PROTECTED_KEYS:
+            continue
+        v_str = str(v)
+        # Prevent accidental secret pattern leaks in values
+        if "sk-" in v_str or "v8_" in v_str or "Bearer " in v_str:
+            continue
+        # Truncate overly long values
+        if isinstance(v, (int, float, bool)):
+            clean[k_str] = v
+        elif isinstance(v, (str, UUID)):
+            clean[k_str] = str(v)[:500]
+        elif isinstance(v, (list, dict)):
+            clean[k_str] = str(v)[:500]
+        else:
+            clean[k_str] = v_str[:500]
+    return clean
+
+
+class SpanContext:
+    """Hierarchical span context manager conforming to Reco execution tracing."""
+
+    def __init__(
+        self,
+        name: str,
+        tracer: "NeatlogsTracer",
+        attributes: Optional[Dict[str, Any]] = None,
+        parent: Optional["SpanContext"] = None,
+    ):
+        self.span_id: str = str(uuid4())
+        self.name = name
+        self.tracer = tracer
+        self.parent = parent
+        self.attributes: Dict[str, Any] = sanitize_attributes(attributes)
+        self.attributes["span_id"] = self.span_id
+        if self.parent:
+            self.attributes["parent_span"] = self.parent.name
+            self.attributes["parent_span_id"] = getattr(self.parent, "span_id", None)
+        self.start_time: float = time.time()
+        self.end_time: Optional[float] = None
+        self.duration_ms: int = 0
+        self.is_active: bool = True
+        self._otel_span = None
+        self._token: Optional[Token] = None
+        self._otel_token = None
+
+    def set_attribute(self, key: str, value: Any) -> "SpanContext":
+        """Set a single attribute safely."""
+        sanitized = sanitize_attributes({key: value})
+        if sanitized:
+            self.attributes.update(sanitized)
+            if self._otel_span is not None and hasattr(self._otel_span, "set_attribute"):
+                try:
+                    for sk, sv in sanitized.items():
+                        self._otel_span.set_attribute(sk, sv)
+                except Exception:
+                    pass
         return self
 
-    def set_attributes(self, attrs: Dict[str, Any]) -> NeatlogsSpan:
-        """Merge a dictionary of attributes into this span."""
-        self.attributes.update(attrs)
-        return self
+    def end(self) -> None:
+        """End the span, calculate latency, export telemetry, and record in trace history."""
+        if not self.is_active:
+            return
+        self.is_active = False
+        self.end_time = time.time()
+        self.duration_ms = int((self.end_time - self.start_time) * 1000)
+        if "duration_ms" not in self.attributes:
+            self.attributes["duration_ms"] = self.duration_ms
 
-    def set_tokens(self, tokens: int) -> NeatlogsSpan:
-        """Set token consumption count."""
-        self.tokens = max(0, int(tokens))
-        return self
+        if self._otel_span is not None:
+            try:
+                self._otel_span.end()
+            except Exception as exc:
+                logger.warning("Failed to end OTel span: %s", exc)
+                self.tracer.stats["errors"] += 1
 
-    def set_cost(self, cost_usd: float) -> NeatlogsSpan:
-        """Set USD cost."""
-        self.cost_usd = max(0.0, float(cost_usd))
-        return self
+        # Reset active ContextVar token if set
+        if self._token is not None:
+            try:
+                _active_span_var.reset(self._token)
+            except Exception:
+                pass
+            self._token = None
 
-    def set_status(self, status: str, error: Optional[str] = None) -> NeatlogsSpan:
-        """Update span status and error message."""
-        self.status = status
-        if error:
-            self.error = str(error)
-            self.attributes["error"] = str(error)
-        return self
-
-    def end(self, status: Optional[str] = None, error: Optional[str] = None) -> None:
-        """Finalize the span duration and status."""
-        if self.end_time is None:
-            self.end_time = time.time()
-            self.duration_ms = max(0.0, round((self.end_time - self.start_time) * 1000.0, 3))
-        if status:
-            self.status = status
-        if error:
-            self.error = str(error)
-            self.attributes["error"] = str(error)
-
-    def to_frontend_dict(self) -> Dict[str, Any]:
-        """Serialize span to frontend-compatible format (matching NeatlogsSpan in TypeScript)."""
-        # Map kind to valid frontend types: "dag" | "node" | "tool" | "verifier" | "llm"
-        kind_mapping = {
-            "optimization_run": "dag",
-            "generation_N": "dag",
-            "candidate_eval": "dag",
-            "node_execution": "node",
-            "tool_invocation": "tool",
-            "verifier_invocation": "verifier",
-            "llm_inference": "llm",
-        }
-        fe_kind = kind_mapping.get(self.kind, self.kind if self.kind in {"dag", "node", "tool", "verifier", "llm"} else "node")
-
-        return {
+        # Record span in internal trace history
+        self.tracer.record_span_history({
             "span_id": self.span_id,
+            "parent_span_id": getattr(self.parent, "span_id", None),
             "name": self.name,
-            "kind": fe_kind,
-            "status": self.status,
-            "start_offset_ms": round(self.start_offset_ms, 1),
-            "duration_ms": round(self.duration_ms, 1),
-            "tokens": self.tokens,
-            "cost_usd": round(self.cost_usd, 6),
-            "attributes": self.attributes,
-        }
+            "duration_ms": self.attributes.get("duration_ms", self.duration_ms),
+            "parent_span": self.parent.name if self.parent else None,
+            "attributes": dict(self.attributes),
+            "timestamp": self.start_time,
+        })
 
 
-class NeatlogsTrace(BaseModel):
-    """Represents a complete distributed trace across hierarchical spans."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    trace_id: str = Field(
-        default_factory=lambda: f"tr_neat_{uuid.uuid4().hex[:12]}",
-        description="Unique distributed trace identifier"
-    )
-    architecture_id: Optional[str] = Field(
-        default=None,
-        description="Architecture or candidate evaluated during trace"
-    )
-    status: str = Field(default="success", description="Overall outcome: 'success', 'warning', or 'error'")
-    total_duration_ms: float = Field(default=0.0, description="Total wall-clock duration in milliseconds")
-    total_tokens: int = Field(default=0, description="Sum of tokens across all child spans")
-    total_cost_usd: float = Field(default=0.0, description="Sum of cost across all child spans")
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
-        description="UTC ISO timestamp of trace initiation"
-    )
-    spans: List[NeatlogsSpan] = Field(default_factory=list, description="Ordered child spans in this trace")
-    deep_link: str = Field(default="", description="Neatlogs UI inspect link")
-
-    def add_span(self, span: NeatlogsSpan) -> None:
-        """Append a span and update running trace aggregates."""
-        self.spans.append(span)
-        self.total_tokens += span.tokens
-        self.total_cost_usd = round(self.total_cost_usd + span.cost_usd, 6)
-        if span.status == "error":
-            self.status = "error"
-        elif span.status == "warn" and self.status != "error":
-            self.status = "warning"
-
-    def finalize(self, base_url: str = DEFAULT_NEATLOGS_APP_URL) -> NeatlogsTrace:
-        """Compute final duration, totals, deep link, and preserve strict chronological span order."""
-        if not self.deep_link:
-            self.deep_link = f"{base_url.rstrip('/')}/traces/{self.trace_id}"
-        if self.spans:
-            # Sort spans chronologically so root span is first and child spans follow execution order
-            self.spans.sort(key=lambda s: (s.start_time, s.start_offset_ms))
-            start = min(s.start_time for s in self.spans)
-            end = max((s.end_time or s.start_time) for s in self.spans)
-            self.total_duration_ms = max(0.0, round((end - start) * 1000.0, 2))
-            self.total_tokens = sum(s.tokens for s in self.spans)
-            self.total_cost_usd = round(sum(s.cost_usd for s in self.spans), 6)
-            if any(s.status == "error" for s in self.spans):
-                self.status = "error"
+    def __enter__(self) -> "SpanContext":
+        if self._token is None:
+            self._token = _active_span_var.set(self)
+        if self.tracer.enabled and self.tracer._tracer is not None and self._otel_span is None:
+            try:
+                import opentelemetry.trace as otel_trace
+                ctx = None
+                if self.parent and self.parent._otel_span:
+                    ctx = otel_trace.set_span_in_context(self.parent._otel_span)
+                self._otel_span = self.tracer._tracer.start_span(self.name, context=ctx)
+                for k, v in self.attributes.items():
+                    self._otel_span.set_attribute(k, v)
+                self.tracer.stats["spans_exported"] += 1
+            except Exception as exc:
+                logger.warning("Neatlogs start_span error contained: %s", exc)
+                self.tracer.stats["errors"] += 1
+                self.tracer.stats["last_error"] = str(exc)
         return self
 
-    def to_frontend_dict(self) -> Dict[str, Any]:
-        """Serialize trace to match frontend NeatlogsTrace specification."""
-        self.finalize()
-        return {
-            "trace_id": self.trace_id,
-            "architecture_id": self.architecture_id or "Agent_Execution",
-            "status": self.status,
-            "total_duration_ms": round(self.total_duration_ms, 1),
-            "total_tokens": self.total_tokens,
-            "total_cost_usd": round(self.total_cost_usd, 4),
-            "timestamp": self.timestamp,
-            "spans": [s.to_frontend_dict() for s in self.spans],
-        }
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if exc_type is not None:
+            self.attributes["status"] = "error"
+            self.attributes["error.type"] = exc_type.__name__
+            self.attributes["error.message"] = str(exc_val)[:200]
+        else:
+            if "status" not in self.attributes:
+                self.attributes["status"] = "ok"
+
+        self.end()
 
 
-# Context variables for thread-local & async hierarchical context propagation
-_current_trace_var: contextvars.ContextVar[Optional[NeatlogsTrace]] = contextvars.ContextVar(
-    "_current_trace_var", default=None
-)
-_span_stack_var: contextvars.ContextVar[List[NeatlogsSpan]] = contextvars.ContextVar(
-    "_span_stack_var", default=[]
-)
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
 
 
-class NeatlogsTracer:
-    """Non-blocking, fault-tolerant distributed tracer for Reco agent engineering.
+class SafeSpanProcessor(SimpleSpanProcessor):
+    """Span processor that intercepts exporter failures and safely tracks them in tracer stats."""
 
-    Connects to Neatlogs ingestion endpoint (https://ingest.neatlogs.com) and provides
-    hierarchical span scoping, fault containment ($0 failure impact), and deep links.
+    def __init__(self, span_exporter: Any, tracer: "NeatlogsTracer"):
+        super().__init__(span_exporter)
+        self.tracer = tracer
+
+    def on_end(self, span: Any) -> None:
+        try:
+            res = self.span_exporter.export((span,))
+            if res == SpanExportResult.FAILURE:
+                self.tracer.stats["errors"] += 1
+                self.tracer.stats["last_error"] = "OTLP export returned failure"
+        except Exception as exc:
+            self.tracer.stats["errors"] += 1
+            self.tracer.stats["last_error"] = str(exc)
+            logger.warning("Telemetry export failure contained: %s", exc)
+
+
+class NeatlogsTracer(Tracer):
+    """Neatlogs observability tracer adapter.
+
+    Conforms to `reco.core.interfaces.Tracer`.
+    Guarantees strict failure containment and no global coupling.
     """
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        ingest_url: Optional[str] = None,
-        app_url: Optional[str] = None,
-        enabled: bool = True,
-        async_export: bool = True,
-        http_client: Optional[httpx.Client] = None,
-        max_workers: int = 2,
+        base_url: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        timeout_seconds: float = 5.0,
+        service_name: str = "reco",
+        otel_exporter: Optional[Any] = None,
     ):
-        self.api_key = api_key or os.getenv("NEATLOGS_API_KEY", "")
-        self.ingest_url = (
-            ingest_url or os.getenv("NEATLOGS_INGEST_URL", DEFAULT_NEATLOGS_INGEST_URL)
-        ).rstrip("/")
-        self.app_url = (
-            app_url or os.getenv("NEATLOGS_APP_URL", DEFAULT_NEATLOGS_APP_URL)
-        ).rstrip("/")
-        self.enabled = enabled
-        self.async_export = async_export
+        settings = get_settings()
 
-        # In-memory buffer of exported telemetry for inspection and testing
-        self.exported_traces: List[NeatlogsTrace] = []
-        self.exported_spans: List[NeatlogsSpan] = []
-        self._lock = threading.Lock()
+        # Resolve enabled flag: explicit arg takes precedence, then settings
+        if enabled is not None:
+            self.enabled: bool = bool(enabled)
+        else:
+            self.enabled = bool(settings.observability_enabled)
 
-        # Background worker pool for non-blocking HTTP ingestion
-        self._executor = ThreadPoolExecutor(
-            max_workers=max_workers,
-            thread_name_prefix="neatlogs_exporter"
-        )
-        self._pending_futures: List[Future] = []
-        self._custom_client = http_client
+        # Resolve credentials
+        self.api_key: str = (api_key if api_key is not None else settings.neatlogs_api_key) or ""
+        if not self.api_key:
+            # If no API key is provided, disable network export safely
+            self.enabled = False
 
-    def get_trace_url(self, trace_id: str) -> str:
-        """Generate direct deep-link URL to inspect the execution trace in the Neatlogs UI."""
-        return f"{self.app_url}/traces/{trace_id}"
+        self.base_url: str = (base_url if base_url is not None else settings.neatlogs_base_url) or ""
+        self.endpoint: str = normalize_neatlogs_endpoint(self.base_url)
+        self.timeout_seconds: float = max(0.5, float(timeout_seconds))
+        self.service_name: str = service_name
 
-    @property
-    def current_trace(self) -> Optional[NeatlogsTrace]:
-        """Return the currently active trace, if any."""
-        return _current_trace_var.get()
+        # Internal telemetry statistics
+        self.stats: Dict[str, Any] = {
+            "spans_started": 0,
+            "spans_exported": 0,
+            "events_logged": 0,
+            "metrics_recorded": 0,
+            "errors": 0,
+            "last_error": None,
+        }
 
-    @property
-    def current_span(self) -> Optional[NeatlogsSpan]:
-        """Return the top-of-stack active span in the current context."""
-        stack = _span_stack_var.get()
-        return stack[-1] if stack else None
+        # In-memory recorded spans history for inspection and demo generation
+        self.recorded_spans: List[Dict[str, Any]] = []
 
-    @contextmanager
-    def start_trace(
-        self,
-        trace_id: Optional[str] = None,
-        architecture_id: Optional[str] = None,
-        name: str = "optimization_run",
-        kind: str = "optimization_run",
-        **attributes: Any
-    ) -> Generator[NeatlogsTrace, None, None]:
-        """Start a new root distributed trace context."""
-        new_trace = NeatlogsTrace(
-            trace_id=trace_id or f"tr_neat_{uuid.uuid4().hex[:12]}",
-            architecture_id=architecture_id,
-            deep_link=f"{self.app_url}/traces/{trace_id or ''}"
-        )
-        new_trace.deep_link = self.get_trace_url(new_trace.trace_id)
+        # Lazy OpenTelemetry provider setup
+        self._otel_exporter = otel_exporter
+        self._provider = None
+        self._tracer = None
 
-        token_trace = _current_trace_var.set(new_trace)
-        token_stack = _span_stack_var.set([])
+        if self.enabled:
+            self._init_otel_pipeline()
 
+    def _init_otel_pipeline(self) -> None:
+        """Initialize OpenTelemetry tracer pipeline with failure containment."""
         try:
-            with self.span(name, kind=kind, **attributes):
-                yield new_trace
-        finally:
-            new_trace.finalize(self.app_url)
-            self._export_trace(new_trace)
-            _current_trace_var.reset(token_trace)
-            _span_stack_var.reset(token_stack)
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+            from opentelemetry.sdk.resources import Resource
+            from opentelemetry.sdk.trace import TracerProvider
 
-    @contextmanager
-    def span(
+            resource = Resource.create({"service.name": self.service_name})
+            self._provider = TracerProvider(resource=resource)
+
+            if self._otel_exporter is not None:
+                exporter = self._otel_exporter
+            else:
+                exporter = OTLPSpanExporter(
+                    endpoint=self.endpoint,
+                    headers={"x-api-key": self.api_key},
+                    timeout=int(self.timeout_seconds),
+                )
+
+            self._provider.add_span_processor(SafeSpanProcessor(exporter, tracer=self))
+            self._tracer = self._provider.get_tracer(self.service_name)
+        except Exception as exc:
+            logger.warning("Neatlogs OTel pipeline initialization failed: %s", exc)
+            self.stats["errors"] += 1
+            self.stats["last_error"] = str(exc)
+            self._tracer = None
+
+    def record_span_history(self, span_data: Dict[str, Any]) -> None:
+        """Record span metadata in internal circular buffer (capped at 500)."""
+        if len(self.recorded_spans) >= 500:
+            self.recorded_spans.pop(0)
+        self.recorded_spans.append(span_data)
+
+    def get_recorded_spans(self) -> List[Dict[str, Any]]:
+        """Return a copy of all recorded spans."""
+        return list(self.recorded_spans)
+
+    def clear_recorded_spans(self) -> None:
+        """Clear recorded spans buffer."""
+        self.recorded_spans.clear()
+
+    def start_span(
         self,
         name: str,
-        kind: str = "node_execution",
-        tokens: int = 0,
-        cost_usd: float = 0.0,
-        **attributes: Any
-    ) -> Generator[NeatlogsSpan, None, None]:
-        """Context manager for hierarchical spans.
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> SpanContext:
+        """Begin an execution trace span with automatic hierarchy tracking."""
+        self.stats["spans_started"] += 1
+        parent = _active_span_var.get()
+        return SpanContext(name=name, tracer=self, attributes=attributes, parent=parent)
 
-        Automatically links parent_span_id, tracks wall-clock latency, catches exceptions
-        for error classification, and records telemetry without blocking agent flow.
-        """
-        active_trace = _current_trace_var.get()
-        is_ad_hoc_trace = False
+    def start_active_span(
+        self,
+        name: str,
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> SpanContext:
+        """Start a span and activate it in context immediately until .end() is called."""
+        span_ctx = self.start_span(name=name, attributes=attributes)
+        span_ctx.__enter__()
+        return span_ctx
 
-        if active_trace is None:
-            # Create an automatic ad-hoc trace for standalone span execution
-            active_trace = NeatlogsTrace(
-                trace_id=f"tr_neat_{uuid.uuid4().hex[:12]}",
-                architecture_id=attributes.get("architecture_id")
-            )
-            active_trace.deep_link = self.get_trace_url(active_trace.trace_id)
-            _current_trace_var.set(active_trace)
-            _span_stack_var.set([])
-            is_ad_hoc_trace = True
-
-        stack = list(_span_stack_var.get())
-        parent_span = stack[-1] if stack else None
-
-        now = time.time()
-        start_offset = (now - stack[0].start_time) * 1000.0 if stack else 0.0
-
-        span = NeatlogsSpan(
-            trace_id=active_trace.trace_id,
-            parent_span_id=parent_span.span_id if parent_span else None,
-            name=name,
-            kind=kind,
-            start_time=now,
-            start_offset_ms=max(0.0, round(start_offset, 2)),
-            tokens=tokens,
-            cost_usd=cost_usd,
-            attributes=dict(attributes)
-        )
-
-        stack.append(span)
-        _span_stack_var.set(stack)
-
-        # Register span in start order immediately so root is first and children follow
-        active_trace.spans.append(span)
+    def log_event(
+        self,
+        event_name: str,
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Log a telemetry event conforming to Tracer.log_event."""
+        self.stats["events_logged"] += 1
+        attrs = sanitize_attributes(payload)
+        attrs["event_name"] = event_name
 
         try:
-            yield span
-            span.end(status=span.status or "ok")
+            with self.start_span(f"event.{event_name}", attributes=attrs):
+                pass
         except Exception as exc:
-            span.end(status="error", error=str(exc))
-            raise
-        finally:
-            # Pop this span from stack
-            cur_stack = list(_span_stack_var.get())
-            if cur_stack and cur_stack[-1].span_id == span.span_id:
-                cur_stack.pop()
-                _span_stack_var.set(cur_stack)
+            logger.warning("Neatlogs log_event error contained: %s", exc)
+            self.stats["errors"] += 1
+            self.stats["last_error"] = str(exc)
 
-            # Update trace running aggregates and export span
-            active_trace.total_tokens += span.tokens
-            active_trace.total_cost_usd = round(active_trace.total_cost_usd + span.cost_usd, 6)
-            if span.status == "error":
-                active_trace.status = "error"
-            elif span.status == "warn" and active_trace.status != "error":
-                active_trace.status = "warning"
-            self._export_span(span)
-
-            # If this was an ad-hoc trace that just emptied its stack, finalize & export trace
-            if is_ad_hoc_trace and not cur_stack:
-                active_trace.finalize(self.app_url)
-                self._export_trace(active_trace)
-                _current_trace_var.set(None)
-
-    # -------------------------------------------------------------------------
-    # Dedicated Hierarchical Helper Context Managers
-    # optimization_run -> generation_N -> candidate_eval -> node_execution -> tool_invocation
-    # -------------------------------------------------------------------------
-
-    def trace_optimization_run(
+    def record_metric(
         self,
-        name: str = "optimization_run",
-        architecture_id: Optional[str] = None,
-        **attributes: Any
-    ):
-        """Tier 1: Top-level autonomous closed-loop optimization run."""
-        return self.start_trace(
-            architecture_id=architecture_id,
-            name=name,
-            kind="optimization_run",
-            **attributes
-        )
+        name: str,
+        value: float,
+        unit: str = "count",
+    ) -> None:
+        """Record an analytical metric conforming to Tracer.record_metric."""
+        self.stats["metrics_recorded"] += 1
+        attrs = {
+            "metric.name": name,
+            "metric.value": float(value),
+            "metric.unit": unit,
+        }
+        try:
+            with self.start_span(f"metric.{name}", attributes=attrs):
+                pass
+        except Exception as exc:
+            logger.warning("Neatlogs record_metric error contained: %s", exc)
+            self.stats["errors"] += 1
+            self.stats["last_error"] = str(exc)
 
-    def trace_generation(self, generation: int, **attributes: Any):
-        """Tier 2: Mutation generation cycle (generation_N)."""
-        return self.span(
-            name=f"generation_{generation}",
-            kind="generation_N",
-            generation=generation,
-            **attributes
-        )
-
-    def trace_candidate_eval(
+    def emit_event(
         self,
-        candidate_name: str,
-        split: str = "optimization",
-        **attributes: Any
-    ):
-        """Tier 3: Evaluation of candidate architecture on benchmark partition."""
-        return self.span(
-            name=f"candidate_eval:{candidate_name}",
-            kind="candidate_eval",
-            candidate_name=candidate_name,
-            split=split,
-            **attributes
-        )
+        event: Union[Any, Dict[str, Any], str],
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Emit a structured event to Neatlogs.
 
-    def trace_node_execution(
+        Reuses `reco.optimization.events.OptimizationEvent` where practical.
+        """
+        is_opt_event = False
+        try:
+            from reco.optimization.events import OptimizationEvent
+            is_opt_event = isinstance(event, OptimizationEvent)
+        except Exception:
+            is_opt_event = hasattr(event, "event_type") and hasattr(event, "experiment_id")
+
+        if is_opt_event:
+            span_name = f"optimization.{event.event_type.value}"
+            attrs: Dict[str, Any] = {
+                "project": "reco",
+                "event_id": str(event.event_id),
+                "event_type": event.event_type.value,
+                "experiment_id": str(event.experiment_id),
+            }
+            if event.generation_number is not None:
+                attrs["generation_number"] = event.generation_number
+            if event.parent_version_id is not None:
+                attrs["parent_version_id"] = str(event.parent_version_id)
+            if event.candidate_id is not None:
+                attrs["candidate_id"] = str(event.candidate_id)
+            if event.payload:
+                safe_payload = sanitize_attributes(event.payload)
+                for pk, pv in safe_payload.items():
+                    attrs[f"payload.{pk}"] = pv
+        elif isinstance(event, dict):
+            span_name = str(event.get("event", "reco_event"))
+            attrs = sanitize_attributes(event)
+        else:
+            span_name = str(event)
+            attrs = sanitize_attributes(payload)
+
+        try:
+            with self.start_span(span_name, attributes=attrs) as span:
+                return {
+                    "success": True,
+                    "event": span_name,
+                    "duration_ms": span.duration_ms,
+                    "attributes": attrs,
+                }
+        except Exception as exc:
+            logger.warning("Neatlogs emit_event error contained: %s", exc)
+            self.stats["errors"] += 1
+            self.stats["last_error"] = str(exc)
+            return {"success": False, "error": str(exc), "event": span_name}
+
+    def as_optimization_listener(self) -> Callable[[Any], None]:
+        """Return an event listener callback for OptimizationEventDispatcher."""
+        def _listener(event: Any) -> None:
+            self.emit_event(event)
+
+        return _listener
+
+    def send_smoke_test(
         self,
-        node_id: str,
-        node_type: str = "node",
-        **attributes: Any
-    ):
-        """Tier 4: DAG node execution step."""
-        return self.span(
-            name=f"node_execution:{node_id}",
-            kind="node_execution",
-            node_id=node_id,
-            node_type=node_type,
-            **attributes
-        )
+        environment: str = "smoke_test",
+    ) -> Dict[str, Any]:
+        """Send exactly ONE small test span to Neatlogs for live smoke testing."""
+        if not self.enabled:
+            return {
+                "success": False,
+                "error": "Observability is disabled (OBSERVABILITY_ENABLED=false)",
+                "status_code": 0,
+                "latency_ms": 0,
+            }
+
+        safe_metadata = {
+            "project": "reco",
+            "environment": environment,
+            "event": "neatlogs_connection_test",
+            "status": "ok",
+        }
+
+        t0 = time.time()
+        try:
+            with self.start_span("neatlogs_connection_test", attributes=safe_metadata) as span:
+                pass
+            latency_ms = int((time.time() - t0) * 1000)
+            return {
+                "success": True,
+                "status_code": 200,
+                "latency_ms": latency_ms,
+                "endpoint": self.endpoint,
+                "metadata": safe_metadata,
+            }
+        except Exception as exc:
+            latency_ms = int((time.time() - t0) * 1000)
+            logger.warning("Live smoke test error contained: %s", exc)
+            self.stats["errors"] += 1
+            self.stats["last_error"] = str(exc)
+            return {
+                "success": False,
+                "error": str(exc),
+                "status_code": getattr(exc, "status_code", 500),
+                "latency_ms": latency_ms,
+                "endpoint": self.endpoint,
+            }
+
+    def send_structured_trace(
+        self,
+        trace_data: Dict[str, Any],
+        endpoint_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Send a structured nested JSON trace to Neatlogs (POST /v1/trace).
+
+        Guarantees strict failure containment.
+        """
+        if not self.enabled:
+            return {
+                "success": False,
+                "error": "Observability disabled (OBSERVABILITY_ENABLED=false)",
+                "status_code": 0,
+            }
+        url = endpoint_url or "https://ingest.neatlogs.com/v1/trace"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            "x-api-key": self.api_key,
+        }
+        try:
+            import requests
+            r = requests.post(url, headers=headers, json=trace_data, timeout=self.timeout_seconds)
+            if r.status_code == 200:
+                res_data = r.json()
+                spans_cnt = res_data.get("spans", 1)
+                self.stats["spans_exported"] += spans_cnt
+                return {
+                    "success": True,
+                    "status_code": 200,
+                    "trace_id": res_data.get("trace_id"),
+                    "spans": spans_cnt,
+                }
+            else:
+                self.stats["errors"] += 1
+                self.stats["last_error"] = f"HTTP {r.status_code}: {r.text[:200]}"
+                return {
+                    "success": False,
+                    "status_code": r.status_code,
+                    "error": r.text[:200],
+                }
+        except Exception as exc:
+            logger.warning("Neatlogs send_structured_trace error contained: %s", exc)
+            self.stats["errors"] += 1
+            self.stats["last_error"] = str(exc)
+            return {
+                "success": False,
+                "status_code": getattr(exc, "status_code", 0),
+                "error": str(exc),
+            }
+
+    def build_trace_hierarchy_from_spans(self, root_name: str = "optimization_run") -> Dict[str, Any]:
+        """Convert recorded flat spans into a nested tree conforming to Neatlogs JSON schema."""
+        spans = list(self.recorded_spans)
+        if not spans:
+            return {"name": root_name, "project": self.service_name, "children": []}
+
+        # Index spans by parent_span_id
+        by_parent_id: Dict[Optional[str], List[Dict[str, Any]]] = {}
+        visited: set = set()
+        for s in spans:
+            parent_id = s.get("parent_span_id")
+            by_parent_id.setdefault(parent_id, []).append(s)
+
+        def _build_node(s: Dict[str, Any]) -> Dict[str, Any]:
+            s_id = s.get("span_id")
+            if s_id and s_id in visited:
+                return {}
+            if s_id:
+                visited.add(s_id)
+
+            node_name = s.get("name", "span")
+            node: Dict[str, Any] = {
+                "name": node_name,
+                "duration_ms": s.get("duration_ms", 0),
+                "attributes": sanitize_attributes(s.get("attributes", {})),
+            }
+            # Infer span kind for Neatlogs
+            if "model_invocation" in node_name:
+                node["kind"] = "LLM"
+                if "model_name" in node["attributes"]:
+                    node["model"] = node["attributes"]["model_name"]
+            elif "tool_invocation" in node_name or "tool" in node_name:
+                node["kind"] = "TOOL"
+                if "tool_name" in node["attributes"]:
+                    node["tool_name"] = node["attributes"]["tool_name"]
+            elif "benchmark" in node_name or "eval" in node_name:
+                node["kind"] = "EVALUATOR"
+            elif "guardrail" in node_name or "promotion" in node_name or "comparison" in node_name:
+                node["kind"] = "GUARDRAIL"
+            elif "generation" in node_name:
+                node["kind"] = "CHAIN"
+            else:
+                node["kind"] = "TASK"
+
+            child_spans = by_parent_id.get(s_id, [])
+            if child_spans:
+                node["children"] = [
+                    _build_node(c) for c in child_spans
+                    if not c.get("span_id") or c.get("span_id") not in visited
+                ]
+            return node
+
+        roots = by_parent_id.get(None, [])
+        if roots:
+            root_node = _build_node(roots[0])
+            root_node["project"] = self.service_name
+            if len(roots) > 1:
+                root_node.setdefault("children", []).extend([
+                    _build_node(r) for r in roots[1:]
+                    if not r.get("span_id") or r.get("span_id") not in visited
+                ])
+            return root_node
+        else:
+            return {
+                "name": root_name,
+                "project": self.service_name,
+                "children": [_build_node(s) for s in spans[:30]],
+            }
+
+    def trace_model_invocation(
+        self,
+        model_name: str,
+        tokens_in: int = 0,
+        tokens_out: int = 0,
+        latency_ms: int = 0,
+        cost_usd: float = 0.0,
+        experiment_id: str = "",
+        agent_version_id: str = "",
+        node_id: str = "",
+        status: str = "ok",
+    ) -> SpanContext:
+        """Trace a model invocation span safely."""
+        attrs = {
+            "model_name": model_name,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "total_tokens": tokens_in + tokens_out,
+            "latency_ms": latency_ms,
+            "cost_usd": cost_usd,
+            "experiment_id": experiment_id,
+            "agent_version_id": agent_version_id,
+            "node_id": node_id,
+            "status": status,
+        }
+        return self.start_span("model_invocation", attributes=attrs)
 
     def trace_tool_invocation(
         self,
         tool_name: str,
-        **attributes: Any
-    ):
-        """Tier 5: Execution of an atomic tool within a tool node."""
-        return self.span(
-            name=f"tool_invocation:{tool_name}",
-            kind="tool_invocation",
-            tool_name=tool_name,
-            **attributes
-        )
+        duration_ms: int = 0,
+        success: bool = True,
+        experiment_id: str = "",
+        agent_version_id: str = "",
+        node_id: str = "",
+    ) -> SpanContext:
+        """Trace a tool invocation span safely."""
+        attrs = {
+            "tool_name": tool_name,
+            "duration_ms": duration_ms,
+            "success": success,
+            "experiment_id": experiment_id,
+            "agent_version_id": agent_version_id,
+            "node_id": node_id,
+            "status": "ok" if success else "error",
+        }
+        return self.start_span(f"tool_invocation.{tool_name}", attributes=attrs)
 
-    # -------------------------------------------------------------------------
-    # Telemetry Exporter with Fault Containment ($0 Failure Impact)
-    # -------------------------------------------------------------------------
+    def trace_node_execution(
+        self,
+        node_id: str,
+        execution_mode: str = "deterministic_tool",
+        experiment_id: str = "",
+        agent_version_id: str = "",
+    ) -> SpanContext:
+        """Trace a node execution span safely."""
+        attrs = {
+            "node_id": node_id,
+            "execution_mode": execution_mode,
+            "experiment_id": experiment_id,
+            "agent_version_id": agent_version_id,
+        }
+        return self.start_span(f"node_execution.{node_id}", attributes=attrs)
 
-    def _export_span(self, span: NeatlogsSpan) -> None:
-        """Store span in memory buffer."""
-        with self._lock:
-            self.exported_spans.append(span)
+    def trace_benchmark_case(
+        self,
+        case_code: str,
+        split: str,
+        experiment_id: str = "",
+        agent_version_id: str = "",
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> SpanContext:
+        """Trace a single benchmark case evaluation with held-out privacy protection."""
+        is_held_out = (split.lower() == "held_out")
+        attrs = {
+            "case_code": case_code,
+            "split": split,
+            "is_held_out": is_held_out,
+            "experiment_id": experiment_id,
+            "agent_version_id": agent_version_id,
+        }
+        if attributes:
+            safe_extra = sanitize_attributes(attributes, is_held_out=is_held_out)
+            attrs.update(safe_extra)
+        return self.start_span(f"benchmark_case.{case_code}", attributes=attrs)
 
-    def _export_trace(self, trace: NeatlogsTrace) -> None:
-        """Dispatch trace to Neatlogs ingest endpoint without blocking execution."""
-        with self._lock:
-            self.exported_traces.append(trace)
-
-        if not self.enabled:
-            return
-
-        if not self.api_key and not self._custom_client:
-            return
-
+    def trace_failure_diagnosis(
+        self,
+        diagnosis_id: str,
+        category: str,
+        severity: str,
+        failed_node: str,
+        confidence: float,
+        case_code: str = "",
+        experiment_id: str = "",
+        generation_number: Optional[int] = None,
+        agent_version_id: str = "",
+    ) -> None:
+        """Log a failure diagnosis event without raw case contents."""
         payload = {
-            "trace_id": trace.trace_id,
-            "architecture_id": trace.architecture_id,
-            "status": trace.status,
-            "total_duration_ms": trace.total_duration_ms,
-            "total_tokens": trace.total_tokens,
-            "total_cost_usd": trace.total_cost_usd,
-            "timestamp": trace.timestamp,
-            "deep_link": trace.deep_link,
-            "spans": [
-                {
-                    "span_id": s.span_id,
-                    "parent_span_id": s.parent_span_id,
-                    "name": s.name,
-                    "kind": s.kind,
-                    "status": s.status,
-                    "duration_ms": s.duration_ms,
-                    "tokens": s.tokens,
-                    "cost_usd": s.cost_usd,
-                    "attributes": s.attributes,
-                    "error": s.error,
-                }
-                for s in trace.spans
-            ]
+            "diagnosis_id": diagnosis_id,
+            "category": category,
+            "severity": severity,
+            "failed_node": failed_node,
+            "confidence": confidence,
+            "case_code": case_code,
+            "experiment_id": experiment_id,
+            "generation_number": generation_number,
+            "agent_version_id": agent_version_id,
         }
+        self.log_event("diagnosis_created", payload=payload)
 
-        if self.async_export:
-            future = self._executor.submit(self._send_payload_with_fault_containment, payload)
-            with self._lock:
-                self._pending_futures.append(future)
-        else:
-            self._send_payload_with_fault_containment(payload)
-
-    def _send_payload_with_fault_containment(self, payload: Dict[str, Any]) -> bool:
-        """Send payload to https://ingest.neatlogs.com with absolute fault containment.
-
-        Any HTTP error, connection failure, DNS resolution error, or timeout is caught
-        and safely logged. Core agent execution proceeds completely uninterrupted.
-        """
-        endpoint = f"{self.ingest_url}/v1/traces"
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Reco-Agent-Observability/0.1.0",
+    def trace_mutation(
+        self,
+        candidate_id: str,
+        parent_version_id: str,
+        mutation_type: str,
+        target: str,
+        prompt_hash: str = "",
+        change_summary: str = "",
+        token_count_delta: int = 0,
+        experiment_id: str = "",
+        generation_number: Optional[int] = None,
+        prompt_text: Optional[str] = None,
+    ) -> None:
+        """Log a candidate mutation event using prompt hash rather than full prompt."""
+        if not prompt_hash and prompt_text:
+            prompt_hash = compute_prompt_hash(prompt_text)
+        payload = {
+            "candidate_id": candidate_id,
+            "parent_version_id": parent_version_id,
+            "mutation_type": mutation_type,
+            "target": target,
+            "prompt_hash": prompt_hash,
+            "change_summary": change_summary,
+            "token_count_delta": token_count_delta,
+            "experiment_id": experiment_id,
+            "generation_number": generation_number,
         }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        self.log_event("candidate_generated", payload=payload)
 
-        try:
-            if self._custom_client:
-                resp = self._custom_client.post(endpoint, json=payload, headers=headers, timeout=2.0)
-            else:
-                with httpx.Client(timeout=2.0) as client:
-                    resp = client.post(endpoint, json=payload, headers=headers)
+    def trace_candidate_generated(
+        self,
+        candidate_id: str,
+        parent_version_id: str,
+        mutation_type: str,
+        target: str,
+        generation: Optional[int] = None,
+        experiment_id: str = "",
+        prompt_text: Optional[str] = None,
+    ) -> None:
+        """Trace candidate generation with prompt hash (no raw prompt leak)."""
+        prompt_hash = compute_prompt_hash(prompt_text) if prompt_text else ""
+        payload = {
+            "candidate_id": candidate_id,
+            "parent_version_id": parent_version_id,
+            "mutation_type": mutation_type,
+            "target": target,
+            "prompt_hash": prompt_hash,
+            "generation": generation,
+            "experiment_id": experiment_id,
+        }
+        self.log_event("candidate_generated", payload=payload)
 
-            if resp.status_code >= 400:
-                logger.warning(
-                    "Neatlogs ingest responded with status %d: %s (non-blocking, agent unaffected)",
-                    resp.status_code,
-                    resp.text[:120]
-                )
-                return False
-            return True
-        except Exception as exc:
-            # Fault containment: $0 impact on agent runtime
-            logger.debug(
-                "Neatlogs ingest failed (%s: %s). Non-blocking fault containment active.",
-                type(exc).__name__,
-                str(exc)
-            )
-            return False
+    def trace_candidate_benchmarked(
+        self,
+        candidate_id: str,
+        parent_version_id: str,
+        generation: Optional[int] = None,
+        accuracy: float = 0.0,
+        cost_usd: float = 0.0,
+        latency_ms: float = 0.0,
+        relationship: str = "equivalent",
+        experiment_id: str = "",
+    ) -> None:
+        """Trace candidate benchmark outcome."""
+        payload = {
+            "candidate_id": candidate_id,
+            "parent_version_id": parent_version_id,
+            "generation": generation,
+            "accuracy": accuracy,
+            "cost_usd": cost_usd,
+            "latency_ms": latency_ms,
+            "relationship": relationship,
+            "experiment_id": experiment_id,
+        }
+        self.log_event("candidate_benchmarked", payload=payload)
 
-    def flush(self, timeout: float = 5.0) -> None:
-        """Wait for all pending background ingestion tasks to complete."""
-        with self._lock:
-            futures = list(self._pending_futures)
-            self._pending_futures.clear()
+    def trace_candidate_selected(
+        self,
+        candidate_id: str,
+        parent_version_id: str,
+        generation: Optional[int] = None,
+        mutation_type: str = "",
+        accuracy_delta: float = 0.0,
+        experiment_id: str = "",
+    ) -> None:
+        """Trace selection of winning candidate."""
+        payload = {
+            "candidate_id": candidate_id,
+            "parent_version_id": parent_version_id,
+            "generation": generation,
+            "mutation_type": mutation_type,
+            "accuracy_delta": accuracy_delta,
+            "experiment_id": experiment_id,
+        }
+        self.log_event("candidate_selected", payload=payload)
 
-        for f in futures:
-            try:
-                f.result(timeout=timeout)
-            except Exception:
-                pass
+    def trace_candidate_rejected(
+        self,
+        candidate_id: str,
+        parent_version_id: str,
+        generation: Optional[int] = None,
+        reason: str = "",
+        experiment_id: str = "",
+    ) -> None:
+        """Trace rejection of non-winning or invalid candidate."""
+        payload = {
+            "candidate_id": candidate_id,
+            "parent_version_id": parent_version_id,
+            "generation": generation,
+            "reason": reason,
+            "experiment_id": experiment_id,
+        }
+        self.log_event("candidate_rejected", payload=payload)
 
-    def shutdown(self, wait: bool = True) -> None:
-        """Cleanly shutdown the exporter thread pool."""
-        self.flush()
-        self._executor.shutdown(wait=wait)
+    def trace_promotion(
+        self,
+        experiment_id: str,
+        parent_version_id: str,
+        final_version_id: str,
+        decision: str,
+        promoted: bool,
+        accuracy_delta: float = 0.0,
+        cost_delta: float = 0.0,
+        latency_delta: int = 0,
+        reliability_delta: float = 0.0,
+        improved_dimensions: Optional[List[str]] = None,
+        regressed_dimensions: Optional[List[str]] = None,
+    ) -> None:
+        """Log a promotion assessment event."""
+        payload = {
+            "experiment_id": experiment_id,
+            "parent_version_id": parent_version_id,
+            "final_version_id": final_version_id,
+            "decision": decision,
+            "promoted": promoted,
+            "accuracy_delta": accuracy_delta,
+            "cost_delta": cost_delta,
+            "latency_delta": latency_delta,
+            "reliability_delta": reliability_delta,
+            "improved_dimensions": improved_dimensions or [],
+            "regressed_dimensions": regressed_dimensions or [],
+        }
+        self.log_event("promotion_assessed", payload=payload)
+
+    def export_trace_demo(self, output_path: str) -> None:
+        """Export safe demo trace JSON artifact."""
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        hierarchy = self.build_trace_hierarchy_from_spans()
+        demo_payload = {
+            "project": "reco",
+            "track": "Track 1 — Automated Agent Engineering",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "total_spans": len(self.recorded_spans),
+            "stats": dict(self.stats),
+            "trace_tree": hierarchy,
+            "spans": self.get_recorded_spans(),
+        }
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(demo_payload, f, indent=2)
 
 
-# Global singleton instance
-_default_tracer: Optional[NeatlogsTracer] = None
+def get_tracer() -> NeatlogsTracer:
+    """Get the active global NeatlogsTracer instance."""
+    global _global_tracer
+    if _global_tracer is None:
+        _global_tracer = NeatlogsTracer()
+    return _global_tracer
 
 
-def get_tracer(
-    api_key: Optional[str] = None,
-    ingest_url: Optional[str] = None,
-    app_url: Optional[str] = None,
-) -> NeatlogsTracer:
-    """Obtain or initialize the global NeatlogsTracer singleton."""
-    global _default_tracer
-    if _default_tracer is None:
-        _default_tracer = NeatlogsTracer(
-            api_key=api_key,
-            ingest_url=ingest_url,
-            app_url=app_url
-        )
-    return _default_tracer
+def set_global_tracer(tracer: Optional[NeatlogsTracer]) -> None:
+    """Override or reset the active global NeatlogsTracer instance."""
+    global _global_tracer
+    _global_tracer = tracer

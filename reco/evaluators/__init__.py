@@ -1,37 +1,24 @@
-"""Evaluation engine and 4-axis scorecard computation."""
+"""Generic Multi-Dimensional Evaluator and Scorecard System for Reco."""
 
-from reco.evaluators.scorecard import (
-    CaseEvaluationResult,
-    Scorecard,
-    ScorecardComparison,
-    ScorecardEvaluator,
-    run_v0_benchmark,
-)
 from reco.evaluators.comparison import (
-    HeldOutCaseResult,
-    HeldOutValidationGate,
-    HeldOutValidationResult,
-    PromotionDecision,
-    TournamentEvaluator,
-    TournamentResult,
-    compute_pareto_frontier,
-    is_pareto_dominant_pair,
-    select_tournament_winner,
+    ComparisonPolicy,
+    DimensionDelta,
+    PromotionAssessment,
+    ScorecardComparison,
+    assess_promotion,
+    compare_scorecards,
+    format_improvement_summary,
 )
+from reco.evaluators.scorecard import NormalizedMetrics, Scorecard
 
 __all__ = [
-    "CaseEvaluationResult",
+    "NormalizedMetrics",
     "Scorecard",
+    "ComparisonPolicy",
+    "DimensionDelta",
     "ScorecardComparison",
-    "ScorecardEvaluator",
-    "run_v0_benchmark",
-    "TournamentEvaluator",
-    "TournamentResult",
-    "HeldOutCaseResult",
-    "HeldOutValidationGate",
-    "HeldOutValidationResult",
-    "PromotionDecision",
-    "compute_pareto_frontier",
-    "is_pareto_dominant_pair",
-    "select_tournament_winner",
+    "PromotionAssessment",
+    "compare_scorecards",
+    "format_improvement_summary",
+    "assess_promotion",
 ]

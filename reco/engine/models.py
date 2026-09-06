@@ -1,187 +1,185 @@
-"""Agent Architecture DAG models, node typing, and graph validation."""
+"""Data models and validation logic for agent nodes, edges, and graph definitions."""
 
-from __future__ import annotations
-
-from collections import defaultdict, deque
-from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Union
-from pydantic import BaseModel, Field
-
-from reco.core.task_spec import TaskSpecification
+from collections import deque
+from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class NodeType(str, Enum):
-    """Permitted node types in the agent execution DAG."""
-    INPUT = "input_node"
-    TOOL = "tool_node"
-    REASONING = "reasoning_node"
-    VERIFIER = "verifier_node"
-    OUTPUT = "output_node"
+class GraphValidationError(ValueError):
+    """Raised when an agent graph definition violates structural or DAG invariants."""
+    pass
 
 
-class NodeStatus(str, Enum):
-    """Execution lifecycle status of a node."""
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
+class NodeModel(BaseModel):
+    """Specification of an executable agent node in the architecture graph."""
+    node_id: str = Field(..., description="Unique identifier for the node within the graph")
+    name: str = Field(..., description="Human-readable node name")
+    role: str = Field(..., description="Specialized functional role (e.g., 'Auditor', 'Extractor')")
+    system_prompt: str = Field(..., description="Role instructions and operational boundaries")
+    tools: List[str] = Field(default_factory=list, description="Names of tools accessible to this node")
+    model_config_data: Dict[str, Any] = Field(
+        default_factory=lambda: {"model": "mock-v1", "temperature": 0.0},
+        alias="model_config",
+    )
+    input_mapping: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Maps state or upstream output keys to expected node argument keys",
+    )
+    output_key: Optional[str] = Field(
+        default=None,
+        description="Key name where this node's output will be stored in state. Defaults to node_id.",
+    )
+    max_retries: int = Field(default=0, ge=0, description="Max retry attempts on recoverable errors")
+    retryable_errors: List[str] = Field(
+        default_factory=list,
+        description="List of error substrings or types that trigger retry",
+    )
+    execution_mode: Optional[Literal["deterministic_tool", "model_driven", "model_inference"]] = Field(
+        default=None,
+        description="Explicit execution mode: 'deterministic_tool', 'model_driven', or 'model_inference'.",
+    )
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    def get_execution_mode(self) -> str:
+        """Resolve the effective execution mode with full backward-compatibility."""
+        if self.execution_mode:
+            return self.execution_mode
+        if "execution_mode" in self.metadata:
+            return self.metadata["execution_mode"]
+        if self.metadata.get("agent_loop") is True:
+            return "model_driven"
+        if self.tools:
+            return "deterministic_tool"
+        return "model_inference"
 
 
-class NodeSpec(BaseModel):
-    """Specification of a single node in the Agent Architecture DAG."""
-
-    id: str = Field(description="Unique node identifier within the architecture")
-    type: NodeType = Field(description="Typed architectural role of the node")
-    name: str = Field(description="Human-readable node label")
-    tool_name: Optional[str] = Field(default=None, description="Registered tool name if type == TOOL")
-    config: Dict[str, Any] = Field(default_factory=dict, description="Node configuration and hyperparameters")
-    dependencies: List[str] = Field(default_factory=list, description="IDs of upstream nodes required before execution")
-
-
-class EdgeSpec(BaseModel):
-    """Directed connection representing data dependency between two nodes."""
-
-    source: str = Field(description="Origin node ID")
-    target: str = Field(description="Destination node ID")
+class EdgeModel(BaseModel):
+    """Directed transition connecting two agent nodes in the workflow DAG."""
+    source_node_id: str
+    target_node_id: str
+    condition: Optional[str] = Field(
+        default=None,
+        description="Optional routing condition evaluated against state",
+    )
 
 
-class AgentArchitecture(BaseModel):
-    """Complete Directed Acyclic Graph (DAG) representing an autonomous agent architecture."""
+class GraphDefinition(BaseModel):
+    """Declarative specification of an agent graph architecture."""
+    graph_id: str = Field(..., description="Unique graph identifier")
+    name: str = Field(..., description="Descriptive architecture name")
+    entry_node_id: str = Field(..., description="Starting node ID for execution")
+    terminal_node_ids: List[str] = Field(
+        default_factory=list,
+        description="Set of terminal exit nodes for the workflow",
+    )
+    nodes: Dict[str, NodeModel] = Field(..., description="Mapping of node_id to NodeModel")
+    edges: List[EdgeModel] = Field(default_factory=list, description="Directed transitions")
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    id: str = Field(description="Unique architecture identifier")
-    name: str = Field(description="Architecture name or version label")
-    task_spec: TaskSpecification = Field(description="Task specification this architecture satisfies")
-    nodes: List[NodeSpec] = Field(default_factory=list, description="List of graph nodes")
-    edges: List[EdgeSpec] = Field(default_factory=list, description="List of directed edges")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Performance or optimization metadata")
-
-    def get_node(self, node_id: str) -> NodeSpec:
-        """Find a node by ID or raise KeyError."""
-        for n in self.nodes:
-            if n.id == node_id:
-                return n
-        raise KeyError(f"Node '{node_id}' not found in architecture.")
-
-    def get_parents(self, node_id: str) -> List[NodeSpec]:
-        """Return all direct predecessor nodes."""
-        parent_ids = [e.source for e in self.edges if e.target == node_id]
-        return [self.get_node(pid) for pid in parent_ids]
-
-    def get_children(self, node_id: str) -> List[NodeSpec]:
-        """Return all direct successor nodes."""
-        child_ids = [e.target for e in self.edges if e.source == node_id]
-        return [self.get_node(cid) for cid in child_ids]
-
-    def is_acyclic(self) -> bool:
-        """Verify whether the graph is acyclic using Kahn's algorithm."""
-        try:
-            self.topological_sort()
-            return True
-        except ValueError:
-            return False
-
-    def topological_sort(self) -> List[str]:
-        """Compute the topological ordering of nodes.
+    def validate_graph(self) -> None:
+        """Validate all topological and DAG invariants.
 
         Raises:
-            ValueError: If a cycle is detected in the graph.
+            GraphValidationError: If the graph is disconnected, malformed, or cyclic.
         """
-        node_ids = [n.id for n in self.nodes]
-        in_degree: Dict[str, int] = {nid: 0 for nid in node_ids}
-        adjacency: Dict[str, List[str]] = defaultdict(list)
+        # 1. Entry node must exist
+        if self.entry_node_id not in self.nodes:
+            raise GraphValidationError(
+                f"Entry node '{self.entry_node_id}' does not exist in graph nodes: {list(self.nodes.keys())}"
+            )
+
+        # 2. Check all edge references
+        edge_set = set()
+        adj_list: Dict[str, List[str]] = {nid: [] for nid in self.nodes}
 
         for edge in self.edges:
-            if edge.source not in in_degree or edge.target not in in_degree:
-                raise ValueError(
-                    f"Edge ({edge.source} -> {edge.target}) references non-existent node."
+            if edge.source_node_id not in self.nodes:
+                raise GraphValidationError(
+                    f"Edge source '{edge.source_node_id}' does not exist in graph nodes."
                 )
-            adjacency[edge.source].append(edge.target)
-            in_degree[edge.target] += 1
+            if edge.target_node_id not in self.nodes:
+                raise GraphValidationError(
+                    f"Edge target '{edge.target_node_id}' does not exist in graph nodes."
+                )
 
-        # Queue nodes with 0 in-degree
-        queue = deque([nid for nid, deg in in_degree.items() if deg == 0])
-        sorted_nodes: List[str] = []
+            edge_key = (edge.source_node_id, edge.target_node_id)
+            if edge_key in edge_set:
+                raise GraphValidationError(
+                    f"Duplicate edge detected from '{edge.source_node_id}' to '{edge.target_node_id}'."
+                )
+            edge_set.add(edge_key)
+            adj_list[edge.source_node_id].append(edge.target_node_id)
+
+        # 3. Check for cycles and compute topological ordering (Kahn's algorithm)
+        in_degree: Dict[str, int] = {nid: 0 for nid in self.nodes}
+        for u in adj_list:
+            for v in adj_list[u]:
+                in_degree[v] += 1
+
+        queue = deque([nid for nid in self.nodes if in_degree[nid] == 0])
+        visited_count = 0
 
         while queue:
             curr = queue.popleft()
-            sorted_nodes.append(curr)
-
-            for neighbor in adjacency[curr]:
+            visited_count += 1
+            for neighbor in adj_list[curr]:
                 in_degree[neighbor] -= 1
                 if in_degree[neighbor] == 0:
                     queue.append(neighbor)
 
-        if len(sorted_nodes) != len(node_ids):
-            unprocessed = set(node_ids) - set(sorted_nodes)
-            raise ValueError(
-                f"Cyclic dependency detected in agent graph. Nodes involved in cycle: {unprocessed}"
+        if visited_count < len(self.nodes):
+            raise GraphValidationError("Cycle detected in graph definition. Agent graph must be a strict DAG.")
+
+        # 4. Unreachable nodes check from entry_node_id
+        reachable = set()
+        bfs_queue = deque([self.entry_node_id])
+        reachable.add(self.entry_node_id)
+
+        while bfs_queue:
+            curr = bfs_queue.popleft()
+            for neighbor in adj_list[curr]:
+                if neighbor not in reachable:
+                    reachable.add(neighbor)
+                    bfs_queue.append(neighbor)
+
+        unreachable = set(self.nodes.keys()) - reachable
+        if unreachable:
+            raise GraphValidationError(
+                f"Unreachable nodes detected from entry point '{self.entry_node_id}': {sorted(list(unreachable))}"
             )
 
-        return sorted_nodes
+        # 5. Terminal nodes check (if specified, must exist and be reachable)
+        for t_id in self.terminal_node_ids:
+            if t_id not in self.nodes:
+                raise GraphValidationError(f"Terminal node '{t_id}' does not exist in graph nodes.")
+            if t_id not in reachable:
+                raise GraphValidationError(f"Terminal node '{t_id}' is unreachable from entry node.")
 
-    def validate_graph(self) -> None:
-        """Thoroughly validate graph structural contracts."""
-        node_map = {n.id: n for n in self.nodes}
+    def get_topological_order(self) -> List[NodeModel]:
+        """Return nodes sorted in deterministic topological execution order."""
+        self.validate_graph()
 
-        if not self.nodes:
-            raise ValueError("AgentArchitecture must contain at least one node.")
+        adj_list: Dict[str, List[str]] = {nid: [] for nid in self.nodes}
+        in_degree: Dict[str, int] = {nid: 0 for nid in self.nodes}
 
-        # Ensure all edge endpoints exist
         for edge in self.edges:
-            if edge.source not in node_map:
-                raise ValueError(f"Edge source '{edge.source}' does not exist in graph.")
-            if edge.target not in node_map:
-                raise ValueError(f"Edge target '{edge.target}' does not exist in graph.")
+            adj_list[edge.source_node_id].append(edge.target_node_id)
+            in_degree[edge.target_node_id] += 1
 
-        # Verify acyclicity and valid ordering
-        self.topological_sort()
+        # Deterministic sorting on initial queue
+        zero_in = sorted([nid for nid in self.nodes if in_degree[nid] == 0])
+        queue = deque(zero_in)
+        order = []
 
-        # Check for presence of required architectural roles
-        types_present = {n.type for n in self.nodes}
-        if NodeType.INPUT not in types_present:
-            raise ValueError("AgentArchitecture must have at least one 'input_node'.")
-        if NodeType.OUTPUT not in types_present:
-            raise ValueError("AgentArchitecture must have at least one 'output_node'.")
+        while queue:
+            curr = queue.popleft()
+            order.append(self.nodes[curr])
+            # Deterministic iteration on neighbors
+            for neighbor in sorted(adj_list[curr]):
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
 
-    def complexity_metrics(self) -> Dict[str, Union[float, int, bool]]:
-        """Compute architectural complexity metrics and quality score."""
-        v = len(self.nodes)
-        e = len(self.edges)
-        max_possible_edges = v * (v - 1) if v > 1 else 1
-        density = e / max_possible_edges if max_possible_edges > 0 else 0.0
-
-        types_present = {n.type for n in self.nodes}
-        has_verifier = NodeType.VERIFIER in types_present
-        has_reasoning = NodeType.REASONING in types_present
-        tool_nodes = [n for n in self.nodes if n.type == NodeType.TOOL]
-
-        # Quality scoring (0.0 to 1.0)
-        # Structural validity: 0.25
-        # Role completeness (input + output): 0.25
-        # Reasoning & Verifier present: 0.25 (0.125 each)
-        # Tool capability coverage: 0.25
-        score = 0.0
-        if self.is_acyclic() and v >= 2:
-            score += 0.25
-
-        if NodeType.INPUT in types_present and NodeType.OUTPUT in types_present:
-            score += 0.25
-
-        if has_reasoning:
-            score += 0.125
-        if has_verifier:
-            score += 0.125
-
-        if tool_nodes:
-            score += 0.25
-
-        return {
-            "node_count": v,
-            "edge_count": e,
-            "edge_density": round(density, 4),
-            "tool_node_count": len(tool_nodes),
-            "has_reasoning": has_reasoning,
-            "has_verifier": has_verifier,
-            "quality_score": round(score, 4)
-        }
+        return order

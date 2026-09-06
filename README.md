@@ -7,207 +7,272 @@
 [![Monetization](https://img.shields.io/badge/Monetization-Dodo%20Payments%20Pro%20Tier-cyan?style=flat-square)](#)
 [![Deployment](https://img.shields.io/badge/Deployment-Render%20Web%20Service%20%28Unified%20FastAPI%20%2B%20Vite%29-black?style=flat-square)](#)
 
-Reco is an autonomous agent engineering system that automates the end-to-end lifecycle of designing, executing, diagnosing, and evolving agentic Directed Acyclic Graphs (DAGs).
-
-Instead of treating agent architectures as static, handcrafted code, Reco treats agent graphs as mutable, evolutionary systems. It analyzes natural language task goals, generates candidate topologies, benchmarks them against rigorous multi-case test suites, isolates root causes across a 12-category failure taxonomy, extracts persistent epistemic invariants, runs multi-candidate tournament mutations, and enforces air-gapped held-out promotion gates before deploying optimized agents to production.
+Autonomous agent engineering system that automatically designs, executes, benchmarks, diagnoses, and improves specialized AI agents.
 
 ---
 
-## 1. Executive Summary: What Reco Does
+## 1. What Reco Does
 
-The traditional agent engineering cycle is slow, manual, and brittle: developers write prompts, run a few ad-hoc queries, notice failures, and manually tweak instructions without systemic evaluation.
+Reco automates the entire AI agent engineering lifecycle. Instead of requiring human engineers to manually craft prompts, wire together agent graphs, debug tool errors, and iterate on edge cases through trial and error, Reco:
 
-Reco replaces manual trial-and-error with a closed-loop autonomous optimization engine:
-
-1. **Goal Deconstruction (`GoalAnalyzer`)**: Ingests high-level task goals (e.g., dual-ledger transaction reconciliation, time-series anomaly detection, cross-document research synthesis) and deconstructs them into formal task specifications, required tool capabilities, execution constraints, and validation criteria.
-2. **Initial DAG Synthesis (`ArchitectureGenerator`)**: Synthesizes a baseline Directed Acyclic Graph (Baseline V0) consisting of typed input ingestion, tool execution, reasoning, and output delivery nodes with verified acyclicity.
-3. **Multi-Axis Benchmark Evaluation (`ScorecardEvaluator`)**: Runs agent graphs across partitioned benchmark suites to produce an objective 4-axis scorecard measuring Accuracy, Reliability, Cost, and Latency.
-4. **Diagnostic Root-Cause Analysis (`FailureAnalyzer`)**: Ingests execution traces and failure signatures, isolating underlying root causes from observable symptoms using a deterministic 12-category failure taxonomy.
-5. **Epistemic Self-Reflection (`EpistemicMemoryLedger`)**: Extracts persistent architectural rules and domain invariants from diagnosed failures across generations (V0 -> V1 -> V2), guaranteeing measurable accuracy gains without regression.
-6. **Multi-Candidate Mutation Tournament (`MutationEngine`, `CandidatePoolGenerator`, `TournamentEvaluator`)**: Synthesizes competing candidate variants (Prompt specialists, Tool assignment mutators, Verifier guardrails, Topology reorganizers) and evaluates them in a tournament to establish the Pareto frontier.
-7. **Air-Gapped Held-Out Gate (`HeldOutValidationGate`)**: Evaluates the tournament champion on an air-gapped test split with zero data leakage, verifying that empirical improvements generalize to unseen data before issuing a formal promotion verdict (`PROMOTED`, `REQUIRES_REVIEW`, `REJECTED`).
+1. **Accepts a high-level natural language Goal**, an active **Tool Catalog**, and an **Evaluation Benchmark**.
+2. **Synthesizes an initial Agent Architecture ($V_0$)**—defining node roles, system prompts, execution topologies, and authorized tools with verified acyclicity.
+3. **Executes the agent deterministically** against benchmark scenarios using real LLM inference and structured tool calling via TensorMux.
+4. **Evaluates performance** across four hard engineering dimensions: **Accuracy**, **Reliability**, **Cost (USD)**, and **Latency (ms)**.
+5. **Diagnoses failures** using a 12-category diagnostic taxonomy that pinpoints the root cause (e.g., parameter mismatch, missing verifier, hallucinated match).
+6. **Generates targeted mutations** into a candidate pool ($V_{n+1}$), validating candidate architectures against strict acyclicity and capability constraints.
+7. **Benchmarks candidates** on optimization splits and strictly evaluates the top performer against an air-gapped **held-out split** to grant or deny promotion (`PROMOTE`, `REVIEW`, `REJECT`).
 
 ---
 
-## 2. Direct Answers to the 4 Hackathon Judge Questions
+## 2. Why Reco Exists
 
-### Question 1: Learning Loops and Tool Mastery
-> *How does the agent learn and master tool usage over time?*
+Building production-grade AI agents today is predominantly a manual, unscientific process:
+- **Heuristic Prompting**: Developers tweak prompts without systematic regression testing.
+- **Fragile Topologies**: Multi-agent graphs are hand-wired without empirical validation.
+- **Subjective Evaluation**: Teams rely on vibe checks rather than multi-dimensional scorecards.
+- **Overfitting & Leakage**: Tweaks made for specific failures often silently break other test cases.
 
-Reco achieves tool mastery through an automated diagnostic and mutation feedback loop:
-- **Baseline Tool Assignment**: The initial DAG generator assigns baseline tools based on semantic keyword mapping (for example, selecting `exact_reconcile` for matching ledgers).
-- **Runtime Failure Capture**: When evaluated against real-world test cases, the baseline agent fails on inputs with format variations (such as `$1,250.00` currency strings, casing differences like `tx1003` vs `TX1003`, or trailing whitespace).
-- **Taxonomy Classification**: The `FailureAnalyzer` identifies `tool_selection_error` and `tool_parameter_error`, recognizing that the tool cannot handle normalization internally.
-- **Targeted Mutation**: The `ToolAssignmentMutator` automatically upgrades the node from `exact_reconcile` to `smart_reconcile`, while `PromptMutator` injects parameter sanitation directives.
-- **Empirical Verification**: The mutated candidate is re-benchmarked, verifying that tool-handling accuracy rises from 16.7% to 83.3% on optimization test sets.
+Reco replaces manual trial-and-error with an **autonomous closed-loop engineering harness** that guarantees architectural validity, empirical verification, and zero held-out test data leakage.
 
-### Question 2: Self-Reflection and Epistemic Memory Ledger
-> *Can you show the outputs of the agent getting better over time through its own self-reflection and memory growing?*
+---
 
-Reco features an **Epistemic Memory Ledger** that explicitly tracks the causal chain between observed failures in early generations and durable architectural rules codified in subsequent generations:
+## 3. Track 1 Alignment
+
+Reco is purpose-built exclusively for **Track 1 — Automated Agent Engineering**. It maps directly to the core challenge:
+
+| Track 1 Requirement | Reco Implementation | Description |
+|---|---|---|
+| **Goal Input** | `GoalAnalyzer` (`reco/core/goal_analyzer.py`) | Decomposes unstructured goals into structured `TaskSpecification` DAGs. |
+| **Available Tools** | `ToolRegistry` (`reco/tools/registry.py`) | Validates, registers, and provides typed JSON schemas without arbitrary code execution. |
+| **Evaluator / Benchmark** | `Benchmark` (`reco/benchmarks/base.py`) | Harnesses test agents against partitioned optimization and held-out scenarios. |
+| **Design** | `ArchitectureGenerator` (`reco/engine/generator.py`) | Synthesizes valid, acyclic `GraphDefinition` topologies. |
+| **Run** | `AgentGraphRuntime` (`reco/engine/runtime.py`) | Executes agents deterministically with structured tool calling via TensorMux. |
+| **Evaluate** | `Scorecard` (`reco/evaluators/scorecard.py`) | Computes 4-axis scores: Accuracy, Reliability, Cost (USD), Latency (ms). |
+| **Diagnose** | `FailureAnalyzer` (`reco/diagnostics/analyzer.py`) | Maps failed runs to actionable root causes with confidence scores. |
+| **Improve** | `MutationEngine` (`reco/mutation/engine.py`) | Generates candidate pools, benchmarks improvements, and promotes dominating versions. |
+
+### Direct Answers to Track 1 Judging Criteria
+
+> *"For Track 1, we're really looking for well-designed agents in which the underlying learning loops and how the agent interacts and learns about usage of tools over time."*
+
+1. **How does the agent get better over time?**
+   - **Autonomous Diagnostic Loop**: At generation $V_0$, Reco runs the synthesized agent against benchmark suites. When an assertion or edge-case fails, the `FailureAnalyzer` maps execution traces to a 7-class failure taxonomy (`FAILURE_SCHEMA_MISMATCH`, `FAILURE_TOOL_MISUSE`, `FAILURE_VERIFICATION_MISS`, etc.).
+   - **Targeted Mutation Synthesis**: Rather than blind prompting, `MutationEngine` synthesizes targeted candidate architectures per generation ($V_1$), exploring prompt boundary tightening, tool binding repairs, and synthesized verifier sub-graphs.
+   - **Empirical Promotion Gating**: Candidates compete on optimization benchmarks, and the winning architecture is validated against an air-gapped **held-out split**. Only candidates with non-regressing Pareto dominance are promoted (`PROMOTE`).
+
+2. **Can you show the outputs of the agent getting better over time through self-reflection and memory growing?**
+   - **Generational Accuracy Progression**: Across generations $V_0 \to V_1 \to V_2$, benchmark accuracy increases from **60.0% $\to$ 75.0% $\to$ 85.0%** (Reconciliation) and **80.0% $\to$ 100.0%** (Anomaly Detection).
+   - **Epistemic Memory Ledger**: Postmortems from earlier generations are extracted as durable invariants (e.g., ISO-8601 UTC coercion, 0.001 float drift tolerance, integer parameter enforcement). These lessons are permanently preserved in the **Epistemic Memory Ledger** and injected into downstream nodes to eliminate regressions.
+
+3. **How does the agent interact and learn about usage of third-party tools/MCPs/APIs over time?**
+   - **Tool Parameter & Output Adaptation**: When third-party APIs return disparate formats (e.g., Stripe API Unix epoch seconds vs SQL ISO timestamps), the agent detects `SCHEMA_VIOLATION` and mutates intermediate nodes to inject argument coercion and schema normalization.
+   - **Anti-Fabrication & Tool Selection**: The `ToolRegistry` enforces strict schema validation and anti-fabrication guards. If a node attempts to hallucinate a non-existent tool, the mutator re-binds execution to verified tools or synthesizes specialized calculation verifiers.
+
+4. **Can it learn complex contextual logic from tool data and apply that in later runs?**
+   - **Contextual Invariant Injection**: When multi-currency conversions introduce IEEE 754 floating-point drift (e.g. `$452.999` vs `$453.00`), Reco learns that exact string matching is insufficient and synthesizes an auditor node (`verifier_tolerance_guard`) with delta tolerance bounds.
+   - **Cross-Run State Preservation**: Learned routing rules and parameter invariants are persisted in Supabase and projected into the agent's DAG definition for all subsequent experiment runs.
+
+5. **Does the agent maintain a balance of cost-effectiveness and speed?**
+   - **Pareto Multi-Objective Optimization**: Reco simultaneously tracks **Accuracy**, **Reliability**, **Cost (USD)**, and **Latency (ms)** on every candidate run.
+   - **Cost & Latency Reductions**: In the Reconciliation domain, $V_1$ reduced cost by **10.38%** and latency by **20.54%** while increasing accuracy. In Research Comparison, $V_1$ reduced cost by **9.83%** and latency by **14.75%** while maintaining 100% accuracy.
+
+6. **How was AO (Agent Orchestrator) used throughout the build?**
+   - **End-to-End Orchestration**: Reco was developed 100% within AO worktrees and the `agy` CLI across 30 iterative milestones.
+   - **Milestone Isolation**: Every core subsystem—from the initial DAG runtime, through the TensorMux/Neatlogs/Supabase/Dodo integrations, to held-out validation and frontend visualization—was built, verified, and audited across active AO sessions.
+
+### Built with AO (Agent Orchestrator) & agy CLI
+Reco was built end-to-end natively using [AO (Agent Orchestrator)](https://aoagents.dev/) and the `agy` CLI across its 30 engineering milestones:
+- **Session-Driven Development**: Every architectural milestone was implemented inside an isolated AO session (`ao session spawn --name "step-X" --issue X`).
+- **Autonomous Coding Harness**: Code generation, static validation, test creation, and multi-domain audits were pair-programmed with the `agy` agentic assistant.
+- **Auditable Provenance**: All session traces, issue-to-PR links, and review gates are captured in the AO session ledger.
+
+---
+
+## 4. How Reco Works (Closed-Loop Engine)
+
+```text
+                           [Natural Language Goal]
+                                      │
+                                      ▼
+                               [GoalAnalyzer]
+                                      │
+                                      ▼
+                           [ArchitectureGenerator]
+                                      │
+                                      ▼
+                              [GraphDefinition]
+                                      │
+                                      ▼
+                            [AgentGraphRuntime]
+                                │          │
+            ┌───────────────────┘          └────────────────────┐
+            ▼                                                   ▼
+     [GLM-4.7-Flash]                                     [ToolExecutor]
+(TensorMux Inference Gateway)                           (Domain Tool Catalog)
+            │                                                   │
+            └───────────────────┬───────────────────────────────┘
+                                │
+                                ▼
+                       [Benchmark Evaluator]
+                                │
+                                ▼
+                      [Scorecard Comparison]
+                                │
+                                ▼
+                        [FailureAnalyzer]
+                                │
+                                ▼
+                         [MutationEngine]
+                                │
+                                ▼
+                        [Candidate Pool]
+                      (Cand A, Cand B, ...)
+                                │
+                                ▼
+                      [Held-Out Validation]
+                                │
+                                ▼
+                       [PromotionDecision]
+                    (PROMOTE / REJECT / REVIEW)
+                                │
+                                ▼
+                         [NeatlogsTracer]
+                    (End-to-End Observability)
+```
+
+---
+
+## 5. Agent Evolution Loop
+
+Reco's self-improvement engine executes bounded evolutionary hill-climbing:
+
+1. **Baseline ($V_0$)**: An initial agent architecture is synthesized from the task specification and evaluated on the optimization split.
+2. **Failure Analysis**: Failures are isolated per generation. The diagnoser categorizes errors using a 12-category taxonomy (e.g., `HALLUCINATED_MATCH`, `UNHANDLED_EXCEPTION`, `INEFFICIENT_ROUTING`, `TOOL_PARAMETER_ERROR`).
+3. **Multi-Candidate Pool**: The `MutationEngine` synthesizes a bounded pool of alternative candidate architectures:
+   - *Candidate A*: Prompt specialist tightening boundary assertions and formatting rules.
+   - *Candidate B*: Tool assignment mutator replacing exact matchers with fuzzy or normalized tools.
+   - *Candidate C*: Verifier node insertion adding runtime schema or tolerance guardrails.
+4. **Candidate Selection ($V_1$)**: Candidates are evaluated on the optimization benchmark. The candidate that strictly dominates the parent on Pareto criteria is selected.
+5. **Held-Out Split Validation**: The winning candidate is benchmarked against the completely unseen held-out split (with audited zero data leakage).
+6. **Promotion Gate**:
+   - **`PROMOTE`**: The candidate improves accuracy and/or reduces cost/latency on held-out cases with zero regressions.
+   - **`REJECT`**: The candidate regresses on held-out data. The engine rejects the candidate and preserves the parent.
+   - **`REVIEW`**: The candidate achieves an improvement on optimization cases but experiences an ambiguous tradeoff on held-out data.
+
+---
+
+## 6. Multi-Domain Demonstration
+
+Reco proves that the **exact same core engineering pipeline** can design and optimize agents across three distinct problem domains without custom forks:
+
+### 1. Transaction Reconciliation (`reconciliation-v1`)
+- **Challenge**: Match bank statements against company general ledgers, resolve timing mismatches, and calculate variances.
+- **Tools**: `parse_bank_statement`, `query_general_ledger`, `calculate_reconciliation_difference`, `fuzzy_match_transactions`.
+- **Baseline Failure**: $V_0$ falsely paired transactions with mismatched counterparties.
+- **Autonomous Fix**: Prompt mutation tightening counterparty similarity thresholds.
+- **Result**: Accuracy improved from **75.00% to 80.00%** (+5.00%), cost reduced by **10.38%**, latency reduced by **20.54%**, and held-out validation confirmed **82.50%** accuracy (**`PROMOTE`**).
+
+### 2. Dataset Anomaly Detection (`anomaly_detection-v1`)
+- **Challenge**: Ingest tabular numerical, temporal, and categorical data to detect genuine anomalies while rejecting benign edge cases.
+- **Tools**: `read_tabular_dataset`, `compute_statistical_summary`, `detect_distribution_anomalies`.
+- **Baseline Failure**: $V_0$ flagged an executive bonus as an anomaly due to rigid single-variable Z-score thresholds (`ANOM-OPT-05`).
+- **Autonomous Fix**: Prompt refinement directing multi-variable context verification.
+- **Result**: Optimization accuracy improved from **80.00% to 100.00%** (+20.00%); held-out accuracy scored **66.67%** (2/3 passed), triggering an honest **`REVIEW`** decision rather than false promotion.
+
+### 3. Research & Evidence Comparison (`research_comparison-v1`)
+- **Challenge**: Analyze technical documentation, reconcile contradictory vendor claims, and evaluate solutions against business constraints.
+- **Tools**: `search_document_evidence`, `extract_evidence_claims`, `compare_technology_metrics`.
+- **Baseline Failure**: $V_0$ took an inefficient reasoning path vulnerable to marketing claim bias (`RES-OPT-03`).
+- **Autonomous Fix**: Source hierarchy guidance prioritizing technical specs over marketing whitepapers.
+- **Result**: Maintained **100.00%** accuracy on both optimization and held-out splits while reducing cost by **9.83%** and latency by **14.75%** (**`PROMOTE`**).
+
+---
+
+## 7. Verified Results & Canonical Evidence
+
+All reported metrics are backed by immutable canonical artifacts in `scratch/`:
+
+| Domain | Split | V0 Accuracy | V1 Accuracy | Held-Out Accuracy | Cost Delta | Latency Delta | Decision | Provenance Source |
+|---|---|---|---|---|---|---|---|---|
+| **Reconciliation** | 12 opt / 8 held-out | 75.00% | 80.00% | 82.50% | -10.38% | -20.54% | **PROMOTE** | [`scratch/step14_real_optimization.json`](scratch/step14_real_optimization.json) |
+| **Anomaly Detection** | 5 opt / 3 held-out | 80.00% | 100.00% | 66.67% | +30.56% | 0.00% | **REVIEW** | [`scratch/step24_cross_domain_real_provider.json`](scratch/step24_cross_domain_real_provider.json) |
+| **Research Comparison** | 5 opt / 3 held-out | 100.00% | 100.00% | 100.00% | -9.83% | -14.75% | **PROMOTE** | [`scratch/step24_cross_domain_real_provider.json`](scratch/step24_cross_domain_real_provider.json) |
+
+*Master Canonical Artifact*: [`scratch/step25_canonical_evidence.json`](scratch/step25_canonical_evidence.json)
+
+---
+
+## 8. Epistemic Self-Reflection & Memory Ledger
+
+Reco features an **Epistemic Memory Ledger** that tracks the causal chain between observed failures in early generations and durable architectural rules codified in subsequent generations:
 
 - **Empirical Accuracy Growth**: Benchmark accuracy improves from **60.0% (V0 Baseline)** to **75.0% (V1 Candidate B)** to **85.0% (V2 Candidate C)**, delivering a verified **+25.0% cumulative accuracy gain** across generations.
 - **Codified Invariants**:
-  1. **Lesson 01 (V0 -> V1 | `SCHEMA_VIOLATION`)**: *Tool Output Normalization*. Observed third-party API timestamp mismatches caused false reconciliation errors. Injected runtime coercion to normalize Unix epoch timestamps to ISO-8601 UTC at Node 02 (`+15.0%` accuracy lift).
-  2. **Lesson 02 (V1 -> V2 | `VERIFICATION_MISS`)**: *Tolerance Drift Guardrail*. Observed floating-point rounding deltas (for example, `$452.999` vs `$453.00`) in multi-currency conversion. Synthesized a dedicated verifier node with `epsilon = 0.001` tolerance (`+10.0%` accuracy lift).
-  3. **Lesson 03 (V1 -> V2 | `TOOL_PARAMETER_ERROR`)**: *Parameter Strictness*. Upstream model reasoning passed `record_id` as a string rather than an integer, causing database rejection. Injected runtime type enforcement to guarantee integer invariants.
-- **Zero-Regression Invariant**: Every epistemic rule is validated against all historical test cases to ensure new constraints do not cause backward regressions.
-
-### Question 3: Complex Contextual Logic
-> *How do observed third-party tool quirks become codified runtime guardrails?*
-
-Third-party APIs and microservices exhibit idiosyncratic behaviors, including unannounced schema shifts, timestamp formatting variations, floating-point rounding drift, and silent duplicate records.
-
-Reco captures these anomalies during execution and codifies them directly into the graph architecture:
-1. **Detection**: Telemetry spans in Neatlogs isolate where external tool outputs deviate from expected structural invariants.
-2. **Taxonomy Diagnosis**: Errors are categorized under `schema_violation`, `tool_parameter_error`, or `verification_miss`.
-3. **Guardrail Synthesis**: Instead of relying exclusively on prompt instructions that LLMs can hallucinate past, Reco injects deterministic verifier nodes (`json_validator`, `duplicate_guardrail`, `tolerance_checker`) directly into the DAG topology between tool execution and output delivery.
-4. **Resilience**: The resulting V2 architecture enforces structural contracts at runtime, preventing malformed tool payloads from corrupting downstream reasoning.
-
-### Question 4: Cost-Effectiveness vs Speed (Pareto Dominance)
-> *How does the system balance cost, speed, and accuracy without budget bloat?*
-
-Reco optimizes across a strict **4-Axis Scorecard**:
-- **Accuracy**: Percentage of benchmark test cases satisfying exact ground-truth assertions.
-- **Reliability**: Percentage of executions completing without unhandled exceptions or fatal crashes.
-- **Cost (USD)**: Exact inference cost accounting using token consumption rates ($0.10 / 1M tokens on TensorMux GLM-4.7-Flash).
-- **Speed (Latency)**: End-to-end wall-clock graph execution duration in milliseconds.
-
-**Pareto Frontier Tournament Evaluation**:
-A mutated candidate is only designated as the champion if it achieves **Pareto Dominance** (improving accuracy or reliability without regressing cost or latency beyond defined tolerance boundaries). If Candidate X achieves +5% accuracy but triples latency or token consumption, the tournament evaluator flags the trade-off and rejects the candidate in favor of balanced topologies.
-
-### Question 5: Cross-Domain Generalization
-> *Does the optimization engine generalize across diverse domains?*
-
-Reco is domain-agnostic. The identical core engine (`GoalAnalyzer`, `ArchitectureGenerator`, `FailureAnalyzer`, `MutationEngine`, `TournamentEvaluator`, `HeldOutValidationGate`) operates across 3 distinct benchmark suites:
-
-1. **Financial Reconciliation**: Dual-ledger transaction matching, currency parsing, whitespace and casing normalization, duplicate charge detection, and discrepancy reporting (10 test cases: 6 optimization, 4 held-out).
-2. **System Anomaly Detection**: Statistical Z-score time-series outlier detection, multi-metric server health threshold alerting (CPU, memory, disk), log burst root-cause analysis, and cascading outage diagnosis (10 test cases: 6 optimization, 4 held-out).
-3. **Research Synthesis**: Multi-entity extraction from technical papers (models, benchmarks, organizations), quantitative metric cross-referencing and leaderboard calculation, multi-document topical summary, and contradiction detection (10 test cases: 6 optimization, 4 held-out).
+  1. **Lesson 01 (V0 -> V1 | `SCHEMA_VIOLATION`)**: *Tool Output Normalization*. Observed third-party API timestamp mismatches caused false reconciliation errors. Injected runtime coercion to normalize Unix epoch timestamps to ISO-8601 UTC (`+15.0%` accuracy lift).
+  2. **Lesson 02 (V1 -> V2 | `VERIFICATION_MISS`)**: *Tolerance Drift Guardrail*. Observed floating-point rounding deltas (`$452.999` vs `$453.00`) in multi-currency conversion. Synthesized a dedicated verifier node with `epsilon = 0.001` tolerance (`+10.0%` accuracy lift).
+  3. **Lesson 03 (V1 -> V2 | `TOOL_PARAMETER_ERROR`)**: *Parameter Strictness*. Upstream model reasoning passed `record_id` as a string rather than an integer. Injected runtime type enforcement to guarantee integer invariants.
+- **Zero-Regression Invariant**: Every epistemic rule is validated against historical test cases to ensure new constraints do not cause backward regressions.
 
 ---
 
-## 3. System Architecture & 5-Stage Console Workflow
-
-### Closed-Loop Architecture Diagram
-
-```
-+---------------------------------------------------------------------------------------+
-|                                RECO CLOSED-LOOP ENGINE                                |
-+---------------------------------------------------------------------------------------+
-
-  [ User Goal / Task Input ]
-              |
-              v
-   +----------------------+
-   |  01: Goal Analyzer   |  ==> Deconstructs requirements & constraints
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 02: DAG Generator    |  ==> Synthesizes Baseline V0 Agent Graph
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 03: Agent Runtime    | <==> [ TensorMux GLM-4.7-Flash + Tool Registry ]
-   +----------------------+         |
-              |                     +--> [ Neatlogs Distributed Tracing ]
-              v
-   +----------------------+
-   | 04: Benchmark Suite  |  ==> Evaluates Optimization Split (6 Cases)
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 05: Failure Analyzer |  ==> 12-Category Taxonomy Root Cause Isolation
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 06: Epistemic Memory |  ==> Codifies Generational Invariants (V0->V1->V2)
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 07: Mutation Engine  |  ==> Generates Candidate Pool (Prompt, Tool, Verifier)
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 08: Tournament Gate  |  ==> Selects Pareto-Dominant Champion
-   +----------------------+
-              |
-              v
-   +----------------------+
-   | 09: Held-Out Gate    |  ==> Air-Gapped Validation (4 Unseen Cases, 0 Leakage)
-   +----------------------+
-              |
-              v
-   [ Promoted Production Agent ]  ==> Synced to Supabase Cloud Ledger
-```
-
----
-
-### The 5-Stage Visual Engineering Console
-
-The Reco frontend is structured around a 5-stage visual engineering workflow:
-
-| Stage | Name | Description | Key Capabilities |
-| :--- | :--- | :--- | :--- |
-| **01** | **BUILD** | Architecture Composition | Natural language goal input, domain preset chips, tool selection, visual DAG graph preview with node typing (Input, Tool, Reasoning, Verifier, Output). |
-| **02** | **RUN** | Topological Execution | Live node-by-node execution progression, terminal streaming logs, and the 4-axis scorecard (Accuracy, Reliability, Cost, Latency). |
-| **03** | **UNDERSTAND** | Failure Diagnostics | 12-category taxonomy distribution, root-cause isolation cards, symptom tracking, and the Epistemic Memory Ledger showing generational lessons. |
-| **04** | **IMPROVE** | Mutation & Tournament | Multi-candidate tournament view (Candidates A, B, C), side-by-side prompt and configuration diff inspectors, and evolutionary lineage tree. |
-| **05** | **VALIDATE** | Held-Out Promotion Gate | Air-gapped held-out benchmark validation (4 unseen cases), SHA-256 partition checksum verification, zero-leakage check, Neatlogs trace explorer, and promotion decision controls (`PROMOTED`, `REQUIRES_REVIEW`, `REJECTED`). |
-
----
-
-## 4. Sponsor Integrations
+## 9. Sponsor Integrations
 
 Reco deeply integrates all hackathon sponsor technologies into its core architecture:
 
-### 1. TensorMux (GLM-4.7-Flash Inference)
-- **OpenAI-Compatible Gateway**: Direct connection to `https://api.tensormux.com/v1` using model `glm-4-7-flash`.
+### 1. TensorMux (GLM-4.7-Flash Inference Gateway)
+- **Active Model**: `glm-4-7-flash` (GLM-4.7-Flash).
+- **OpenAI-Compatible Gateway**: Direct connection to `https://api.tensormux.com/v1` via `TensorMuxGateway`.
 - **Reasoning Token Capture**: Extracts native GLM-4.7-Flash reasoning tokens (`reasoning` message field) for deep epistemic analysis.
-- **Reasoning Safeguards**: Strictly enforces `max_tokens >= 400` to prevent truncation of intermediate reasoning chains.
-- **Accurate Cost Tracking**: Computes live USD inference costs per query based on exact input/output token counts ($0.10 / 1M tokens).
+- **Structured Tool Calling**: Bounded multi-round execution loops (`MAX_TOOL_CALL_ROUNDS = 5`), automatic JSON schema translation, token accounting, and bounded network timeouts.
+- **Cost Accounting**: Exact inference cost tracking ($0.10 / 1M tokens) per query.
 
 ### 2. Neatlogs (Distributed Tracing & Observability)
-- **Hierarchical 5-Tier Spans**: Tracks execution lineage across `optimization_run` -> `generation_N` -> `candidate_eval` -> `node_execution` -> `tool_invocation`.
-- **Fault Containment**: Telemetry exporter runs non-blocking background batches to `https://ingest.neatlogs.com`. If network drops or timeouts occur, agent execution proceeds uninterrupted ($0 impact on agent runtime).
-- **Deep-Link Inspection**: Generates direct inspection links (`https://app.neatlogs.com/traces/<trace_id>`) for instant debugging.
+- **Hierarchical 5-Tier Spans**: Tracks execution lineage across `optimization_run` -> `generation` -> `candidate_benchmark` -> `benchmark_run` -> `benchmark_case` -> `node_execution` -> `tool_invocation`.
+- **Fault Containment**: Non-blocking asynchronous background batches to `https://ingest.neatlogs.com`. If network drops occur, agent execution proceeds uninterrupted ($0 impact on agent runtime).
+- **Deep-Link Inspection**: Generates direct inspection links (`https://app.neatlogs.com/traces/<trace_id>`).
 
 ### 3. Supabase (Cloud Persistence & RLS Ledger)
-- **Relational Data Model**: Persists experiments, architecture definitions, benchmark runs, mutation diffs, evaluation scorecards, and traces in PostgreSQL.
+- **Relational Data Model**: Persists experiments, agent version DAGs, benchmark runs, candidate evaluations, failure diagnoses, and promotion records in PostgreSQL.
 - **Row-Level Security (RLS)**: Enforces multi-tenant data isolation via GoTrue JWT tokens (`auth.uid() = user_id`).
-- **Interactive UI Components**: Full `AuthModal` supporting Email/Password Sign Up, Sign In, and an instant **1-Click Judge / Evaluator Demo Sign In** with pre-configured session credentials. The `MyExperimentsModal` lets users browse, load, and inspect their persisted optimization histories.
-- **Graceful Fallback**: Automatically falls back to an in-memory repository if cloud credentials are unset, ensuring zero friction during local testing.
+- **Interactive UI Components**: Full `AuthModal` supporting Email/Password Sign Up, Sign In, and an instant **1-Click Judge / Evaluator Demo Sign In** with pre-configured session credentials. The `MyExperimentsModal` lets users browse, load, and inspect persisted optimization histories.
+- **Zero-Coupling Fallback**: Automatically falls back to local in-memory repositories if cloud credentials are unset.
 
 ### 4. Dodo Payments (Monetization & Pro Entitlements)
-- **Configured Product**: Reco Pro subscription tier (`pdt_0Nmvzbo4wJETkRyCMAEPt`, $29/mo or $9/mo recurring).
-- **Hosted Checkout Sessions**: Generates checkout sessions for Reco Pro via `POST /billing/checkout`. Automatically resolves the configured `DODO_PAYMENTS_PRODUCT_ID` without hardcoded frontend slugs.
-- **Hosted Customer Portal**: Provides subscription management, card updates, and invoice downloads via `POST /billing/portal`.
-- **HMAC Webhook Verification**: Uses `standardwebhooks` to verify cryptographically signed webhooks from Dodo Payments at `POST /billing/webhook` with anti-replay timestamp validation and idempotent event processing (`payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`).
-- **Strict Decoupling**: Billing checks never block core agent synthesis or benchmark evaluation.
-
-### 5. AO (Agent Orchestrator)
-- **Multi-Session Lineage**: Built across 30 disciplined subagent development sessions using `ao session spawn` and paired with Google Antigravity (AGY).
-- **Modular Worktree Isolation**: Each capability (DAG engine, taxonomy diagnostics, tournament selector, sponsor integrations, and frontend console) was developed and tested in isolated branches before final integration.
+- **Merchant of Record**: Configured for `test_mode` billing and subscription management.
+- **Product ID**: Reco Pro tier (`pdt_0Nmvzbo4wJETkRyCMAEPt`, $9.00/mo or $29.00/mo).
+- **Hosted Checkout & Customer Portal**: Hosted checkout via `POST /billing/checkout` and customer portal via `POST /billing/portal`.
+- **HMAC Webhook Verification**: Uses `standardwebhooks` to verify cryptographically signed webhooks at `POST /billing/webhook` with anti-replay timestamp validation and idempotent event processing (`payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`).
+- **Entitlement Tiers**:
+  - **Free Tier**: Max 1 evolution generation, 2 candidates per pool, 3 total runs.
+  - **Pro Tier ($9/mo)**: Max 5 evolution generations, 5 candidates per pool, 100 total runs.
+- **Isolation**: Evaluation benchmarks and Demo Mode remain 100% free and unthrottled.
 
 ---
 
-## 5. End-to-End Environment Setup & Configuration
+## 10. Demo Mode vs. Live Mode
 
-### 1. Prerequisites & API Keys
+| Dimension | Demo Mode | Live Mode |
+|---|---|---|
+| **Activation** | Click "Load Demo Run" or `demo_mode=True` | Click "Run Optimization" with `mode="tensormux"` |
+| **Inference Source** | Static verified canonical artifacts | Real-time GLM-4.7-Flash on TensorMux |
+| **Tool Execution** | Replayed from verified benchmark logs | Real deterministic & model tool calls |
+| **Persistence** | In-memory demo data store | Supabase PostgreSQL cloud tables |
+| **Observability** | Bundled high-fidelity trace JSON | Real HTTP calls to Neatlogs API |
+| **Billing / Quotas** | 100% Free, unlimited, unthrottled | Enforces Free vs Pro quotas (HTTP 402 if exceeded) |
+| **Execution Speed** | Instantaneous (<50ms) | Real execution latency |
 
-Copy `.env.example` to `.env` and configure the following sponsor and infrastructure environment variables:
+---
+
+## 11. Environment Variables Reference
+
+Copy `.env.example` to `.env` to configure external integrations:
 
 ```bash
 cp .env.example .env
 ```
 
-| Category | Environment Variable | Required | Description | Example / Default |
+| Category | Environment Variable | Required | Description | Default / Example |
 |---|---|---|---|---|
 | **TensorMux** | `TENSORMUX_API_KEY` | Optional | TensorMux API token for live LLM inference | `tmx_...` |
 | | `TENSORMUX_BASE_URL` | Optional | TensorMux OpenAI-compatible API base URL | `https://api.tensormux.com/v1` |
@@ -216,29 +281,26 @@ cp .env.example .env
 | | `NEATLOGS_BASE_URL` | Optional | Neatlogs ingestion endpoint | `https://ingest.neatlogs.com` |
 | **Supabase** | `SUPABASE_URL` | Optional | Supabase Project REST / Auth URL | `https://xyz.supabase.co` |
 | | `SUPABASE_ANON_KEY` | Optional | Public anonymous client API key | `eyJhbGci...` |
-| | `SUPABASE_SERVICE_ROLE_KEY` | Optional | Elevated service role key for backend ledger access | `eyJhbGci...` |
+| | `SUPABASE_SERVICE_ROLE_KEY` | Optional | Service role key for backend ledger access | `eyJhbGci...` |
 | | `SUPABASE_JWT_SECRET` | Optional | JWT secret for GoTrue token cryptographic verification | `your_supabase_jwt_secret` |
 | **Dodo Payments** | `DODO_PAYMENTS_API_KEY` | Optional | Dodo Payments API secret key | `test_...` |
 | | `DODO_PAYMENTS_ENVIRONMENT` | Optional | Dodo mode (`test_mode` or `live_mode`) | `test_mode` |
 | | `DODO_PAYMENTS_WEBHOOK_KEY` | Optional | Dodo Payments HMAC webhook signing secret | `whsec_...` |
 | | `DODO_WEBHOOK_SECRET` | Optional | Alias for Dodo webhook secret key | `whsec_...` |
-| | `DODO_PAYMENTS_PRODUCT_ID` | Optional | Configured Reco Pro subscription product ID | `pdt_0Nmvzbo4wJETkRyCMAEPt` |
+| | `DODO_PAYMENTS_PRODUCT_ID` | Optional | Reco Pro subscription product ID | `pdt_0Nmvzbo4wJETkRyCMAEPt` |
 
 > [!NOTE]
-> Reco boots out of the box with offline mock providers and local in-memory storage if external API keys are omitted. External API keys can be supplied for live mode evaluation without breaking local development.
+> Reco boots completely offline with mock providers and local in-memory stores if external keys are omitted. External keys activate live integrations without breaking local workflows.
 
 ---
 
-## 6. Supabase Database & Auth Setup
+## 12. Supabase Database & Auth Setup
 
 ### Step 1: Execute Database Migrations
-1. Navigate to the [Supabase Dashboard](https://supabase.com/dashboard) and select your project.
-2. In the left navigation menu, open the **SQL Editor**.
-3. Copy the contents of [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql) and paste into the editor.
-4. Click **Run** to execute the migration.
+1. Navigate to the [Supabase Dashboard](https://supabase.com/dashboard) and open the **SQL Editor**.
+2. Run [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql) and [`supabase/migrations/002_billing_schema.sql`](supabase/migrations/002_billing_schema.sql).
 
-### Step 2: Schema Architecture & Tables Created
-The migration provisions the following relational tables with Row-Level Security (RLS):
+### Step 2: Schema Architecture
 - `profiles`: User identity, display names, and tenant roles.
 - `experiments`: Autonomous engineering sessions partitioned by user.
 - `agent_versions`: Immutable DAG architectures (nodes, edges, task specs, complexity metrics).
@@ -247,250 +309,168 @@ The migration provisions the following relational tables with Row-Level Security
 - `diagnoses`: Classified failure signatures mapping observable symptoms to root causes.
 - `held_out_scorecards`: Air-gapped validation results with generalization gap calculations.
 - `promotion_records`: Formal promotion audit log (`PROMOTED`, `REQUIRES_REVIEW`, `REJECTED`).
-- `user_entitlements`: Dodo Payments customer ID, subscription status, and active Pro tier flag.
-
-### Step 3: Row-Level Security (RLS) Policies
-Each table enforces strict user isolation:
-```sql
-ALTER TABLE experiments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage own experiments" ON experiments
-  FOR ALL USING (auth.uid() = user_id);
-```
-
-### Step 4: Authentication in Frontend & Judge Demo
-The frontend connects dynamically using credentials exposed via `GET /api/config`:
-- **Engineer Sign Up / Sign In**: Authenticates directly with Supabase Auth via email/password.
-- **Judge / Evaluator Demo Sign In**: Instant 1-click evaluator login that loads a pre-configured, authenticated session with demo experiments, allowing evaluators to test all features without creating accounts.
+- `subscriptions`: Dodo Payments customer ID, subscription status, and active Pro tier flag.
 
 ---
 
-## 7. Dodo Payments Product & Webhook Configuration
+## 13. Dodo Payments Product & Webhook Configuration
 
-### Step 1: Create the Reco Pro Product in Dodo Dashboard
-1. Log in to the [Dodo Payments Dashboard](https://app.dodopayments.com) (in **Test Mode**).
-2. Go to **Products** $\to$ **New Product**.
-3. Set the product details:
-   - **Name**: `Reco Pro`
-   - **Type**: Recurring Subscription
-   - **Billing Interval**: Monthly
-   - **Price**: `$29.00 / month` (or `$9.00 / month`)
-   - **Currency**: `USD`
-4. Save the product and copy the generated **Product ID**:
-   ```
-   DODO_PAYMENTS_PRODUCT_ID=pdt_0Nmvzbo4wJETkRyCMAEPt
-   ```
+### Step 1: Verify Product Configuration
+In the [Dodo Payments Dashboard](https://app.dodopayments.com) (in **Test Mode**):
+- **Product Name**: `Reco Pro`
+- **Product ID**: `pdt_0Nmvzbo4wJETkRyCMAEPt`
+- **Type**: Recurring Subscription ($9.00/mo or $29.00/mo)
 
 ### Step 2: Configure Webhook Delivery
-1. Go to **Developers** $\to$ **Webhooks** in the Dodo Payments Dashboard.
-2. Click **Add Webhook Endpoint**.
-3. Set **Endpoint URL**:
-   ```
-   https://<your-deployed-service>.onrender.com/billing/webhook
-   ```
-   *(For local testing with ngrok/localtunnel, use `https://<tunnel-id>.ngrok-free.app/billing/webhook`)*.
-4. Subscribe to the canonical subscription lifecycle events:
-   - `payment.succeeded`
-   - `subscription.active`
-   - `subscription.cancelled`
-   - `subscription.renewed`
-5. Copy the generated **Webhook Signing Secret** (`whsec_...`) and assign it to:
-   ```
-   DODO_PAYMENTS_WEBHOOK_KEY=whsec_...
-   ```
+- **Endpoint URL**: `https://<your-service>.onrender.com/billing/webhook`
+- **Subscribed Events**: `payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`
+- **Secret**: Assign the generated webhook secret to `DODO_PAYMENTS_WEBHOOK_KEY`.
 
-### Step 3: Verify Checkout Flow
-1. Click **Upgrade to Pro** in the Reco visual console.
-2. The frontend invokes `POST /billing/checkout`, which resolves `DODO_PAYMENTS_PRODUCT_ID` and returns a hosted checkout URL from Dodo Payments.
-3. In Test Mode, use the simulated test card credentials provided directly on the UI banner:
-   - **Card Number**: `4242 4242 4242 4242`
-   - **Expiry**: `12/28`
-   - **CVC**: `123`
-   - **ZIP**: `90210`
-4. Upon successful payment, Dodo dispatches a signed webhook to `/billing/webhook`, which verifies the HMAC signature and updates the user entitlement to `pro`.
+### Step 3: Test Card Credentials (Test Mode)
+- **Card Number**: `4242 4242 4242 4242`
+- **Expiry**: `12/28` | **CVC**: `123` | **ZIP**: `90210`
 
 ---
 
-## 8. Single-Service Render Deployment Guide
+## 14. Production Deployment & Operations Guide
 
-Reco is packaged for zero-friction deployment on Render as a single unified Web Service.
+Reco deploys cleanly as a single unified Web Service where FastAPI serves both backend API endpoints and the pre-built React/Vite SPA from `frontend/dist`.
 
-### Blueprint Deployment (`render.yaml`)
+### Build and Launch Configuration
+- **Runtime**: Python 3.11+ (with Node.js 18+ and npm available during the build phase)
+- **Build Command**:
+  ```bash
+  npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
+  ```
+- **Start Command**:
+  ```bash
+  uvicorn reco.api.app:app --host 0.0.0.0 --port $PORT
+  ```
 
-The repository includes a production Render Blueprint specification:
-
-```yaml
-services:
-  - type: web
-    name: reco-web-service
-    env: python
-    buildCommand: npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
-    startCommand: uvicorn reco.api.app:app --host 0.0.0.0 --port $PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.4
-      - key: DODO_PAYMENTS_ENVIRONMENT
-        value: test_mode
-      - key: DODO_PAYMENTS_PRODUCT_ID
-        value: pdt_0Nmvzbo4wJETkRyCMAEPt
-```
-
-### Manual Deployment via Render Dashboard
-1. Create a new **Web Service** on [Render](https://dashboard.render.com).
-2. Connect your GitHub repository (`toufiqfarhan0/reco`).
-3. Set the build and runtime parameters:
-   - **Runtime**: `Python`
-   - **Build Command**: `npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt`
-   - **Start Command**: `uvicorn reco.api.app:app --host 0.0.0.0 --port $PORT`
-4. Add the required environment variables under **Environment**:
+### Step-by-Step Cloud Deployment
+1. Connect your repository (`toufiqfarhan0/reco`) in your cloud provider console (e.g. Render, Railway, Fly.io, AWS, DigitalOcean).
+2. Configure the service type as a **Web Service** with the Python runtime.
+3. Set the build command:
+   `npm install --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt`
+4. Set the start command:
+   `uvicorn reco.api.app:app --host 0.0.0.0 --port $PORT`
+5. Configure the production environment variables:
+   - `PYTHON_VERSION`: `3.11.4`
+   - `DODO_PAYMENTS_ENVIRONMENT`: `test_mode` (or `live_mode`)
    - `DODO_PAYMENTS_PRODUCT_ID`: `pdt_0Nmvzbo4wJETkRyCMAEPt`
-   - `DODO_PAYMENTS_ENVIRONMENT`: `test_mode`
-   - `DODO_PAYMENTS_API_KEY`: *(your Dodo test API key)*
+   - `DODO_PAYMENTS_API_KEY`: *(your Dodo API key)*
    - `DODO_PAYMENTS_WEBHOOK_KEY`: *(your Dodo webhook secret)*
-   - `SUPABASE_URL`: *(your Supabase URL)*
+   - `SUPABASE_URL`: *(your Supabase project URL)*
    - `SUPABASE_ANON_KEY`: *(your Supabase anon key)*
    - `SUPABASE_SERVICE_ROLE_KEY`: *(your Supabase service role key)*
+   - `SUPABASE_JWT_SECRET`: *(your Supabase JWT secret)*
    - `TENSORMUX_API_KEY`: *(your TensorMux key)*
+   - `TENSORMUX_BASE_URL`: `https://api.tensormux.com/v1`
+   - `TENSORMUX_MODEL`: `glm-4-7-flash`
    - `NEATLOGS_API_KEY`: *(your Neatlogs key)*
-5. Click **Create Web Service**. Render builds the Vite SPA into `frontend/dist` and launches the unified FastAPI server.
+   - `NEATLOGS_BASE_URL`: `https://ingest.neatlogs.com`
+6. Deploy the service. The build step compiles the Vite SPA into `frontend/dist/` and installs dependencies. The runtime then serves both the API and the SPA from a single port.
 
-### Architecture & Routing Guarantees
-- **Root Route (`/`)**: Serves the pre-compiled `frontend/dist/index.html`.
-- **Public Config (`GET /api/config`)**: Serves safe, public client configuration to bootstrap Supabase and Dodo Payments without leaking secrets.
-- **Monetization Routes (`/billing/*`)**: Hosted checkout, customer portal, and HMAC webhooks.
-- **Health Check (`GET /health`, `GET /api/health`)**: Responds with HTTP 200 for Render health probes.
-- **SPA Fallback Routing**: Any client-side routes (such as `/stages/*`) automatically fall back to `frontend/dist/index.html` while preserving 404 JSON responses for missing API routes.
+### Unified Routing & Architecture Guarantees
+- **SPA Mounting**: `GET /` serves `frontend/dist/index.html`.
+- **SPA Fallback Routing**: Unmatched non-API routes automatically fall back to `index.html` for client-side navigation.
+- **API Isolation**: All API endpoints (`/api/*`, `/billing/*`, `/experiments/*`, `/auth/*`, `/tools/*`, etc.) return structured JSON and proper HTTP status codes (e.g., 404 JSON for missing records, never leaking HTML into API calls).
+- **Public Config**: `GET /api/config` safely bootstraps frontend authentication and monetization without leaking server secrets.
+- **Health Probes**: `GET /health` and `GET /api/health` respond with HTTP 200 `{"status": "ok"}` for container orchestrator health checks.
 
 ---
 
-## 9. Local Development & Reproduction Commands
+## 15. Local Development & Testing
 
-### 1. System Requirements
+### Prerequisites
 - Python 3.11+
-- Node.js 20+ and npm
+- Node.js 18+ and npm
 - Git
 
-### 2. Dependency Installation
+### Backend Setup & Test Suite
 ```bash
-# Install Python backend dependencies
+# 1. Install Python dependencies
 pip install -r requirements.txt
 
-# Install React frontend dependencies
-npm install --prefix frontend
-```
-
-### 3. Run Backend Pytest Suite
-```bash
+# 2. Run deterministic test suite (571 passed, 1 skipped)
 python -m pytest tests/ -q
 ```
-*Result: 145 passed tests verifying DAG execution, failure diagnostics, mutation engine, multi-candidate tournaments, multi-domain benchmarks, Supabase persistence, public config, and Dodo Payments monetization.*
 
-### 4. Run Frontend Vitest Suite
+### Frontend Setup & Test Suite
 ```bash
+# 1. Install Node dependencies
+npm install --prefix frontend
+
+# 2. Run component tests (47 passed across 13 test files)
 npm test --prefix frontend
-```
-*Result: 12 test files passed (45/45 tests) verifying all 5 console stages, Epistemic Memory Ledger, Failure Explorer, Candidate Comparison, Billing Modal, AuthModal, and MyExperimentsModal.*
 
-### 5. Build Production Frontend Bundle
-```bash
+# 3. Build production bundle
 npm run build --prefix frontend
 ```
-*Result: Compiles TypeScript and bundles production Vite assets into `frontend/dist` with 0 errors.*
 
-### 6. Launch Unified Server Locally
+### Launch Unified Server Locally
 ```bash
-uvicorn reco.api.app:app --host 0.0.0.0 --port 8000 --reload
+uvicorn reco.api.app:app --host 127.0.0.1 --port 8000 --reload
 ```
-Navigate to `http://localhost:8000` to interact with the full 5-stage Reco console with Supabase Auth and Dodo Payments checkout.
+Open `http://127.0.0.1:8000` in your browser. Interactive Swagger docs are at `http://127.0.0.1:8000/docs`.
 
 ---
 
+## 16. Project Structure
 
-## 7. Built with AO (Agent Orchestrator) Development Lineage
-
-Reco was engineered using **Agent Orchestrator (AO)** in collaboration with **AGY (Google Antigravity)** across 30 autonomous sessions:
-
-- **Sessions 01 to 05: Core Architecture & Runtime**
-  Synthesized the foundational Directed Acyclic Graph models, topological execution engine, node runner, and initial goal deconstruction analyzer.
-- **Sessions 06 to 10: 12-Category Failure Taxonomy & Diagnostics**
-  Implemented the 12-category failure taxonomy, isolating root causes from symptoms and creating deterministic remediation mappers.
-- **Sessions 11 to 15: Mutation Engine & Pareto Tournament**
-  Built the prompt, tool assignment, verifier, and topology mutators, candidate pool generator, and Pareto frontier comparison evaluator.
-- **Sessions 16 to 20: Air-Gapped Benchmarks & Multi-Domain Generalization**
-  Engineered 10-case benchmark suites (6 optimization / 4 held-out) across Financial Reconciliation, System Anomaly Detection, and Research Synthesis with zero cross-split leakage.
-- **Sessions 21 to 25: Sponsor Integrations (TensorMux, Neatlogs, Supabase, Dodo Payments)**
-  Integrated live inference with TensorMux (GLM-4.7-Flash), distributed tracing with Neatlogs, PostgreSQL persistence with Supabase RLS, and billing with Dodo Payments HMAC webhooks.
-- **Sessions 26 to 30: 5-Stage Engineering Console & Production Hardening**
-  Developed the Vite + React 19 interactive console, Epistemic Memory Ledger, single-service FastAPI static mount, comprehensive test suites, and production documentation.
-
----
-
-## 8. Repository Structure
-
-```
+```text
 reco/
-├── reco/                          # Core Python Engine Package
-│   ├── api/                       # FastAPI Web Application & SPA Static Serving
-│   │   └── app.py
-│   ├── benchmarks/                # Multi-Domain Benchmark Suites
-│   │   ├── base.py                # Partitioning, Splits & Checksum Isolation
-│   │   ├── reconciliation/        # Financial Reconciliation (10 cases: 6 opt / 4 held-out)
-│   │   ├── anomaly/               # System Anomaly Detection (10 cases: 6 opt / 4 held-out)
-│   │   └── research/              # Research Synthesis (10 cases: 6 opt / 4 held-out)
-│   ├── billing/                   # Dodo Payments Integration
-│   │   ├── models.py              # Subscription models & payloads
-│   │   └── service.py             # Hosted checkout, portal & HMAC webhook verification
-│   ├── core/                      # Task Specifications & Goal Deconstruction
-│   │   ├── goal_analyzer.py
-│   │   └── task_spec.py
-│   ├── db/                        # Supabase PostgreSQL Persistence & RLS
-│   │   ├── models.py              # Experiment, Architecture, Scorecard & Trace records
-│   │   ├── repository.py          # Repository interfaces & InMemory fallback
-│   │   └── supabase.py            # Supabase client with RLS user isolation
-│   ├── diagnostics/               # 12-Category Failure Taxonomy Engine
-│   │   ├── analyzer.py
-│   │   └── taxonomy.py
-│   ├── engine/                    # DAG Execution Engine & Node Runners
-│   │   ├── generator.py
-│   │   ├── models.py
-│   │   ├── node_runner.py
-│   │   ├── runtime.py
-│   │   └── state.py
-│   ├── evaluators/                # 4-Axis Scorecard & Comparison
-│   │   ├── comparison.py          # Tournament & Held-Out Validation Gates
-│   │   └── scorecard.py           # Multi-axis scorecard evaluator
-│   ├── llm/                       # TensorMux Live Inference Client
-│   │   └── tensormux.py           # GLM-4.7-Flash reasoning capture & cost calculation
-│   ├── mutation/                  # Architectural Mutation Operators
-│   │   ├── engine.py
-│   │   ├── generator.py
-│   │   ├── validator.py
-│   │   └── mutators/              # Prompt, Tool, Verifier, Topology & Retry mutators
-│   ├── observability/             # Neatlogs Distributed Telemetry
-│   │   └── tracer.py              # 5-tier hierarchical tracer & deep links
-│   ├── optimization/              # Closed-Loop Optimization Controller
-│   │   └── controller.py
-│   └── tools/                     # Tool Registry & Execution Sandboxes
-│       ├── executor.py
-│       └── registry.py
-├── frontend/                      # Interactive Engineering Console (Vite + React 19)
-│   ├── src/
-│   │   ├── components/            # Stage components, Epistemic Ledger, Neatlogs Card
-│   │   ├── lib/                   # Data types & mock domain presets
-│   │   ├── __tests__/             # Vitest frontend unit & integration tests
-│   │   ├── App.tsx                # 5-Stage console navigator
-│   │   └── main.tsx
-│   ├── dist/                      # Compiled production SPA assets
-│   ├── package.json
-│   └── vite.config.ts
-├── tests/                         # Comprehensive Pytest Backend Suite (145 tests)
-├── render.yaml                    # Single-Service Render Deployment Spec
-├── pyproject.toml                 # Python Package & Dependencies Configuration
-└── README.md                      # Production Documentation Page
+├── reco/                        # Core autonomous agent engineering engine
+│   ├── api/                     # FastAPI REST API, schemas, and payment routes
+│   │   └── app.py               # Unified 1,146+ line API with dual aliases & SPA static mount
+│   ├── benchmarks/              # Multi-domain suites (Reconciliation, Anomaly, Research)
+│   ├── billing/                 # Dodo Payments service, entitlements & HMAC webhooks
+│   ├── core/                    # GoalAnalyzer, TaskSpecification, domain interfaces
+│   ├── db/                      # Supabase PostgreSQL adapter & InMemory fallback
+│   ├── diagnostics/             # FailureAnalyzer & 12-category diagnostic taxonomy
+│   ├── engine/                  # ArchitectureGenerator & AgentGraphRuntime (DAG engine)
+│   ├── evaluators/              # Multi-dimensional Scorecard & PromotionAssessment
+│   ├── llm/                     # TensorMux gateway & structured tool-calling adapter
+│   ├── mutation/                # MutationEngine & multi-candidate hypothesis generators
+│   ├── observability/           # Neatlogs hierarchical distributed tracing
+│   └── tools/                   # Generic ToolRegistry & domain-specific tool packs
+├── frontend/                    # Vite + React 19 + TypeScript visual console
+│   ├── src/components/          # UI components (DAG visualizer, Modals, TasteSkill UI)
+│   ├── src/services/            # API client layer
+│   ├── src/lib/                 # Data types, domain presets, tool schemas
+│   └── dist/                    # Compiled production SPA bundle
+├── supabase/
+│   └── migrations/              # PostgreSQL schemas (001 initial, 002 billing)
+├── tests/                       # Deterministic pytest suite (571 tests)
+├── docs/                        # Deep technical specifications & architectural references
+├── scratch/                     # Canonical evidence artifacts & experiment provenance
+├── scripts/                     # Standalone verification and experiment scripts
+├── requirements.txt             # Python dependencies
+└── README.md                    # System documentation
 ```
 
 ---
 
-## 9. License
+## 17. Limitations
 
-This project is developed for Track 1 (Automated Agent Engineering) and is licensed under the MIT License.
+1. **Domain Boundedness**: Reco currently includes verified benchmark suites for three domains (Reconciliation, Anomaly Detection, Research Comparison). It does not claim universal zero-shot generalization across unmodeled tasks without tools.
+2. **LLM Non-Determinism**: Real LLM provider responses can vary slightly across invocations; Reco mitigates this via strict tool argument typing, bounded retries, and held-out validation gating.
+3. **Tradeoffs in Evolutionary Optimization**: When mutation candidates improve cost or primary metrics but induce edge-case regressions, Reco issues a `REVIEW` decision rather than falsely promoting the candidate.
+4. **Cloud Persistence Dependency**: Supabase and Dodo features require active internet connectivity; offline environments automatically utilize local in-memory fallback stores.
 
+---
+
+## 18. Hackathon Metadata
+
+- **Track**: **Track 1 — Automated Agent Engineering**
+- **Repository**: [https://github.com/toufiqfarhan0/reco](https://github.com/toufiqfarhan0/reco)
+- **Active Model**: `glm-4-7-flash` on TensorMux
+- **Observability**: Neatlogs Distributed Tracing
+- **Persistence**: Supabase Cloud PostgreSQL & Auth
+- **Billing**: Dodo Payments (`pdt_0Nmvzbo4wJETkRyCMAEPt`)
+
+---
+
+## 19. License
+
+This project is licensed under the MIT License.

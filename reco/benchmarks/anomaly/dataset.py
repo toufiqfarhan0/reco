@@ -1,279 +1,200 @@
-"""Multi-case benchmark dataset for System Anomaly Detection.
+"""Deterministic synthetic benchmark cases for Dataset Anomaly Detection (Domain B)."""
 
-Strictly split into 6 optimization cases and 4 held-out cases with zero cross-split leakage.
-Covers:
-- Metric time-series analysis (Z-score surge and trends)
-- Threshold alerts (warning and critical breaches)
-- Root-cause diagnosis (log error bursts and cascade isolation)
-- Multi-metric correlation and system health checks
-"""
+from typing import List, Optional
+from reco.benchmarks.anomaly.models import AnomalyCase, AnomalyGroundTruth
 
-from __future__ import annotations
-
-from typing import List
-from reco.benchmarks.base import BenchmarkCase, BenchmarkSplit, BenchmarkSuite
+BENCHMARK_NAME = "anomaly_detection"
+BENCHMARK_VERSION = "anomaly_detection-v1"
 
 
-def create_anomaly_benchmark_cases() -> List[BenchmarkCase]:
-    """Instantiate the 10 canonical benchmark test cases for system anomaly detection."""
-    cases: List[BenchmarkCase] = []
-
-    # =========================================================================
-    # OPTIMIZATION SPLIT (6 Cases)
-    # =========================================================================
-
-    # 1. Single Metric Sudden Spike (Time Series)
-    cases.append(BenchmarkCase(
-        case_id="anom_opt_001_cpu_spike",
-        name="CPU Metric Time-Series Spike",
-        description="CPU utilization time series experiencing an isolated spike exceeding statistical Z-score threshold.",
-        category="metric_time_series",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "values": [22.0, 24.0, 23.5, 25.0, 24.2, 98.5, 23.8, 24.5, 25.2, 23.9],
-            "threshold": 2.5
-        },
-        expected_output={
-            "status": "anomaly_detected",
-            "has_anomaly": True,
-            "anomaly_count": 1,
-            "anomaly_indices": [5]
-        },
-        metadata={"difficulty": "easy", "domain": "system_anomaly", "split_target": "optimization"}
-    ))
-
-    # 2. Critical Threshold Breach (System Health)
-    cases.append(BenchmarkCase(
-        case_id="anom_opt_002_memory_threshold_critical",
-        name="Memory Utilization Critical Threshold Breach",
-        description="Multi-metric server resource monitoring where memory crosses the critical 90% alert boundary.",
-        category="threshold_alerts",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "metrics": {"cpu_percent": 45.2, "memory_percent": 94.5, "disk_percent": 62.0},
-            "thresholds": {
-                "cpu_percent": {"warning": 80.0, "critical": 90.0},
-                "memory_percent": {"warning": 85.0, "critical": 90.0},
-                "disk_percent": {"warning": 80.0, "critical": 90.0}
-            }
-        },
-        expected_output={
-            "status": "critical",
-            "is_healthy": False,
-            "critical_count": 1,
-            "warning_count": 0,
-            "breach_count": 1
-        },
-        metadata={"difficulty": "easy", "domain": "system_anomaly", "split_target": "optimization"}
-    ))
-
-    # 3. Database Timeout Log Burst (Root Cause Diagnosis)
-    cases.append(BenchmarkCase(
-        case_id="anom_opt_003_database_timeout_log_burst",
-        name="Database Timeout Log Error Burst",
-        description="Log stream analysis isolating connection pool exhaustion and DatabaseConnectionTimeout root cause.",
-        category="root_cause_diagnosis",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "logs": [
-                "2026-04-01 10:00:01 [INFO] [web-gateway] Handled GET /api/v1/orders in 45ms",
-                "2026-04-01 10:00:03 [ERROR] [order-service] DatabaseConnectionTimeout: query failed after 30000ms",
-                "2026-04-01 10:00:04 [ERROR] [order-service] DatabaseConnectionTimeout: unable to acquire connection pool slot",
-                "2026-04-01 10:00:05 [CRITICAL] [order-service] DatabaseConnectionTimeout: pool exhausted, failing requests",
-                "2026-04-01 10:00:06 [WARN] [web-gateway] Upstream returned 504 Gateway Timeout"
+def get_optimization_cases() -> List[AnomalyCase]:
+    """Return the 5 canonical optimization cases for Domain B."""
+    return [
+        # 1. ANOM-OPT-01: Obvious numerical outlier
+        AnomalyCase(
+            case_code="ANOM-OPT-01",
+            name="Severe Numerical Temperature Outlier",
+            description="Industrial temperature monitoring dataset with one extreme sensor value (950°C vs 22-25°C normal).",
+            split="optimization",
+            dataset=[
+                {"id": "rec_01", "timestamp": "2026-03-01T08:00:00", "temperature": 22.4, "pressure": 101.3, "status": "normal"},
+                {"id": "rec_02", "timestamp": "2026-03-01T08:05:00", "temperature": 23.1, "pressure": 101.5, "status": "normal"},
+                {"id": "rec_03", "timestamp": "2026-03-01T08:10:00", "temperature": 950.0, "pressure": 101.4, "status": "normal"},  # ANOMALY
+                {"id": "rec_04", "timestamp": "2026-03-01T08:15:00", "temperature": 22.8, "pressure": 101.2, "status": "normal"},
+                {"id": "rec_05", "timestamp": "2026-03-01T08:20:00", "temperature": 23.5, "pressure": 101.6, "status": "normal"},
             ],
-            "min_level": "WARN"
-        },
-        expected_output={
-            "status": "errors_detected",
-            "error_count": 2,
-            "critical_count": 1,
-            "warning_count": 1,
-            "root_cause_candidate": "DatabaseConnectionTimeout"
-        },
-        metadata={"difficulty": "medium", "domain": "system_anomaly", "split_target": "optimization"}
-    ))
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=["rec_03"],
+                expected_types={"rec_03": "numerical_outlier"},
+                required_explanations=["temperature", "950", "outlier"],
+            ),
+            difficulty="easy",
+        ),
 
-    # 4. Healthy Baseline Normal Operations
-    cases.append(BenchmarkCase(
-        case_id="anom_opt_004_healthy_baseline_metrics",
-        name="Healthy Baseline Normal Operations",
-        description="System operating safely within all threshold boundaries with zero error events.",
-        category="threshold_alerts",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "metrics": {"cpu_percent": 35.0, "memory_percent": 52.0, "disk_percent": 41.0},
-            "thresholds": {
-                "cpu_percent": {"warning": 80.0, "critical": 90.0},
-                "memory_percent": {"warning": 80.0, "critical": 90.0},
-                "disk_percent": {"warning": 80.0, "critical": 90.0}
-            }
-        },
-        expected_output={
-            "status": "healthy",
-            "is_healthy": True,
-            "critical_count": 0,
-            "warning_count": 0,
-            "breach_count": 0
-        },
-        metadata={"difficulty": "easy", "domain": "system_anomaly", "split_target": "optimization"}
-    ))
-
-    # 5. Correlated Multi-Metric Degradation
-    cases.append(BenchmarkCase(
-        case_id="anom_opt_005_multi_metric_correlation",
-        name="Correlated Multi-Metric Degradation",
-        description="Concurrent latency surge and error rate spikes indicating system saturation.",
-        category="multi_metric_correlation",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "metrics": {"cpu_percent": 88.0, "latency_ms": 520.0, "error_rate": 0.08},
-            "thresholds": {
-                "cpu_percent": {"warning": 80.0, "critical": 95.0},
-                "latency_ms": {"warning": 200.0, "critical": 500.0},
-                "error_rate": {"warning": 0.02, "critical": 0.05}
-            }
-        },
-        expected_output={
-            "status": "critical",
-            "is_healthy": False,
-            "critical_count": 2,
-            "warning_count": 1,
-            "breach_count": 3
-        },
-        metadata={"difficulty": "hard", "domain": "system_anomaly", "split_target": "optimization"}
-    ))
-
-    # 6. Multi-Service OutOfMemory Cascade
-    cases.append(BenchmarkCase(
-        case_id="anom_opt_006_distributed_log_exceptions",
-        name="Multi-Service OutOfMemory Cascade",
-        description="Auth service memory exhaustion triggering authentication failures across dependent services.",
-        category="root_cause_diagnosis",
-        split=BenchmarkSplit.OPTIMIZATION,
-        input_data={
-            "logs": [
-                "2026-04-01 11:15:00 [ERROR] [auth-service] OutOfMemoryError: Java heap space",
-                "2026-04-01 11:15:02 [ERROR] [auth-service] OutOfMemoryError: GC overhead limit exceeded",
-                "2026-04-01 11:15:05 [WARN] [gateway] Auth token verification degraded"
-            ]
-        },
-        expected_output={
-            "status": "errors_detected",
-            "error_count": 2,
-            "critical_count": 0,
-            "warning_count": 1,
-            "root_cause_candidate": "OutOfMemoryError"
-        },
-        metadata={"difficulty": "medium", "domain": "system_anomaly", "split_target": "optimization"}
-    ))
-
-    # =========================================================================
-    # HELD-OUT SPLIT (4 Cases)
-    # =========================================================================
-
-    # 7. Held-Out Univariate Z-Score Anomaly
-    cases.append(BenchmarkCase(
-        case_id="anom_held_001_univariate_zscore_boundary",
-        name="Held-Out Univariate Z-Score Anomaly",
-        description="Air-gapped verification of time-series outlier isolation on index 8.",
-        category="metric_time_series",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "values": [10.0, 10.5, 9.8, 10.2, 10.1, 9.9, 10.3, 10.0, 42.0, 10.2],
-            "threshold": 2.5
-        },
-        expected_output={
-            "status": "anomaly_detected",
-            "has_anomaly": True,
-            "anomaly_count": 1,
-            "anomaly_indices": [8]
-        },
-        metadata={"difficulty": "medium", "domain": "system_anomaly", "split_target": "held-out"}
-    ))
-
-    # 8. Held-Out Dual Critical Threshold Alerts
-    cases.append(BenchmarkCase(
-        case_id="anom_held_002_dual_critical_breaches",
-        name="Held-Out Dual Critical Threshold Alerts",
-        description="Air-gapped verification of compound low-disk and high-connection critical threshold alerts.",
-        category="threshold_alerts",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "metrics": {"disk_free_gb": 2.0, "connection_count": 1500.0},
-            "thresholds": {
-                "disk_free_gb": {"critical": 5.0, "operator": "<="},
-                "connection_count": {"critical": 1000.0, "operator": ">="}
-            }
-        },
-        expected_output={
-            "status": "critical",
-            "is_healthy": False,
-            "critical_count": 2,
-            "breach_count": 2
-        },
-        metadata={"difficulty": "medium", "domain": "system_anomaly", "split_target": "held-out"}
-    ))
-
-    # 9. Held-Out Payment Failure Root-Cause Analysis
-    cases.append(BenchmarkCase(
-        case_id="anom_held_003_payment_gateway_502_cascade",
-        name="Held-Out Payment Failure Root-Cause Analysis",
-        description="Air-gapped verification identifying ConnectionTimeout as the root cause candidate.",
-        category="root_cause_diagnosis",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "logs": [
-                "2026-04-02 14:00:10 [ERROR] [payment-processor] ConnectionTimeout: SSL handshake to banking provider failed",
-                "2026-04-02 14:00:12 [ERROR] [payment-processor] ConnectionTimeout: read timed out",
-                "2026-04-02 14:00:15 [ERROR] [payment-processor] ConnectionTimeout: connection refused on port 443"
+        # 2. ANOM-OPT-02: Temporal anomaly (midnight activity spike)
+        AnomalyCase(
+            case_code="ANOM-OPT-02",
+            name="Off-Hours Authentication Timestamp Spike",
+            description="Office building access log where access occurs at 03:15 AM on Sunday outside approved hours.",
+            split="optimization",
+            dataset=[
+                {"id": "rec_11", "timestamp": "2026-03-02T09:02:14", "user_id": "usr_402", "hour": 9, "day": "Monday", "bytes_transferred": 1200},
+                {"id": "rec_12", "timestamp": "2026-03-02T11:15:00", "user_id": "usr_105", "hour": 11, "day": "Monday", "bytes_transferred": 3400},
+                {"id": "rec_13", "timestamp": "2026-03-02T14:30:22", "user_id": "usr_882", "hour": 14, "day": "Monday", "bytes_transferred": 2100},
+                {"id": "rec_14", "timestamp": "2026-03-01T03:15:44", "user_id": "usr_009", "hour": 3, "day": "Sunday", "bytes_transferred": 98000},  # ANOMALY
+                {"id": "rec_15", "timestamp": "2026-03-02T16:45:10", "user_id": "usr_201", "hour": 16, "day": "Monday", "bytes_transferred": 1850},
             ],
-            "min_level": "ERROR"
-        },
-        expected_output={
-            "status": "errors_detected",
-            "error_count": 3,
-            "root_cause_candidate": "ConnectionTimeout"
-        },
-        metadata={"difficulty": "medium", "domain": "system_anomaly", "split_target": "held-out"}
-    ))
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=["rec_14"],
+                expected_types={"rec_14": "temporal_anomaly"},
+                required_explanations=["off-hours", "sunday", "3:15", "bytes_transferred"],
+            ),
+            difficulty="medium",
+        ),
 
-    # 10. Held-Out Clean Multi-Service Health Audit
-    cases.append(BenchmarkCase(
-        case_id="anom_held_004_all_clear_audit",
-        name="Held-Out Multi-Service Clean Health Check",
-        description="Air-gapped verification proving zero false-positive alerts on balanced workload telemetry.",
-        category="threshold_alerts",
-        split=BenchmarkSplit.HELD_OUT,
-        input_data={
-            "metrics": {"cpu_percent": 18.5, "memory_percent": 42.1, "io_wait": 0.4},
-            "thresholds": {
-                "cpu_percent": {"warning": 75.0, "critical": 90.0},
-                "memory_percent": {"warning": 75.0, "critical": 90.0},
-                "io_wait": {"warning": 5.0, "critical": 10.0}
-            }
-        },
-        expected_output={
-            "status": "healthy",
-            "is_healthy": True,
-            "critical_count": 0,
-            "warning_count": 0,
-            "breach_count": 0
-        },
-        metadata={"difficulty": "easy", "domain": "system_anomaly", "split_target": "held-out"}
-    ))
+        # 3. ANOM-OPT-03: Categorical anomaly
+        AnomalyCase(
+            case_code="ANOM-OPT-03",
+            name="Unauthorized Categorical Protocol Code",
+            description="Network request dataset where one record contains an unlisted, malicious protocol enum.",
+            split="optimization",
+            dataset=[
+                {"id": "rec_21", "service": "auth", "protocol": "HTTPS", "port": 443, "latency": 15},
+                {"id": "rec_22", "service": "api", "protocol": "HTTPS", "port": 443, "latency": 22},
+                {"id": "rec_23", "service": "db", "protocol": "TCP", "port": 5432, "latency": 8},
+                {"id": "rec_24", "service": "cache", "protocol": "TCP", "port": 6379, "latency": 3},
+                {"id": "rec_25", "service": "gateway", "protocol": "MALFORMED_EXFIL_PAYLOAD", "port": 9999, "latency": 540},  # ANOMALY
+            ],
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=["rec_25"],
+                expected_types={"rec_25": "categorical_anomaly"},
+                required_explanations=["protocol", "MALFORMED_EXFIL_PAYLOAD", "port 9999"],
+            ),
+            difficulty="easy",
+        ),
 
-    return cases
+        # 4. ANOM-OPT-04: Mixed normal records + single subtle anomaly
+        AnomalyCase(
+            case_code="ANOM-OPT-04",
+            name="Mixed Financial Transaction Drift",
+            description="Transaction amounts with mean $50.00 and std $5.00, containing one subtle anomaly at $245.00.",
+            split="optimization",
+            dataset=[
+                {"id": "rec_31", "amount": 48.50, "merchant": "Store A", "currency": "USD"},
+                {"id": "rec_32", "amount": 52.10, "merchant": "Store B", "currency": "USD"},
+                {"id": "rec_33", "amount": 49.90, "merchant": "Store A", "currency": "USD"},
+                {"id": "rec_34", "amount": 245.00, "merchant": "Store C", "currency": "USD"},  # ANOMALY (Z ~ 3.9)
+                {"id": "rec_35", "amount": 51.00, "merchant": "Store B", "currency": "USD"},
+                {"id": "rec_36", "amount": 47.80, "merchant": "Store A", "currency": "USD"},
+            ],
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=["rec_34"],
+                expected_types={"rec_34": "numerical_outlier"},
+                required_explanations=["amount", "245", "z-score"],
+            ),
+            difficulty="medium",
+        ),
+
+        # 5. ANOM-OPT-05: High-variance legitimate edge case (V0 Failure Case)
+        # Without distribution tolerance or statistical IQR check, naive V0 treats this as an anomaly,
+        # but it is within the 99th percentile of valid business payroll and should NOT be flagged as an anomaly!
+        AnomalyCase(
+            case_code="ANOM-OPT-05",
+            name="Legitimate High-Variance Payroll Edge Case",
+            description="Quarterly executive bonus payroll batch where $15,000 is legitimate and expected.",
+            split="optimization",
+            dataset=[
+                {"id": "rec_41", "employee_type": "engineer", "payout": 4500.0, "is_executive": False},
+                {"id": "rec_42", "employee_type": "manager", "payout": 6200.0, "is_executive": False},
+                {"id": "rec_43", "employee_type": "executive", "payout": 15000.0, "is_executive": True},  # LEGITIMATE EDGE CASE (NOT AN ANOMALY)
+                {"id": "rec_44", "employee_type": "designer", "payout": 4200.0, "is_executive": False},
+                {"id": "rec_45", "employee_type": "support", "payout": 3800.0, "is_executive": False},
+            ],
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=[],  # Completely clean: NO anomaly!
+                allow_empty=True,
+                expected_types={},
+                required_explanations=["executive", "bonus", "legitimate", "normal"],
+            ),
+            difficulty="hard",
+            metadata={"intended_v0_failure": "false_positive_on_extreme_value"},
+        ),
+    ]
 
 
-def get_anomaly_benchmark_suite() -> BenchmarkSuite:
-    """Build and validate the standard 10-case system anomaly benchmark suite."""
-    cases = create_anomaly_benchmark_cases()
-    suite = BenchmarkSuite(
-        name="system_anomaly_benchmark_v1",
-        description="Standard 10-case system anomaly detection benchmark partitioned 6/4 (opt/held-out).",
-        cases=cases
-    )
-    # Strictly validate partition isolation
-    suite.validate_partition_isolation()
-    return suite
+def get_held_out_cases() -> List[AnomalyCase]:
+    """Return the 3 isolated held-out cases for Domain B regression protection."""
+    return [
+        # 1. ANOM-HLD-01: Multi-field correlated anomaly
+        AnomalyCase(
+            case_code="ANOM-HLD-01",
+            name="Correlated CPU and Memory Leak Anomaly",
+            description="Server metrics where CPU is low but memory usage reaches 99.8% with constant thread spawn.",
+            split="held_out",
+            dataset=[
+                {"id": "hld_01", "cpu_pct": 15.2, "mem_pct": 32.0, "threads": 45},
+                {"id": "hld_02", "cpu_pct": 18.0, "mem_pct": 34.5, "threads": 48},
+                {"id": "hld_03", "cpu_pct": 14.8, "mem_pct": 99.8, "threads": 2500},  # ANOMALY
+                {"id": "hld_04", "cpu_pct": 16.5, "mem_pct": 33.1, "threads": 44},
+            ],
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=["hld_03"],
+                expected_types={"hld_03": "correlated_resource_leak"},
+                required_explanations=["mem_pct", "threads", "memory leak"],
+            ),
+            difficulty="medium",
+        ),
+
+        # 2. ANOM-HLD-02: Clean normal dataset (zero anomalies)
+        AnomalyCase(
+            case_code="ANOM-HLD-02",
+            name="Clean Sensor Stream",
+            description="Completely uniform baseline dataset without any anomalies.",
+            split="held_out",
+            dataset=[
+                {"id": "hld_11", "vibration": 0.021, "rpm": 1800, "status": "OK"},
+                {"id": "hld_12", "vibration": 0.024, "rpm": 1805, "status": "OK"},
+                {"id": "hld_13", "vibration": 0.022, "rpm": 1798, "status": "OK"},
+                {"id": "hld_14", "vibration": 0.023, "rpm": 1802, "status": "OK"},
+            ],
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=[],
+                allow_empty=True,
+                expected_types={},
+                required_explanations=["clean", "normal", "no anomalies"],
+            ),
+            difficulty="medium",
+        ),
+
+        # 3. ANOM-HLD-03: Categorical rarity anomaly
+        AnomalyCase(
+            case_code="ANOM-HLD-03",
+            name="Rogue Geo Location Access",
+            description="User logins where one login originates from an unauthorized geopolitical region.",
+            split="held_out",
+            dataset=[
+                {"id": "hld_21", "user": "alice", "country": "US", "success": True},
+                {"id": "hld_22", "user": "bob", "country": "US", "success": True},
+                {"id": "hld_23", "user": "carol", "country": "US", "success": True},
+                {"id": "hld_24", "user": "dan", "country": "XX_SANCTIONED_ZONE", "success": True},  # ANOMALY
+                {"id": "hld_25", "user": "erin", "country": "US", "success": True},
+            ],
+            ground_truth=AnomalyGroundTruth(
+                expected_anomaly_ids=["hld_24"],
+                expected_types={"hld_24": "categorical_anomaly"},
+                required_explanations=["country", "XX_SANCTIONED_ZONE"],
+            ),
+            difficulty="easy",
+        ),
+    ]
+
+
+def load_cases(split: Optional[str] = None) -> List[AnomalyCase]:
+    """Load cases for Domain B according to designated split."""
+    if split == "optimization":
+        return get_optimization_cases()
+    elif split == "held_out":
+        return get_held_out_cases()
+    elif split in (None, "full"):
+        return get_optimization_cases() + get_held_out_cases()
+    raise ValueError(f"Unknown split '{split}' for Anomaly Detection benchmark.")

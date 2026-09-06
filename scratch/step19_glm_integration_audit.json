@@ -1,0 +1,60 @@
+{
+  "provider": "tensormux",
+  "model": "glm-4-7-flash",
+  "tests": {
+    "part1_configuration": "PASSED",
+    "part2_basic_call": {
+      "status": "PASSED",
+      "latency_ms": 2415,
+      "tokens_prompt": 11,
+      "tokens_completion": 160,
+      "cost_usd": 0.000337
+    },
+    "part3_structured_output": "PASSED",
+    "part4_native_tool_calling": {
+      "status": "PASSED",
+      "duration_ms": 7757,
+      "model_calls": 2,
+      "tool_calls": 1
+    },
+    "part5_multi_round_bounds": "PASSED",
+    "part6_tool_message_serialization": "PASSED",
+    "part7_8_tool_extraction": "PASSED",
+    "part9_execution_modes": "PASSED",
+    "part10_full_path": {
+      "status": "PASSED",
+      "latency_ms": 12816,
+      "tokens_input": 2172,
+      "tokens_output": 1083,
+      "cost_usd": 0.005424,
+      "node_order": [
+        "parse_statement",
+        "query_ledger",
+        "fuzzy_match",
+        "verify_summary"
+      ]
+    },
+    "part11_prompt_mutation": "PASSED",
+    "part12_tool_mutation": "PASSED",
+    "part13_model_config_mutation": "PASSED",
+    "part14_context_mutation": "PASSED",
+    "part15_16_reasoning_handling": "PASSED",
+    "part17_18_cost_latency": "PASSED",
+    "part19_20_errors_retries": "PASSED",
+    "part21_neatlogs": "PASSED",
+    "part22_23_demo_isolation": "PASSED"
+  },
+  "issues_found": [
+    "ModelMessage.tool_calls was typed as Optional[List[Dict[str, Any]]], rejecting strongly-typed ToolCall instances with ValidationError",
+    "TensorMuxGateway message serialization only checked isinstance(tc, dict), omitting ToolCall instances",
+    "fuzzy_match_transactions threw KeyError when transaction records used 'id' rather than 'transaction_id' or 'entry_id'",
+    "GLM-4.7-Flash reasoning tokens consume small token budgets (<300 tokens), causing finish_reason 'length' with empty content if max_tokens is set too low"
+  ],
+  "fixes_applied": [
+    "Updated ModelMessage.tool_calls to Optional[List[Union[ToolCall, Dict[str, Any]]]] in reco/core/interfaces.py",
+    "Added ToolCall serialization branch in TensorMuxGateway.generate in reco/llm/tensormux.py",
+    "Updated fuzzy_match_transactions to check b.get('transaction_id') or b.get('id') and l.get('entry_id') or l.get('id')",
+    "Documented 1000 max_tokens safety threshold in docs/RECO_GLM_INTEGRATION.md and ensured adequate headroom across runtime requests"
+  ],
+  "summary": "All 23 core integration checks passed cleanly across 17 deterministic unit tests and full real-provider execution paths."
+}

@@ -1,31 +1,19 @@
-"""Data models, request/response structures, and exceptions for Dodo Payments Monetization (Track 1)."""
+"""Domain models for billing, subscriptions, entitlements, and usage limits (Step 27)."""
 
-from __future__ import annotations
-
-from datetime import datetime, timezone
 from enum import Enum
-import os
-from typing import Any, Dict, List, Optional
-import uuid
-from pydantic import BaseModel, ConfigDict, Field
-
-# Constants & Default Pricing
-DEFAULT_PRO_PRODUCT_ID = "pdt_0Nmvzbo4wJETkRyCMAEPt"
-DEFAULT_PRO_PRICE_CENTS = 900  # $9.00 / month
-DEFAULT_PRO_PRICE_USD = 9.00
-DEFAULT_PRO_PRODUCT_NAME = "Reco Pro"
-DEFAULT_PRO_CURRENCY = "USD"
+from typing import Optional
+from pydantic import BaseModel, Field
 
 
-class SubscriptionTier(str, Enum):
-    """User entitlement tiers."""
-    FREE = "free"
-    PRO = "pro"
+class PlanTier(str, Enum):
+    """Available Reco subscription tiers."""
+    FREE = "FREE"
+    PRO = "PRO"
 
 
 class SubscriptionStatus(str, Enum):
-    """Lifecycle statuses for subscriptions and entitlements."""
-    NONE = "none"
+    """Normalized subscription lifecycle status."""
+    FREE = "free"
     PENDING = "pending"
     ACTIVE = "active"
     ON_HOLD = "on_hold"
@@ -34,103 +22,49 @@ class SubscriptionStatus(str, Enum):
     FAILED = "failed"
 
 
-# ==============================================================================
-# Domain Exceptions
-# ==============================================================================
-
-class BillingError(Exception):
-    """Base exception for billing and monetization failures."""
-
-
-class WebhookVerificationError(BillingError):
-    """Raised when HMAC signature verification fails (forged, missing, or expired)."""
+class UsageLimits(BaseModel):
+    """Configuration-driven usage limits per subscription tier."""
+    max_optimization_runs: int = Field(..., description="Max optimization jobs allowed")
+    max_candidates: int = Field(..., description="Max candidate architectures per generation")
+    max_generations: int = Field(..., description="Max evolutionary hill-climbing generations allowed")
 
 
-class PaymentGatewayError(BillingError):
-    """Raised when external payment provider (Dodo Payments) times out or errors."""
+# Default limit policies
+FREE_LIMITS = UsageLimits(
+    max_optimization_runs=3,
+    max_candidates=2,
+    max_generations=1,
+)
 
-
-class EntitlementGatingError(BillingError):
-    """Raised when a non-Pro user attempts to access a Pro-gated feature."""
-
-
-# ==============================================================================
-# Request / Response Models
-# ==============================================================================
-
-class CheckoutRequest(BaseModel):
-    """Request payload to initiate a hosted Dodo Payments Checkout Session."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    email: str = Field(default="usr_demo@reco.ai", description="Customer billing email address")
-    return_url: str = Field(default="https://app.reco.ai/console", description="URL to redirect user after payment completion")
-    product_id: str = Field(
-        default_factory=lambda: os.getenv("DODO_PAYMENTS_PRODUCT_ID") or os.getenv("DODO_PRO_PRODUCT_ID") or DEFAULT_PRO_PRODUCT_ID,
-        description="Target Dodo Payments product ID (defaults to Reco Pro)"
-    )
-    quantity: int = Field(default=1, ge=1, description="Product quantity")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Custom metadata tags")
-
-
-class CheckoutResponse(BaseModel):
-    """Response returned upon generating a Dodo Checkout Session."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    session_id: str = Field(description="Dodo Checkout Session ID")
-    checkout_url: str = Field(description="Hosted checkout redirect URL")
-    product_id: str = Field(description="Purchased product ID")
-    user_id: str = Field(description="Target user ID")
-    status: str = Field(default="pending", description="Session state")
-
-
-class PortalRequest(BaseModel):
-    """Request payload to initiate a hosted Customer Portal session."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    user_id: Optional[str] = Field(default=None, description="User UUID to resolve customer ID")
-    customer_id: Optional[str] = Field(default=None, description="Direct Dodo customer ID (cus_xxx)")
-    return_url: Optional[str] = Field(default=None, description="URL to return to from portal")
-
-
-class PortalResponse(BaseModel):
-    """Response returned upon creating a Customer Portal session."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    portal_url: str = Field(description="Authenticated Customer Portal URL")
-    customer_id: str = Field(description="Target customer ID")
-
-
-class WebhookResult(BaseModel):
-    """Result of processing an incoming Dodo Payments webhook."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    status: str = Field(default="ok", description="'ok' or 'ignored'")
-    event_type: str = Field(description="Incoming event type (e.g. payment.succeeded)")
-    event_id: Optional[str] = Field(default=None, description="Dodo webhook delivery ID")
-    user_id: Optional[str] = Field(default=None, description="Affected user UUID")
-    entitlement_updated: bool = Field(default=False, description="Whether database record was updated")
-    message: Optional[str] = Field(default=None, description="Outcome description or detail")
+PRO_LIMITS = UsageLimits(
+    max_optimization_runs=100,
+    max_candidates=5,
+    max_generations=5,
+)
 
 
 class UserEntitlement(BaseModel):
-    """Persisted record representing a user's subscription entitlement state."""
+    """Stable internal representation of a user's entitlement and limits."""
+    user_id: str
+    plan: PlanTier = PlanTier.FREE
+    status: SubscriptionStatus = SubscriptionStatus.FREE
+    limits: UsageLimits = Field(default_factory=lambda: FREE_LIMITS)
+    is_fallback: bool = Field(default=False, description="True if derived via fallback due to gateway/DB error")
+    dodo_customer_id: Optional[str] = None
+    dodo_subscription_id: Optional[str] = None
+    product_id: Optional[str] = None
+    current_period_end: Optional[str] = None
 
-    model_config = ConfigDict(extra="ignore")
 
-    user_id: str = Field(description="GoTrue authenticated user UUID")
-    tier: str = Field(default=SubscriptionTier.FREE.value, description="Subscription tier ('free' or 'pro')")
-    status: str = Field(default=SubscriptionStatus.NONE.value, description="Lifecycle status")
-    is_pro: bool = Field(default=False, description="Computed flag indicating active Pro entitlement")
-    customer_id: Optional[str] = Field(default=None, description="Associated Dodo customer ID (cus_xxx)")
-    subscription_id: Optional[str] = Field(default=None, description="Associated Dodo subscription ID (sub_xxx)")
-    payment_id: Optional[str] = Field(default=None, description="Last successful payment ID (pay_xxx)")
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    expires_at: Optional[str] = Field(default=None, description="Expiration ISO timestamp if cancelled")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary subscription metadata")
+class CheckoutResponse(BaseModel):
+    """Response returned when a Dodo hosted checkout session is generated."""
+    checkout_url: str
+    session_id: str
+
+
+class WebhookProcessResponse(BaseModel):
+    """Response returned after webhook event processing."""
+    status: str
+    event_type: Optional[str] = None
+    webhook_id: Optional[str] = None
+    detail: Optional[str] = None

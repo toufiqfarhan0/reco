@@ -14,14 +14,14 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
   const [activeTab, setActiveTab] = useState<"prompt" | "config">("prompt");
 
   return (
-    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-4">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
             <FileDiff className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-tight text-zinc-950">
+            <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
               Prompt & Configuration Mutation Inspector
             </h3>
             <p className="text-xs text-zinc-500">
@@ -30,14 +30,14 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs font-mono">
+        <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 text-xs font-mono">
           <button
             type="button"
             onClick={() => setActiveTab("prompt")}
-            className={`rounded-md px-3 py-1 font-medium transition cursor-pointer ${
+            className={`rounded-lg px-3 py-1 font-medium transition cursor-pointer ${
               activeTab === "prompt"
-                ? "bg-white text-zinc-950 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-950"
+                ? "bg-white text-zinc-900 shadow-xs border border-zinc-200/80 font-semibold"
+                : "text-zinc-600 hover:text-zinc-900"
             }`}
           >
             Prompt Diff
@@ -45,10 +45,10 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("config")}
-            className={`rounded-md px-3 py-1 font-medium transition cursor-pointer ${
+            className={`rounded-lg px-3 py-1 font-medium transition cursor-pointer ${
               activeTab === "config"
-                ? "bg-white text-zinc-950 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-950"
+                ? "bg-white text-zinc-900 shadow-xs border border-zinc-200/80 font-semibold"
+                : "text-zinc-600 hover:text-zinc-900"
             }`}
           >
             Config Diff

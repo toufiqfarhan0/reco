@@ -107,8 +107,8 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
     switch (status) {
       case "running":
         return (
-          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-mono font-medium text-blue-700 border border-blue-200">
-            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-blue-500" />
+          <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-mono font-medium text-indigo-700 border border-indigo-200">
+            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-indigo-500" />
             RUNNING
           </span>
         );
@@ -128,7 +128,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
         );
       default:
         return (
-          <span className="rounded-full bg-[#f4f4f3] px-2 py-0.5 text-[10px] font-mono text-[#8a8a88] border border-[#e4e4e3]">
+          <span className="rounded-xl bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-500 border border-zinc-200">
             PENDING
           </span>
         );
@@ -136,18 +136,18 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-4">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
             <Cpu className="h-4 w-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold tracking-tight text-zinc-950">
+              <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
                 DAG Execution Progress & Topological Traversal
               </h3>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
+              <span className="rounded-xl bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
                 {architecture.nodes.length} Steps
               </span>
             </div>
@@ -158,7 +158,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-1.5 font-mono text-xs text-zinc-900">
+          <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 font-mono text-xs text-zinc-900">
             <Clock className="h-3.5 w-3.5 text-zinc-400" />
             <span>{totalElapsedMs.toFixed(1)} ms</span>
           </div>
@@ -167,7 +167,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
             type="button"
             onClick={handleStartRun}
             disabled={isRunning}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
           >
             <Play className="h-3.5 w-3.5" />
             <span>{isRunning ? "Executing..." : "Execute DAG"}</span>
@@ -176,7 +176,7 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
           <button
             type="button"
             onClick={handleResetRun}
-            className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950 cursor-pointer shadow-2xs"
+            className="rounded-xl border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900 cursor-pointer shadow-xs"
             title="Reset DAG Execution"
             aria-label="Reset DAG Execution"
           >
@@ -194,9 +194,9 @@ export const RunProgressTracker: React.FC<RunProgressTrackerProps> = ({
               key={node.id}
               className={`relative flex flex-col justify-between rounded-xl border p-3.5 transition-all ${
                 isCurrent
-                  ? "border-zinc-950 bg-white shadow-xs ring-1 ring-zinc-950"
+                  ? "border-indigo-600 bg-white shadow-xs ring-1 ring-indigo-600"
                   : node.status === "completed"
-                  ? "border-zinc-200/90 bg-white shadow-2xs"
+                  ? "border-zinc-200 bg-white shadow-xs"
                   : "border-zinc-200/60 bg-zinc-50/50 opacity-75"
               }`}
             >

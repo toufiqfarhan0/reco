@@ -1,415 +1,291 @@
-"""Multi-Candidate Pool Generator for Autonomous Agent Engineering (Track 1).
+"""CandidateGenerator synthesizes targeted MutationCandidate objects from diagnoses and failure clusters."""
 
-Synthesizes competing architectural candidate variants per optimization cycle:
-- Candidate A (Prompt Specialist): Targeted prompt refinement with edge-case instructions and few-shot formatting hints.
-- Candidate B (Verifier Specialist): Injects verification and schema-conformance guardrails.
-- Candidate C (Topology / Tool Specialist): Restructures graph topology or assigns specialized analytical tools.
+from typing import Any, Dict, List, Optional, Set, Union
+from uuid import UUID, uuid4
 
-All candidates are strictly validated with CandidateValidator to eliminate hallucinated tools and broken DAGs.
-"""
-
-from __future__ import annotations
-
-import copy
-import uuid
-from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field
-
-from reco.diagnostics.taxonomy import DiagnosticReport, FailureCategory, FailureDiagnostic
-from reco.engine.models import AgentArchitecture, EdgeSpec, NodeSpec, NodeType
-from reco.evaluators.scorecard import Scorecard
-from reco.mutation.mutators.prompt_mutator import PromptMutator
-from reco.mutation.mutators.tool_mutator import ToolAssignmentMutator
-from reco.mutation.mutators.topology_mutator import TopologyMutator
-from reco.mutation.mutators.verifier_mutator import VerifierNodeMutator
-from reco.mutation.validator import CandidateDiff, CandidateValidator, ValidationResult
+from reco.core.task_spec import TaskSpecification
+from reco.db.models import AgentVersionRecord
+from reco.diagnostics.models import FailureCluster, RecommendedMutation, RootCauseDiagnosis
+from reco.diagnostics.taxonomy import MutationType
+from reco.engine.models import GraphDefinition
+from reco.logging import get_logger
+from reco.mutation.models import MutationCandidate
 from reco.tools.registry import ToolRegistry
 
+logger = get_logger("mutation.generator")
 
-class CandidateVariant(BaseModel):
-    """A competing candidate architecture synthesized for tournament exploration."""
-
-    id: str = Field(description="Candidate identifier in tournament ('A', 'B', or 'C')")
-    name: str = Field(description="Descriptive candidate architecture name")
-    specialist_type: str = Field(description="Specialist role: 'prompt', 'verifier', or 'topology_tool'")
-    tag: str = Field(default="", description="Generation or category badge label")
-    generation: int = Field(default=1, description="Evolution generation number")
-    description: str = Field(default="", description="Summary of architectural mutations applied")
-    architecture: AgentArchitecture = Field(description="The validated mutated DAG architecture")
-    applied_mutators: List[str] = Field(default_factory=list, description="Mutators executed")
-    targeted_node: str = Field(default="", description="Primary target node modified")
-    diff: Optional[CandidateDiff] = Field(default=None, description="Architectural diff against baseline")
-    validation_result: Optional[ValidationResult] = Field(default=None, description="Structural validation report")
-    scorecard: Optional[Scorecard] = Field(default=None, description="4-axis evaluated scorecard")
-    win_rate: float = Field(default=0.0, description="Tournament win rate percentage (0.0 to 100.0)")
-    status: str = Field(
-        default="candidate",
-        description="Candidate tournament status: 'candidate', 'pareto_dominant', 'verified_champion', or 'rejected'"
-    )
-    prompt_diff: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Side-by-side prompt modification delta (original vs mutated)"
-    )
-    config_diff: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Side-by-side configuration delta (original vs mutated)"
-    )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert CandidateVariant to dictionary structure matching the frontend UI model."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "tag": self.tag,
-            "generation": self.generation,
-            "description": self.description,
-            "scorecard": self.scorecard.model_dump() if self.scorecard else None,
-            "mutator_applied": ", ".join(self.applied_mutators) or "None",
-            "targeted_node": self.targeted_node,
-            "prompt_diff": self.prompt_diff or {"original": "", "mutated": ""},
-            "config_diff": self.config_diff or {"original": "", "mutated": ""},
-            "win_rate": round(self.win_rate, 1),
-            "status": self.status,
-        }
+DEFAULT_MAX_CANDIDATES = 3
 
 
-class CandidatePool(BaseModel):
-    """Collection of competing candidate variants for tournament evaluation."""
+class CandidateGenerator:
+    """Generates a bounded set of targeted mutation candidates guided by prioritized failure clusters."""
 
-    baseline_id: str = Field(description="ID of baseline parent architecture")
-    candidates: List[CandidateVariant] = Field(default_factory=list, description="Pool of competing candidate variants")
-
-    def get_candidate(self, candidate_id: str) -> Optional[CandidateVariant]:
-        """Lookup candidate by tournament ID ('A', 'B', 'C')."""
-        for cand in self.candidates:
-            if cand.id.upper() == candidate_id.upper():
-                return cand
-        return None
-
-    def __len__(self) -> int:
-        return len(self.candidates)
-
-    def __iter__(self):
-        return iter(self.candidates)
-
-    def __getitem__(self, idx: int) -> CandidateVariant:
-        return self.candidates[idx]
-
-    def to_markdown(self) -> str:
-        """Render a markdown summary table of the candidate pool."""
-        lines = [
-            f"### Multi-Candidate Exploration Pool (Parent: `{self.baseline_id}`)",
-            "",
-            "| ID | Specialist Role | Mutators Applied | Targeted Node | Description | Valid |",
-            "| :- | :--- | :--- | :--- | :--- | :-: |",
-        ]
-        for c in self.candidates:
-            is_valid = "Yes" if (c.validation_result and c.validation_result.is_valid) else "No"
-            muts = ", ".join(c.applied_mutators) or "None"
-            lines.append(
-                f"| **{c.id}** | {c.specialist_type.title()} | `{muts}` | `{c.targeted_node}` | {c.description} | {is_valid} |"
-            )
-        lines.append("")
-        return "\n".join(lines)
-
-
-class CandidatePoolGenerator:
-    """Synthesizes diverse, competing candidate variants from failure diagnostics."""
-
-    def __init__(
-        self,
-        tool_registry: Optional[ToolRegistry] = None,
-        validator: Optional[CandidateValidator] = None,
-        prompt_mutator: Optional[PromptMutator] = None,
-        verifier_mutator: Optional[VerifierNodeMutator] = None,
-        tool_mutator: Optional[ToolAssignmentMutator] = None,
-        topology_mutator: Optional[TopologyMutator] = None,
-    ):
-        self.tool_registry = tool_registry or ToolRegistry.create_reconciliation_default()
-        self.validator = validator or CandidateValidator(tool_registry=self.tool_registry)
-        self.prompt_mutator = prompt_mutator or PromptMutator(tool_registry=self.tool_registry)
-        self.verifier_mutator = verifier_mutator or VerifierNodeMutator(tool_registry=self.tool_registry)
-        self.tool_mutator = tool_mutator or ToolAssignmentMutator(tool_registry=self.tool_registry)
-        self.topology_mutator = topology_mutator or TopologyMutator(tool_registry=self.tool_registry)
-
-    def generate_pool(
-        self,
-        baseline_architecture: AgentArchitecture,
-        diagnostic_report: DiagnosticReport
-    ) -> CandidatePool:
-        """Synthesize 3 competing candidate variants (A, B, C) and validate each against DAG integrity rules.
-
-        Args:
-            baseline_architecture: Parent baseline DAG architecture.
-            diagnostic_report: Diagnostics from optimization split failure analysis.
-
-        Returns:
-            CandidatePool containing validated Candidate A, Candidate B, and Candidate C.
-
-        Raises:
-            ValueError: If any candidate fails structural validation or contains hallucinated tools.
-        """
-        # 1. Synthesize Candidate A (Prompt Specialist)
-        cand_a = self._synthesize_candidate_a(baseline_architecture, diagnostic_report)
-
-        # 2. Synthesize Candidate B (Verifier Specialist)
-        cand_b = self._synthesize_candidate_b(baseline_architecture, diagnostic_report)
-
-        # 3. Synthesize Candidate C (Topology / Tool Specialist)
-        cand_c = self._synthesize_candidate_c(baseline_architecture, diagnostic_report)
-
-        pool = CandidatePool(
-            baseline_id=baseline_architecture.id,
-            candidates=[cand_a, cand_b, cand_c]
-        )
-
-        return pool
+    def __init__(self, tool_registry: Optional[ToolRegistry] = None):
+        self.tool_registry = tool_registry
 
     def generate(
         self,
-        baseline_architecture: AgentArchitecture,
-        diagnostic_report: DiagnosticReport
-    ) -> CandidatePool:
-        """Alias for generate_pool."""
-        return self.generate_pool(baseline_architecture, diagnostic_report)
+        agent_graph: GraphDefinition,
+        diagnoses: List[RootCauseDiagnosis],
+        task_specification: Optional[TaskSpecification] = None,
+        available_tools: Optional[List[Dict[str, Any]]] = None,
+        parent_version_id: Optional[UUID] = None,
+        max_candidates: int = DEFAULT_MAX_CANDIDATES,
+        clusters: Optional[List[FailureCluster]] = None,
+        synthesize_alternatives: bool = False,
+    ) -> List[MutationCandidate]:
+        """Generate up to max_candidates targeted mutation specifications.
 
-    def _synthesize_candidate_a(
-        self,
-        baseline: AgentArchitecture,
-        diagnostic_report: DiagnosticReport
-    ) -> CandidateVariant:
-        """Synthesize Candidate A (Prompt Specialist).
-
-        Targeted prompt refinement with edge-case instructions, schema constraints,
-        and few-shot formatting hints.
+        Priority strategy:
+        1. Explores recommendations from top-priority failure clusters first.
+        2. Validates that targets exist in the graph before proposing a candidate.
+        3. Enforces single-focus mutations for clear attribution.
+        4. Strictly adheres to registered tools (no fabricated tools).
         """
-        arch = copy.deepcopy(baseline)
-        arch.id = f"cand_A_{uuid.uuid4().hex[:6]}"
-        arch.name = f"{baseline.name.split('_V')[0]}_Candidate_A_PromptSpecialist"
-        arch.metadata["specialist_type"] = "prompt"
-        arch.metadata["generation"] = 1
+        candidates: List[MutationCandidate] = []
+        seen_signatures: Set[str] = set()
 
-        # Formulate edge-case and domain constraints from diagnostics
-        constraints = [
-            "Handle casing variations: perform case-insensitive comparison for ID matches.",
-            "Handle whitespace padding: strip leading and trailing whitespace from transaction keys.",
-            "Handle currency formatting: parse currency symbols ($, EUR) and normalize amounts to float.",
-            "Discrepancy isolation: isolate records with mismatched amounts into discrepancy_ids.",
-            "Duplicate identification: flag multiple records sharing identical transaction keys in duplicate_ids.",
-        ]
+        # Build list of valid tools
+        registered_tools: Set[str] = set()
+        if self.tool_registry:
+            registered_tools.update(t.name for t in self.tool_registry.list_tools())
+        if available_tools:
+            for t in available_tools:
+                if isinstance(t, dict) and "name" in t:
+                    registered_tools.add(t["name"])
+                elif hasattr(t, "name"):
+                    registered_tools.add(t.name)
 
-        formatting_rules = {
-            "required_keys": [
-                "matched_ids", "unmatched_source_ids", "unmatched_target_ids",
-                "discrepancy_ids", "duplicate_ids", "matched_count", "status"
-            ],
-            "enforce_strict_keys": True,
-            "edge_case_hints": ["strip_whitespace", "normalize_casing", "parse_currency_symbols"],
-        }
+        # 1. Order recommendations: if clusters provided, walk clusters descending by priority_score
+        recommendation_tuples: List[tuple[RecommendedMutation, List[UUID], float]] = []
 
-        few_shot_hints = [
-            {
-                "input": {"id": "tx1003", "amount": "$1,250.00"},
-                "normalized": {"id": "TX1003", "amount": 1250.0}
-            }
-        ]
+        if clusters:
+            # Sort clusters descending by priority score
+            sorted_clusters = sorted(clusters, key=lambda c: (c.priority_score, c.count), reverse=True)
+            for cl in sorted_clusters:
+                cl_diag_ids = [d.diagnosis_id for d in cl.diagnoses]
+                for rec in cl.recommended_mutations:
+                    recommendation_tuples.append((rec, cl_diag_ids, cl.priority_score))
 
-        # First failure diagnostic if available
-        first_diag = diagnostic_report.failure_diagnostics[0] if diagnostic_report.failure_diagnostics else None
+        # Also incorporate individual high-confidence diagnoses
+        for diag in diagnoses:
+            if diag is None:
+                continue
+            diag_score = diag.confidence * 2.0
+            for rec in diag.recommended_mutations:
+                recommendation_tuples.append((rec, [diag.diagnosis_id], diag_score))
 
-        arch = self.prompt_mutator.mutate(
-            arch,
-            diagnostic=first_diag,
-            constraints=constraints,
-            formatting_rules=formatting_rules,
-            few_shot_examples=few_shot_hints
-        )
+        # Sort combined recommendations by score descending
+        recommendation_tuples.sort(key=lambda t: t[2], reverse=True)
 
-        # Strict validation
-        val_res = self.validator.validate(arch, tool_registry=self.tool_registry)
-        if not val_res.is_valid:
-            raise ValueError(f"Candidate A validation failed: {'; '.join(val_res.errors)}")
+        effective_max = min(max_candidates, DEFAULT_MAX_CANDIDATES)
+        candidate_pool: List[MutationCandidate] = []
+        seen_signatures: Set[str] = set()
 
-        diff = self.validator.generate_diff(baseline, arch)
+        for rec, source_ids, score in recommendation_tuples:
+            target = rec.target
+            # Validate target exists in graph
+            if target != "graph" and target not in agent_graph.nodes:
+                # If target not in graph, check if it can be assigned to the terminal or first node
+                if agent_graph.nodes:
+                    target = list(agent_graph.nodes.keys())[-1]
+                else:
+                    continue
 
-        original_prompt = "reasoning_node -> Standard transaction reconciliation prompt"
-        mutated_prompt = (
-            "reasoning_node -> Enhanced prompt with case-insensitivity, whitespace normalization, "
-            "currency parsing ($1,250.00 -> 1250.0), and strict schema key enforcement."
-        )
+            # Validate tool existence if TOOL_ADD
+            if rec.mutation_type == MutationType.TOOL_ADD:
+                # Extract requested tool name
+                tool_name = rec.metadata.get("tool_name") if hasattr(rec, "metadata") else None
+                if not tool_name:
+                    # Look for tool name mentioned in rationale
+                    for t in registered_tools:
+                        if t.lower() in rec.rationale.lower():
+                            tool_name = t
+                            break
+                if not tool_name:
+                    # Default to calculate_reconciliation_difference or first registered tool
+                    tool_name = "calculate_reconciliation_difference" if "calculate_reconciliation_difference" in registered_tools else None
 
-        return CandidateVariant(
-            id="A",
-            name="Candidate A (Prompt Specialist)",
-            specialist_type="prompt",
-            tag="Gen 1 - Prompt Specialist",
-            generation=1,
-            description="Targeted prompt refinement injecting domain constraints, edge-case normalization rules, and few-shot formatting hints.",
-            architecture=arch,
-            applied_mutators=["PromptMutator"],
-            targeted_node="reasoning_node",
-            diff=diff,
-            validation_result=val_res,
-            prompt_diff={"original": original_prompt, "mutated": mutated_prompt},
-            config_diff={
-                "original": "domain_constraints: []\nschema_enforced: false",
-                "mutated": "+ domain_constraints: [normalize_casing, strip_whitespace, parse_currency]\n+ schema_enforced: true"
-            }
-        )
+                if not tool_name or (registered_tools and tool_name not in registered_tools):
+                    # Skip if tool is unregistered / fabricated
+                    continue
 
-    def _synthesize_candidate_b(
-        self,
-        baseline: AgentArchitecture,
-        diagnostic_report: DiagnosticReport
-    ) -> CandidateVariant:
-        """Synthesize Candidate B (Verifier Specialist).
+            # Build proposed change payload
+            proposed_change: Dict[str, Any] = {}
+            if rec.mutation_type == MutationType.PROMPT_CHANGE:
+                proposed_change = {
+                    "append": rec.rationale,
+                    "target_node": target,
+                }
+            elif rec.mutation_type == MutationType.TOOL_ADD:
+                proposed_change = {
+                    "tool_name": tool_name,
+                    "target_node": target,
+                }
+            elif rec.mutation_type == MutationType.TOOL_REMOVE:
+                node_tools = agent_graph.nodes[target].tools if target in agent_graph.nodes else []
+                tool_to_remove = node_tools[0] if node_tools else None
+                if not tool_to_remove:
+                    continue
+                proposed_change = {"tool_name": tool_to_remove}
+            elif rec.mutation_type == MutationType.TOOL_REORDER:
+                node_tools = agent_graph.nodes[target].tools if target in agent_graph.nodes else []
+                if len(node_tools) < 2:
+                    continue
+                proposed_change = {"tools": list(reversed(node_tools))}
+            elif rec.mutation_type == MutationType.ADD_VERIFIER:
+                proposed_change = {
+                    "node_id": f"{target}_auditor",
+                    "name": "Reconciliation Auditor",
+                    "role": "Auditor",
+                    "system_prompt": f"Audit and verify outputs from '{target}' against business constraints.",
+                }
+            elif rec.mutation_type == MutationType.TOPOLOGY_CHANGE:
+                proposed_change = {
+                    "operation": "insert_node",
+                    "node": {
+                        "node_id": f"{target}_analyzer",
+                        "name": "Discrepancy Analyzer",
+                        "role": "Analyzer",
+                        "system_prompt": "Decompose variances and analyze exception types.",
+                        "tools": [],
+                    },
+                    "inbound_from": [target],
+                }
+            elif rec.mutation_type == MutationType.MODEL_CHANGE:
+                proposed_change = {
+                    "model_config": {"model": "mock-reasoning-v1", "temperature": 0.0}
+                }
+            elif rec.mutation_type == MutationType.RETRY_POLICY_CHANGE:
+                proposed_change = {
+                    "max_retries": 2,
+                    "retryable_errors": ["transient_error", "timeout"],
+                }
+            elif rec.mutation_type == MutationType.CONTEXT_CHANGE:
+                proposed_change = {
+                    "input_mapping": {"discrepancies": "reconciliation_summary"},
+                    "merge": True,
+                }
+            elif rec.mutation_type == MutationType.ROUTING_CHANGE:
+                proposed_change = {
+                    "source": target,
+                    "condition": "has_discrepancy == True",
+                }
+            else:
+                continue
 
-        Injects dedicated verification and schema-conformance guardrails before output.
-        """
-        arch = copy.deepcopy(baseline)
-        arch.id = f"cand_B_{uuid.uuid4().hex[:6]}"
-        arch.name = f"{baseline.name.split('_V')[0]}_Candidate_B_VerifierSpecialist"
-        arch.metadata["specialist_type"] = "verifier"
-        arch.metadata["generation"] = 1
+            sig = f"{rec.mutation_type.value}:{target}:{str(proposed_change)}"
+            if sig in seen_signatures:
+                continue
+            seen_signatures.add(sig)
 
-        first_diag = diagnostic_report.failure_diagnostics[0] if diagnostic_report.failure_diagnostics else None
+            cand = MutationCandidate(
+                candidate_id=uuid4(),
+                mutation_type=rec.mutation_type,
+                target=target,
+                proposed_change=proposed_change,
+                rationale=rec.rationale,
+                source_diagnosis_ids=source_ids,
+                expected_effect=rec.expected_effect,
+                confidence=rec.confidence,
+                risk_level="low",
+                parent_version_id=parent_version_id,
+                metadata={"priority_score": score},
+            )
+            candidate_pool.append(cand)
 
-        # Inject or upgrade dedicated verifier node
-        arch = self.verifier_mutator.mutate(
-            arch,
-            diagnostic=first_diag,
-            node_id="verifier_node",
-            strict_mode=True
-        )
+        # Diverse alternative synthesis if requested or when multiple diagnoses/clusters are present and pool is below effective_max
+        should_synthesize = synthesize_alternatives or (clusters is not None and len(clusters) > 0) or (len(diagnoses) > 1)
+        if should_synthesize and len(candidate_pool) < effective_max and diagnoses and agent_graph.nodes:
+            primary_target = list(agent_graph.nodes.keys())[-1]
+            for nid in agent_graph.nodes:
+                if "match" in nid.lower() or "verif" in nid.lower():
+                    primary_target = nid
+                    break
+            diag_ids = [d.diagnosis_id for d in diagnoses]
+            pool_types = {c.mutation_type for c in candidate_pool}
 
-        # Strengthen verifier node config with schema conformance
-        for node in arch.nodes:
-            if node.type == NodeType.VERIFIER:
-                node.config["assert_reconciliation_integrity"] = True
-                node.config["validate_discrepancy_counts"] = True
-                node.config["enforce_schema"] = True
-                node.config["required_keys"] = [
-                    "matched_ids", "unmatched_source_ids", "unmatched_target_ids",
-                    "discrepancy_ids", "duplicate_ids", "status"
-                ]
-
-        # Strict validation
-        val_res = self.validator.validate(arch, tool_registry=self.tool_registry)
-        if not val_res.is_valid:
-            raise ValueError(f"Candidate B validation failed: {'; '.join(val_res.errors)}")
-
-        diff = self.validator.generate_diff(baseline, arch)
-
-        original_config = "nodes: [input_node, tool_reconcile, reasoning_node, output_node]"
-        mutated_config = (
-            "+ nodes: [input_node, tool_reconcile, reasoning_node, verifier_node, output_node]\n"
-            "+ verifier_node: strict_mode=true, assert_reconciliation_integrity=true, validate_discrepancy_counts=true"
-        )
-
-        return CandidateVariant(
-            id="B",
-            name="Candidate B (Verifier Specialist)",
-            specialist_type="verifier",
-            tag="Gen 1 - Verifier Specialist",
-            generation=1,
-            description="Architectural mutation injecting dedicated verification node and schema-conformance guardrails.",
-            architecture=arch,
-            applied_mutators=["VerifierNodeMutator"],
-            targeted_node="verifier_node",
-            diff=diff,
-            validation_result=val_res,
-            prompt_diff={
-                "original": "Direct output emission without verification",
-                "mutated": "Interposed verifier node asserting discrepancy counts and output schema invariants"
-            },
-            config_diff={"original": original_config, "mutated": mutated_config}
-        )
-
-    def _synthesize_candidate_c(
-        self,
-        baseline: AgentArchitecture,
-        diagnostic_report: DiagnosticReport
-    ) -> CandidateVariant:
-        """Synthesize Candidate C (Topology / Tool Specialist).
-
-        Restructures graph topology and assigns specialized analytical tools
-        (e.g., smart_reconcile for reconciliation, or domain tools).
-        """
-        arch = copy.deepcopy(baseline)
-        arch.id = f"cand_C_{uuid.uuid4().hex[:6]}"
-        arch.name = f"{baseline.name.split('_V')[0]}_Candidate_C_TopologyToolSpecialist"
-        arch.metadata["specialist_type"] = "topology_tool"
-        arch.metadata["generation"] = 1
-
-        applied_mutators = []
-
-        # Determine if baseline has an older tool to upgrade
-        has_exact = any(n.tool_name == "exact_reconcile" for n in arch.nodes if n.type == NodeType.TOOL)
-        domain = arch.task_spec.domain or "financial_reconciliation"
-
-        if has_exact or "reconcil" in domain:
-            # Upgrade exact_reconcile to smart_reconcile
-            if self.tool_registry.has("smart_reconcile"):
-                arch = self.tool_mutator.mutate(
-                    arch,
-                    target_tool="smart_reconcile",
-                    replace_tool="exact_reconcile" if has_exact else None
+            # Alternative 1: Prompt clarification if not already present
+            if MutationType.PROMPT_CHANGE not in pool_types and len(candidate_pool) < effective_max:
+                cand = MutationCandidate(
+                    candidate_id=uuid4(),
+                    mutation_type=MutationType.PROMPT_CHANGE,
+                    target=primary_target,
+                    proposed_change={"append": "Refine verification checks and ensure complete isolation of discrepancies."},
+                    rationale="Exploratory prompt refinement targeting unclassified failures.",
+                    source_diagnosis_ids=diag_ids,
+                    expected_effect="Improves exception discrimination on unclassified discrepancy cases.",
+                    confidence=0.70,
+                    risk_level="low",
+                    parent_version_id=parent_version_id,
+                    metadata={"priority_score": 1.0},
                 )
-                applied_mutators.append("ToolAssignmentMutator")
+                candidate_pool.append(cand)
+                pool_types.add(MutationType.PROMPT_CHANGE)
 
-        elif "anomaly" in domain:
-            # Assign anomaly tools if available
-            if self.tool_registry.has("check_threshold"):
-                arch = self.tool_mutator.mutate(arch, target_tool="check_threshold")
-                applied_mutators.append("ToolAssignmentMutator")
+            # Alternative 2: Add verifier if not already present
+            if MutationType.ADD_VERIFIER not in pool_types and len(candidate_pool) < effective_max:
+                cand = MutationCandidate(
+                    candidate_id=uuid4(),
+                    mutation_type=MutationType.ADD_VERIFIER,
+                    target=primary_target,
+                    proposed_change={
+                        "node_id": f"{primary_target}_auditor",
+                        "name": "Reconciliation Auditor",
+                        "role": "Auditor",
+                        "system_prompt": f"Audit and verify outputs from '{primary_target}' against business constraints.",
+                    },
+                    rationale=f"Add secondary audit verification node to eliminate unverified matches from '{primary_target}'.",
+                    source_diagnosis_ids=diag_ids,
+                    expected_effect="Eliminates false-positive reconciliation matches via independent secondary audit.",
+                    confidence=0.75,
+                    risk_level="low",
+                    parent_version_id=parent_version_id,
+                    metadata={"priority_score": 1.2},
+                )
+                candidate_pool.append(cand)
+                pool_types.add(MutationType.ADD_VERIFIER)
 
-        elif "research" in domain:
-            # Assign research tools if available
-            if self.tool_registry.has("compare_metrics"):
-                arch = self.tool_mutator.mutate(arch, target_tool="compare_metrics")
-                applied_mutators.append("ToolAssignmentMutator")
+            # Alternative 3: Tool enhancement if not already present
+            calc_tool = "calculate_reconciliation_difference"
+            if MutationType.TOOL_ADD not in pool_types and len(candidate_pool) < effective_max and (not registered_tools or calc_tool in registered_tools):
+                cand = MutationCandidate(
+                    candidate_id=uuid4(),
+                    mutation_type=MutationType.TOOL_ADD,
+                    target=primary_target,
+                    proposed_change={
+                        "tool_name": calc_tool,
+                        "target_node": primary_target,
+                    },
+                    rationale=f"Equip '{primary_target}' with arithmetic verification tool to eliminate tolerance discrepancies.",
+                    source_diagnosis_ids=diag_ids,
+                    expected_effect="Allows deterministic mathematical verification of amounts.",
+                    confidence=0.70,
+                    risk_level="low",
+                    parent_version_id=parent_version_id,
+                    metadata={"priority_score": 1.1},
+                )
+                candidate_pool.append(cand)
+                pool_types.add(MutationType.TOOL_ADD)
 
-        else:
-            # Default fallback tool assignment
-            if self.tool_registry.has("smart_reconcile"):
-                arch = self.tool_mutator.mutate(arch, target_tool="smart_reconcile")
-                applied_mutators.append("ToolAssignmentMutator")
+        # Diversity-First Selection:
+        # Pass 1: Select candidates with distinct mutation types
+        selected: List[MutationCandidate] = []
+        selected_types: Set[MutationType] = set()
 
-        # Also optimize routing if needed
-        arch = self.topology_mutator.mutate(arch, branch_type="repair_routing")
-        if "TopologyMutator" not in applied_mutators:
-            applied_mutators.append("TopologyMutator")
+        for cand in candidate_pool:
+            if cand.mutation_type not in selected_types:
+                selected.append(cand)
+                selected_types.add(cand.mutation_type)
+                if len(selected) >= effective_max:
+                    break
 
-        # Strict validation
-        val_res = self.validator.validate(arch, tool_registry=self.tool_registry)
-        if not val_res.is_valid:
-            raise ValueError(f"Candidate C validation failed: {'; '.join(val_res.errors)}")
+        # Pass 2: If slots remain, select remaining highest-scoring candidates
+        if len(selected) < effective_max:
+            for cand in candidate_pool:
+                if cand not in selected:
+                    selected.append(cand)
+                    if len(selected) >= effective_max:
+                        break
 
-        diff = self.validator.generate_diff(baseline, arch)
-
-        targeted_node = "tool_smart_reconcile" if any(n.id == "tool_smart_reconcile" for n in arch.nodes) else "tool_node"
-
-        original_config = "tool: exact_reconcile\nnormalizations: none"
-        mutated_config = (
-            "+ tool: smart_reconcile\n"
-            "+ normalizations: [strip_whitespace, uppercase_casing, currency_symbol_parsing]"
-        )
-
-        return CandidateVariant(
-            id="C",
-            name="Candidate C (Topology & Tool Specialist)",
-            specialist_type="topology_tool",
-            tag="Gen 1 - Tool & Topology Specialist",
-            generation=1,
-            description="Structural mutation upgrading tool assignments to smart_reconcile and optimizing execution topology.",
-            architecture=arch,
-            applied_mutators=applied_mutators,
-            targeted_node=targeted_node,
-            diff=diff,
-            validation_result=val_res,
-            prompt_diff={
-                "original": "tool: exact_reconcile (rigid equality matching)",
-                "mutated": "tool: smart_reconcile (normalizes casing, strips whitespace, parses $ symbols)"
-            },
-            config_diff={"original": original_config, "mutated": mutated_config}
-        )
+        return selected[:effective_max]

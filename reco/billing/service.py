@@ -1,641 +1,325 @@
-"""Dodo Payments Billing Service, Webhook Verification & Reco Pro Entitlement Gating (Track 1).
+"""Billing and monetization service integrating Dodo Payments with Supabase persistence (Step 27)."""
 
-Features:
-- Dodo Payments hosted Checkout Sessions generation (POST /billing/checkout).
-- Product tier: "Reco Pro" subscription ($9.00/month, $900 cents/mo).
-- Hosted Customer Portal session generation (POST /billing/portal).
-- Authentic HMAC webhook verification using standardwebhooks.Webhook(secret) (POST /billing/webhook).
-- Anti-replay freshness check & 400 Bad Request rejection on forged/missing signature headers.
-- Multi-event ingestion: payment.succeeded, subscription.active, subscription.cancelled, subscription.renewed.
-- Strict Decoupling: Payment gateway timeout or network drops NEVER block core agent DAG synthesis or local benchmarks.
-"""
-
-from __future__ import annotations
-
-from datetime import datetime, timezone
 import json
-import logging
-import os
-import threading
-from typing import Any, Dict, Optional, Tuple, Union
-import uuid
+from typing import Any, Dict, Mapping, Optional
+from reco.config import Settings, get_settings
+from reco.db.supabase_adapter import SupabasePersistenceService, default_supabase_service
+from reco.logging import get_logger
+from reco.billing.models import (
+    FREE_LIMITS,
+    PRO_LIMITS,
+    PlanTier,
+    SubscriptionStatus,
+    UserEntitlement,
+)
 
-import httpx
-from pydantic import ValidationError
-
-try:
-    import standardwebhooks
-    STANDARD_WEBHOOKS_AVAILABLE = True
-except ImportError:
-    STANDARD_WEBHOOKS_AVAILABLE = False
-    standardwebhooks = None  # type: ignore
+logger = get_logger("billing.service")
 
 try:
     from dodopayments import DodoPayments
-    DODO_SDK_AVAILABLE = True
 except ImportError:
-    DODO_SDK_AVAILABLE = False
     DodoPayments = None  # type: ignore
-
-from reco.billing.models import (
-    DEFAULT_PRO_CURRENCY,
-    DEFAULT_PRO_PRICE_CENTS,
-    DEFAULT_PRO_PRICE_USD,
-    DEFAULT_PRO_PRODUCT_ID,
-    DEFAULT_PRO_PRODUCT_NAME,
-    BillingError,
-    CheckoutRequest,
-    CheckoutResponse,
-    EntitlementGatingError,
-    PaymentGatewayError,
-    PortalRequest,
-    PortalResponse,
-    SubscriptionStatus,
-    SubscriptionTier,
-    WebhookResult,
-    WebhookVerificationError,
-)
-from reco.db.models import UserEntitlementRecord
-from reco.db.repository import ExperimentRepository, InMemoryRepository
-from reco.db.supabase import get_repository
-
-logger = logging.getLogger(__name__)
-
-# Known placeholder substrings in sample config files
-PLACEHOLDER_SUBSTRINGS = (
-    "your_dodo_api_key_here",
-    "whsec_your_dodo_webhook_secret_here",
-    "your_api_key_here",
-    "<your-",
-)
-
-
-def _is_placeholder_credential(val: Optional[str]) -> bool:
-    """Return True if credential is empty, unset, or an unconfigured placeholder."""
-    if not val or not val.strip():
-        return True
-    return any(p in val.lower() for p in PLACEHOLDER_SUBSTRINGS)
 
 
 class BillingService:
-    """Enterprise monetization and entitlement service integrated with Dodo Payments."""
+    """Core billing service providing entitlement gating, checkout sessions, and webhook handling."""
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
-        environment: str = "test_mode",
-        pro_product_id: Optional[str] = None,
-        repository: Optional[ExperimentRepository] = None,
-        client: Optional[Any] = None,
-        http_client: Optional[httpx.Client] = None,
-        base_url: Optional[str] = None,
+        settings: Optional[Settings] = None,
+        supabase_service: Optional[SupabasePersistenceService] = None,
     ):
-        """Initialize the Dodo Payments billing service.
+        self.settings = settings or get_settings()
+        self.supabase = supabase_service or default_supabase_service
+        self._dodo_client = None
+        self._local_subscriptions: Dict[str, Dict[str, Any]] = {}
+        self._local_webhook_events: set = set()
 
-        Args:
-            api_key: Dodo Payments API key (defaults to DODO_PAYMENTS_API_KEY env).
-            webhook_secret: Dodo Payments webhook signing secret (defaults to DODO_WEBHOOK_SECRET
-                            or DODO_PAYMENTS_WEBHOOK_KEY env).
-            environment: "test_mode" or "live_mode" (defaults to test_mode for safety).
-            pro_product_id: Dodo product ID for Reco Pro tier (defaults to DODO_PRO_PRODUCT_ID or 'pdt_reco_pro').
-            repository: Multi-tenant database repository for user entitlement persistence.
-            client: Injected DodoPayments client (e.g. for testing with mock transport).
-            http_client: Custom httpx.Client passed to DodoPayments SDK.
-            base_url: Custom base URL override (e.g. for testing).
-        """
-        self.api_key = api_key or os.getenv("DODO_PAYMENTS_API_KEY")
-        self.webhook_secret = (
-            webhook_secret
-            or os.getenv("DODO_WEBHOOK_SECRET")
-            or os.getenv("DODO_PAYMENTS_WEBHOOK_KEY")
+    def get_dodo_client(self) -> Optional[DodoPayments]:
+        """Return initialized DodoPayments client or None if unconfigured."""
+        if self._dodo_client is not None:
+            return self._dodo_client
+
+        if not DodoPayments:
+            logger.warning("dodopayments package not installed.")
+            return None
+
+        if not self.settings.dodo_api_key:
+            logger.warning("DODO_PAYMENTS_API_KEY is not configured.")
+            return None
+
+        env = "test_mode" if "test" in (self.settings.dodo_environment or "").lower() else "live_mode"
+        self._dodo_client = DodoPayments(
+            bearer_token=self.settings.dodo_api_key,
+            environment=env,
+            webhook_key=self.settings.dodo_webhook_secret or None,
         )
-        self.environment = environment or os.getenv("DODO_PAYMENTS_ENVIRONMENT", "test_mode")
-        self.pro_product_id = pro_product_id or os.getenv("DODO_PAYMENTS_PRODUCT_ID") or os.getenv("DODO_PRO_PRODUCT_ID") or DEFAULT_PRO_PRODUCT_ID
-        self.repository = repository or get_repository()
-        self.base_url = base_url
+        return self._dodo_client
 
-        # In-memory lock & idempotency cache for webhooks
-        self._lock = threading.RLock()
-        self._processed_webhook_ids: set[str] = set()
+    def get_user_entitlement(
+        self, user_id: str, token: Optional[str] = None
+    ) -> UserEntitlement:
+        """Derive authoritative user entitlement and limits from Supabase/Dodo state."""
+        if not user_id:
+            return UserEntitlement(
+                user_id="",
+                plan=PlanTier.FREE,
+                status=SubscriptionStatus.FREE,
+                limits=FREE_LIMITS,
+            )
 
-        # Initialize DodoPayments SDK client
-        if client is not None:
-            self.client = client
-        elif self.api_key and not _is_placeholder_credential(self.api_key) and DODO_SDK_AVAILABLE:
-            init_kwargs: Dict[str, Any] = {
-                "bearer_token": self.api_key,
-                "environment": self.environment if self.environment in ("test_mode", "live_mode") else "test_mode",
-            }
-            if self.webhook_secret and not _is_placeholder_credential(self.webhook_secret):
-                init_kwargs["webhook_key"] = self.webhook_secret
-            if http_client is not None:
-                init_kwargs["http_client"] = http_client
-            if base_url is not None:
-                init_kwargs["base_url"] = base_url
-            self.client = DodoPayments(**init_kwargs)
-        else:
-            self.client = None
+        try:
+            # 1. Check local in-memory fallback first (useful for testing and fast hits)
+            sub = self._local_subscriptions.get(user_id)
 
-    # ==========================================================================
-    # 1. Hosted Checkout Sessions (POST /billing/checkout)
-    # ==========================================================================
+            # 2. Query Supabase subscriptions table
+            if not sub and self.supabase:
+                sub = self.supabase.get_user_subscription(user_id, token)
+
+            if sub:
+                status_raw = (sub.get("status") or "free").lower()
+                plan_raw = (sub.get("plan") or "FREE").upper()
+
+                if status_raw == "active" and plan_raw == "PRO":
+                    return UserEntitlement(
+                        user_id=user_id,
+                        plan=PlanTier.PRO,
+                        status=SubscriptionStatus.ACTIVE,
+                        limits=PRO_LIMITS,
+                        dodo_customer_id=sub.get("dodo_customer_id"),
+                        dodo_subscription_id=sub.get("dodo_subscription_id"),
+                        product_id=sub.get("product_id") or self.settings.dodo_product_id,
+                        current_period_end=sub.get("current_period_end"),
+                    )
+                else:
+                    # Inactive, on_hold, cancelled, or expired Pro subscription
+                    norm_status = SubscriptionStatus.FREE
+                    try:
+                        norm_status = SubscriptionStatus(status_raw)
+                    except ValueError:
+                        pass
+
+                    return UserEntitlement(
+                        user_id=user_id,
+                        plan=PlanTier.FREE,
+                        status=norm_status,
+                        limits=FREE_LIMITS,
+                        dodo_customer_id=sub.get("dodo_customer_id"),
+                        dodo_subscription_id=sub.get("dodo_subscription_id"),
+                        product_id=sub.get("product_id"),
+                    )
+
+        except Exception as e:
+            logger.warning(f"Error resolving entitlement for user '{user_id}': {e}. Falling back to FREE.")
+            return UserEntitlement(
+                user_id=user_id,
+                plan=PlanTier.FREE,
+                status=SubscriptionStatus.FREE,
+                limits=FREE_LIMITS,
+                is_fallback=True,
+            )
+
+        # Default fallback for users with no prior billing record
+        return UserEntitlement(
+            user_id=user_id,
+            plan=PlanTier.FREE,
+            status=SubscriptionStatus.FREE,
+            limits=FREE_LIMITS,
+        )
 
     def create_checkout_session(
         self,
-        request: Union[CheckoutRequest, Dict[str, Any]],
-    ) -> CheckoutResponse:
-        """Create a hosted Checkout Session on Dodo Payments for Reco Pro.
+        user_id: str,
+        user_email: str,
+        user_name: Optional[str] = None,
+        return_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a server-side Dodo hosted checkout session tied to authenticated user."""
+        if not user_id or not user_email:
+            raise ValueError("user_id and user_email are required to create a checkout session.")
 
-        Args:
-            request: CheckoutRequest model or dict with {user_id, email, return_url}.
+        client = self.get_dodo_client()
+        if not client:
+            raise RuntimeError("Payment gateway temporarily unavailable (Dodo client not configured).")
 
-        Returns:
-            CheckoutResponse containing redirect checkout_url and session_id.
+        product_id = self.settings.dodo_product_id or "pdt_0Nmvzbo4wJETkRyCMAEPt"
+        fallback_return_url = return_url or "http://localhost:3000/?checkout=success"
 
-        Raises:
-            PaymentGatewayError: If payment gateway times out or encounters network failure.
-            ValueError: If required request parameters are invalid.
-        """
-        if isinstance(request, dict):
-            try:
-                req = CheckoutRequest(**request)
-            except ValidationError as exc:
-                raise ValueError(f"Invalid checkout request payload: {exc}") from exc
-        else:
-            req = request
-
-        # If live/test Dodo SDK client is present
-        if self.client is not None and hasattr(self.client, "checkout_sessions"):
-            try:
-                session = self.client.checkout_sessions.create(
-                    product_cart=[
-                        {
-                            "product_id": req.product_id,
-                            "quantity": req.quantity,
-                        }
-                    ],
-                    customer={
-                        "email": req.email,
-                    },
-                    return_url=req.return_url,
-                    metadata={
-                        "user_id": req.user_id,
-                        **req.metadata,
-                    },
-                )
-                session_id = getattr(session, "session_id", None) or getattr(session, "id", f"cs_{uuid.uuid4().hex[:12]}")
-                checkout_url = getattr(session, "checkout_url", None) or f"https://test.dodopayments.com/checkout/{session_id}"
-
-                return CheckoutResponse(
-                    session_id=str(session_id),
-                    checkout_url=str(checkout_url),
-                    product_id=req.product_id,
-                    user_id=req.user_id,
-                    status="pending",
-                )
-            except Exception as exc:
-                logger.error("Dodo Payments checkout session creation failed: %s", exc)
-                raise PaymentGatewayError(f"Payment gateway error while creating checkout session: {exc}") from exc
-
-        # Graceful fallback for local development or mock mode without live gateway
-        session_id = f"cs_reco_{uuid.uuid4().hex[:16]}"
-        base = "https://test.dodopayments.com" if self.environment == "test_mode" else "https://live.dodopayments.com"
-        checkout_url = f"{base}/checkout/{session_id}?return_url={req.return_url}"
-
-        return CheckoutResponse(
-            session_id=session_id,
-            checkout_url=checkout_url,
-            product_id=req.product_id,
-            user_id=req.user_id,
-            status="pending",
-        )
-
-    # ==========================================================================
-    # 2. Customer Portal Sessions (POST /billing/portal)
-    # ==========================================================================
-
-    def create_portal_session(
-        self,
-        request: Union[PortalRequest, Dict[str, Any]],
-    ) -> PortalResponse:
-        """Create a hosted Customer Portal session for subscription self-management.
-
-        Args:
-            request: PortalRequest model or dict with {user_id} or {customer_id}, and optional return_url.
-
-        Returns:
-            PortalResponse with authenticated portal_url.
-
-        Raises:
-            PaymentGatewayError: If payment gateway times out or encounters network failure.
-            BillingError: If user has no associated customer ID.
-        """
-        if isinstance(request, dict):
-            try:
-                req = PortalRequest(**request)
-            except ValidationError as exc:
-                raise ValueError(f"Invalid portal request payload: {exc}") from exc
-        else:
-            req = request
-
-        customer_id = req.customer_id
-        if not customer_id and req.user_id:
-            entitlement = self.repository.get_user_entitlement(req.user_id)
-            if entitlement and entitlement.customer_id:
-                customer_id = entitlement.customer_id
-            elif req.user_id in ("usr_demo", "demo_user") or req.user_id.startswith("usr_demo"):
-                customer_id = f"cus_demo_{req.user_id}"
-
-        if not customer_id:
-            raise BillingError(
-                f"Cannot create customer portal: No Dodo Payments customer ID found for user '{req.user_id}'."
-            )
-
-        if self.client is not None and hasattr(self.client, "customers") and hasattr(self.client.customers, "customer_portal"):
-            try:
-                portal_kwargs: Dict[str, Any] = {}
-                if req.return_url:
-                    portal_kwargs["return_url"] = req.return_url
-                portal_session = self.client.customers.customer_portal.create(
-                    customer_id,
-                    **portal_kwargs,
-                )
-                portal_url = getattr(portal_session, "link", None) or getattr(portal_session, "portal_url", None)
-                if not portal_url and isinstance(portal_session, dict):
-                    portal_url = portal_session.get("link") or portal_session.get("portal_url")
-
-                return PortalResponse(
-                    portal_url=str(portal_url or f"https://test.dodopayments.com/portal/{customer_id}"),
-                    customer_id=customer_id,
-                )
-            except Exception as exc:
-                logger.error("Dodo Payments customer portal creation failed: %s", exc)
-                raise PaymentGatewayError(f"Payment gateway error while creating portal session: {exc}") from exc
-
-        # Graceful fallback URL
-        base = "https://test.dodopayments.com" if self.environment == "test_mode" else "https://live.dodopayments.com"
-        portal_url = f"{base}/portal/{customer_id}"
-        if req.return_url:
-            portal_url += f"?return_url={req.return_url}"
-
-        return PortalResponse(
-            portal_url=portal_url,
-            customer_id=customer_id,
-        )
-
-    # ==========================================================================
-    # 3. Webhook Ingestion & HMAC Verification (POST /billing/webhook)
-    # ==========================================================================
-
-    def handle_webhook(
-        self,
-        headers: Dict[str, str],
-        payload: Union[str, bytes],
-    ) -> WebhookResult:
-        """Verify HMAC signature via standardwebhooks and process payment/subscription events.
-
-        Args:
-            headers: HTTP request headers containing webhook-id, webhook-signature, webhook-timestamp.
-            payload: Exact raw request body (str or bytes).
-
-        Returns:
-            WebhookResult indicating outcome and entitlement update.
-
-        Raises:
-            WebhookVerificationError: If HMAC signature is missing, forged, or expired.
-        """
-        if not STANDARD_WEBHOOKS_AVAILABLE or standardwebhooks is None:
-            raise WebhookVerificationError(
-                "standardwebhooks package is required for webhook signature verification. "
-                "Install with 'pip install standardwebhooks'."
-            )
-
-        if not self.webhook_secret or _is_placeholder_credential(self.webhook_secret):
-            raise WebhookVerificationError(
-                "Webhook verification failed: Dodo Payments webhook secret (DODO_WEBHOOK_SECRET) is unconfigured."
-            )
-
-        # Normalize headers to lowercase
-        norm_headers = {k.lower(): str(v) for k, v in headers.items()}
-        webhook_id = norm_headers.get("webhook-id")
-        signature = norm_headers.get("webhook-signature")
-        timestamp = norm_headers.get("webhook-timestamp")
-
-        if not webhook_id or not signature or not timestamp:
-            raise WebhookVerificationError(
-                "Missing required webhook headers. Expected 'webhook-id', 'webhook-signature', and 'webhook-timestamp'."
-            )
-
-        # HMAC Verification via standardwebhooks
         try:
-            wh = standardwebhooks.Webhook(self.webhook_secret)
-            body_bytes = payload if isinstance(payload, bytes) else payload.encode("utf-8")
-            verified_payload = wh.verify(body_bytes, norm_headers, json_parse=True)
+            session = client.checkout_sessions.create(
+                product_cart=[{"product_id": product_id, "quantity": 1}],
+                customer={
+                    "email": user_email,
+                    "name": user_name or user_email.split("@")[0],
+                },
+                metadata={"user_id": user_id},
+                return_url=fallback_return_url,
+            )
+            return {
+                "checkout_url": session.checkout_url,
+                "session_id": session.session_id,
+            }
+        except Exception as e:
+            logger.error(f"Failed to create Dodo checkout session: {e}")
+            raise RuntimeError("Payment gateway temporarily unavailable. Please try again later.") from e
+
+    def verify_and_process_webhook(
+        self, raw_body: bytes, headers: Mapping[str, str]
+    ) -> Dict[str, Any]:
+        """Verify cryptographic HMAC signature, ensure idempotency, and update subscription state."""
+        # 1. Normalize headers (case-insensitive)
+        hdr_map = {k.lower(): v for k, v in headers.items()}
+        webhook_id = hdr_map.get("webhook-id")
+        webhook_signature = hdr_map.get("webhook-signature")
+        webhook_timestamp = hdr_map.get("webhook-timestamp")
+
+        if not webhook_id or not webhook_signature or not webhook_timestamp:
+            raise ValueError("Missing required Dodo webhook headers: webhook-id, webhook-signature, webhook-timestamp")
+
+        # 2. Check idempotency: if already processed, return immediately with 200
+        if webhook_id in self._local_webhook_events:
+            return {"status": "already_processed", "webhook_id": webhook_id}
+
+        if self.supabase and self.supabase.is_webhook_processed(webhook_id):
+            self._local_webhook_events.add(webhook_id)
+            return {"status": "already_processed", "webhook_id": webhook_id}
+
+        # 3. Cryptographic signature verification using official SDK / standardwebhooks
+        payload_str = raw_body.decode("utf-8")
+        signing_secret = self.settings.dodo_webhook_secret
+
+        if not signing_secret:
+            raise ValueError("Server Dodo webhook signing secret is not configured.")
+
+        client = self.get_dodo_client()
+        try:
+            if client:
+                client.webhooks.unwrap(
+                    payload_str,
+                    headers={
+                        "webhook-id": webhook_id,
+                        "webhook-signature": webhook_signature,
+                        "webhook-timestamp": webhook_timestamp,
+                    },
+                    key=signing_secret,
+                )
+            else:
+                # Direct standardwebhooks fallback if client is uninitialized
+                from standardwebhooks import Webhook
+                Webhook(signing_secret).verify(
+                    payload_str,
+                    {
+                        "webhook-id": webhook_id,
+                        "webhook-signature": webhook_signature,
+                        "webhook-timestamp": webhook_timestamp,
+                    },
+                )
         except Exception as exc:
-            raise WebhookVerificationError(f"Cryptographic webhook signature verification failed: {exc}") from exc
+            logger.warning(f"Webhook signature verification failed for webhook-id {webhook_id}: {exc}")
+            raise ValueError(f"Invalid webhook signature: {exc}") from exc
 
-        if not isinstance(verified_payload, dict):
-            try:
-                verified_payload = json.loads(payload)
-            except Exception as exc:
-                raise WebhookVerificationError(f"Malformed JSON in webhook body: {exc}") from exc
+        # 4. Parse payload safely
+        try:
+            parsed = json.loads(payload_str)
+        except Exception as e:
+            raise ValueError(f"Malformed JSON payload: {e}") from e
 
-        # Deduplication check for idempotency
-        with self._lock:
-            if webhook_id in self._processed_webhook_ids:
-                logger.info("Ignoring duplicate webhook delivery: %s", webhook_id)
-                return WebhookResult(
-                    status="ok",
-                    event_type=verified_payload.get("type", "unknown"),
-                    event_id=webhook_id,
-                    entitlement_updated=False,
-                    message="Duplicate webhook delivery already processed.",
-                )
+        event_type = parsed.get("type", "")
+        data = parsed.get("data", {})
+        metadata = data.get("metadata") or {}
+        user_id = metadata.get("user_id")
 
-        event_type = verified_payload.get("type", "")
-        data = verified_payload.get("data", {})
+        # Fallback user identification via customer email if metadata is absent
+        customer = data.get("customer") or {}
+        dodo_customer_id = customer.get("customer_id")
+        dodo_sub_id = data.get("subscription_id") or data.get("payment_id")
+        product_id = data.get("product_id") or self.settings.dodo_product_id
 
-        # Resolve user_id from metadata or customer record
-        user_id = (
-            data.get("metadata", {}).get("user_id")
-            or data.get("customer", {}).get("metadata", {}).get("user_id")
-        )
-        customer_id = data.get("customer", {}).get("customer_id") or data.get("customer_id")
-        subscription_id = data.get("subscription_id")
-        payment_id = data.get("payment_id")
+        # 5. Process lifecycle event transitions
+        target_plan = PlanTier.FREE
+        target_status = SubscriptionStatus.FREE
 
-        # If user_id wasn't in metadata, attempt resolution via customer_id lookup
-        if not user_id and customer_id:
-            # Check if any existing entitlement matches this customer_id
-            user_id = self._find_user_by_customer_id(customer_id)
+        if event_type in ("subscription.active", "subscription.renewed", "subscription.updated"):
+            sub_status = (data.get("status") or "active").lower()
+            if sub_status == "active":
+                target_plan = PlanTier.PRO
+                target_status = SubscriptionStatus.ACTIVE
+            elif sub_status in ("on_hold", "past_due"):
+                target_plan = PlanTier.FREE
+                target_status = SubscriptionStatus.ON_HOLD
+            elif sub_status == "cancelled":
+                target_plan = PlanTier.FREE
+                target_status = SubscriptionStatus.CANCELLED
+            elif sub_status in ("expired", "failed"):
+                target_plan = PlanTier.FREE
+                target_status = SubscriptionStatus.EXPIRED
 
-        entitlement_updated = False
-        message = ""
-
-        # Event Dispatcher
-        if event_type == "payment.succeeded":
-            # For one-time purchases or subscription initial invoices
-            if user_id:
-                self._update_user_entitlement(
-                    user_id=user_id,
-                    tier=SubscriptionTier.PRO.value,
-                    status=SubscriptionStatus.ACTIVE.value,
-                    is_pro=True,
-                    customer_id=customer_id,
-                    payment_id=payment_id,
-                    subscription_id=subscription_id,
-                    metadata={"last_payment_event": event_type, "amount": data.get("total_amount")},
-                )
-                entitlement_updated = True
-                message = f"User '{user_id}' upgraded to Reco Pro via payment.succeeded."
-
-        elif event_type == "subscription.active":
-            # Primary event granting subscription access
-            if user_id:
-                self._update_user_entitlement(
-                    user_id=user_id,
-                    tier=SubscriptionTier.PRO.value,
-                    status=SubscriptionStatus.ACTIVE.value,
-                    is_pro=True,
-                    customer_id=customer_id,
-                    subscription_id=subscription_id,
-                    payment_id=payment_id,
-                    metadata={"subscription_product": data.get("product_id")},
-                )
-                entitlement_updated = True
-                message = f"User '{user_id}' activated Reco Pro subscription '{subscription_id}'."
-
-        elif event_type == "subscription.renewed":
-            # Renewal event keeping subscription active
-            if user_id:
-                self._update_user_entitlement(
-                    user_id=user_id,
-                    tier=SubscriptionTier.PRO.value,
-                    status=SubscriptionStatus.ACTIVE.value,
-                    is_pro=True,
-                    customer_id=customer_id,
-                    subscription_id=subscription_id,
-                    metadata={"renewed_at": datetime.now(timezone.utc).isoformat()},
-                )
-                entitlement_updated = True
-                message = f"User '{user_id}' renewed Reco Pro subscription."
+        elif event_type == "payment.succeeded":
+            # Direct payment success for Pro product activates Pro tier
+            target_plan = PlanTier.PRO
+            target_status = SubscriptionStatus.ACTIVE
 
         elif event_type == "subscription.cancelled":
-            # Cancellation event
-            if user_id:
-                cancel_at_next_billing = bool(data.get("cancel_at_next_billing_date", False))
-                next_billing_date = data.get("next_billing_date")
+            target_plan = PlanTier.FREE
+            target_status = SubscriptionStatus.CANCELLED
 
-                if cancel_at_next_billing and next_billing_date:
-                    # Retain Pro access until period end
-                    self._update_user_entitlement(
+        elif event_type in ("subscription.expired", "subscription.failed", "payment.failed"):
+            target_plan = PlanTier.FREE
+            target_status = SubscriptionStatus.EXPIRED if event_type == "subscription.expired" else SubscriptionStatus.FAILED
+
+        elif event_type == "subscription.on_hold":
+            target_plan = PlanTier.FREE
+            target_status = SubscriptionStatus.ON_HOLD
+
+        # 6. Update user's persistent billing state
+        if user_id:
+            # Update local memory
+            sub_record = {
+                "user_id": user_id,
+                "plan": target_plan.value,
+                "status": target_status.value,
+                "product_id": product_id,
+                "dodo_customer_id": dodo_customer_id,
+                "dodo_subscription_id": dodo_sub_id,
+                "current_period_end": data.get("next_billing_date"),
+            }
+            self._local_subscriptions[user_id] = sub_record
+
+            # Persist to Supabase
+            if self.supabase:
+                try:
+                    self.supabase.upsert_subscription(
                         user_id=user_id,
-                        tier=SubscriptionTier.PRO.value,
-                        status=SubscriptionStatus.CANCELLED.value,
-                        is_pro=True,
-                        customer_id=customer_id,
-                        subscription_id=subscription_id,
-                        expires_at=str(next_billing_date),
-                        metadata={"cancel_at_next_billing_date": True},
+                        plan=target_plan.value,
+                        status=target_status.value,
+                        product_id=product_id,
+                        dodo_customer_id=dodo_customer_id,
+                        dodo_subscription_id=dodo_sub_id,
+                        current_period_end=data.get("next_billing_date"),
                     )
-                    message = f"User '{user_id}' scheduled cancellation at {next_billing_date}."
-                else:
-                    # Immediate cancellation
-                    self._update_user_entitlement(
-                        user_id=user_id,
-                        tier=SubscriptionTier.FREE.value,
-                        status=SubscriptionStatus.CANCELLED.value,
-                        is_pro=False,
-                        customer_id=customer_id,
-                        subscription_id=subscription_id,
-                        metadata={"immediate_cancellation": True},
-                    )
-                    message = f"User '{user_id}' cancelled Reco Pro immediately."
-                entitlement_updated = True
+                except Exception as pe:
+                    logger.warning(f"Failed to persist subscription to Supabase: {pe}")
 
-        else:
-            message = f"Acknowledged event type '{event_type}' with no entitlement modifications."
-
-        # Mark webhook as processed for idempotency
-        with self._lock:
-            self._processed_webhook_ids.add(webhook_id)
-
-        return WebhookResult(
-            status="ok",
-            event_type=event_type,
-            event_id=webhook_id,
-            user_id=user_id,
-            entitlement_updated=entitlement_updated,
-            message=message,
-        )
-
-    # ==========================================================================
-    # 4. HTTP Request Dispatcher (POST /billing/checkout, portal, webhook)
-    # ==========================================================================
-
-    def handle_http_request(
-        self,
-        method: str,
-        path: str,
-        headers: Dict[str, str],
-        body: Union[str, bytes],
-    ) -> Tuple[int, Dict[str, Any]]:
-        """Dispatch HTTP requests to appropriate billing handlers.
-
-        Args:
-            method: HTTP method (e.g. 'POST').
-            path: Target URI path (e.g. '/billing/checkout', '/billing/portal', '/billing/webhook').
-            headers: HTTP request headers dictionary.
-            body: Request body (string or raw bytes).
-
-        Returns:
-            Tuple of (status_code: int, response_json: dict).
-        """
-        method_upper = method.upper()
-        clean_path = path.rstrip("/").lower()
-        if not clean_path.startswith("/"):
-            clean_path = "/" + clean_path
-
-        # Route 1: POST /billing/checkout
-        if clean_path in ("/billing/checkout", "/checkout") and method_upper == "POST":
+        # 7. Record idempotency record
+        self._local_webhook_events.add(webhook_id)
+        if self.supabase:
             try:
-                body_dict = json.loads(body) if isinstance(body, (str, bytes)) else dict(body)
-                response = self.create_checkout_session(body_dict)
-                return 200, response.model_dump()
-            except (ValueError, ValidationError) as exc:
-                return 400, {"error": "Invalid request", "detail": str(exc)}
-            except PaymentGatewayError as exc:
-                return 503, {"error": "Payment gateway unavailable", "detail": str(exc)}
-            except Exception as exc:
-                logger.error("Unhandled checkout error: %s", exc)
-                return 500, {"error": "Internal billing error", "detail": str(exc)}
+                self.supabase.record_webhook_event(
+                    webhook_id=webhook_id,
+                    event_type=event_type,
+                    payload={"type": event_type, "user_id": user_id, "status": target_status.value},
+                )
+            except Exception as pe:
+                logger.warning(f"Failed to record webhook event to Supabase: {pe}")
 
-        # Route 2: POST /billing/portal
-        if clean_path in ("/billing/portal", "/portal") and method_upper == "POST":
-            try:
-                body_dict = json.loads(body) if isinstance(body, (str, bytes)) else dict(body)
-                response = self.create_portal_session(body_dict)
-                return 200, response.model_dump()
-            except (ValueError, ValidationError, BillingError) as exc:
-                return 400, {"error": "Bad request", "detail": str(exc)}
-            except PaymentGatewayError as exc:
-                return 503, {"error": "Payment gateway unavailable", "detail": str(exc)}
-            except Exception as exc:
-                logger.error("Unhandled portal error: %s", exc)
-                return 500, {"error": "Internal billing error", "detail": str(exc)}
+        return {
+            "status": "processed",
+            "event_type": event_type,
+            "webhook_id": webhook_id,
+            "user_id": user_id,
+            "plan": target_plan.value,
+        }
 
-        # Route 3: POST /billing/webhook
-        if clean_path in ("/billing/webhook", "/webhook") and method_upper == "POST":
-            try:
-                result = self.handle_webhook(headers=headers, payload=body)
-                return 200, {
-                    "received": True,
-                    "event": result.event_type,
-                    "status": result.status,
-                    "user_id": result.user_id,
-                    "entitlement_updated": result.entitlement_updated,
-                }
-            except WebhookVerificationError as exc:
-                logger.warning("Webhook verification failed: %s", exc)
-                return 400, {"error": "Invalid webhook signature", "detail": str(exc)}
-            except Exception as exc:
-                logger.error("Webhook processing error: %s", exc)
-                return 500, {"error": "Internal error", "detail": str(exc)}
 
-        return 404, {"error": f"Endpoint not found: {method_upper} {path}"}
-
-    # ==========================================================================
-    # 5. Entitlement Gating & Strict Decoupling Guarantees
-    # ==========================================================================
-
-    def get_user_entitlement(self, user_id: str) -> UserEntitlementRecord:
-        """Fetch current user entitlement record from repository, defaulting to Free tier.
-
-        Zero external network requests to Dodo Payments are made.
-        """
-        try:
-            record = self.repository.get_user_entitlement(user_id)
-            if record:
-                return record
-        except Exception as exc:
-            logger.warning("Failed to fetch entitlement for user '%s': %s", user_id, exc)
-
-        # Default fallback is Free tier
-        return UserEntitlementRecord(
-            user_id=user_id,
-            tier=SubscriptionTier.FREE.value,
-            status=SubscriptionStatus.NONE.value,
-            is_pro=False,
-        )
-
-    def is_pro_user(self, user_id: str) -> bool:
-        """Check if a user has an active Reco Pro subscription.
-
-        Strictly Decoupled: NEVER makes remote API calls to Dodo Payments.
-        """
-        entitlement = self.get_user_entitlement(user_id)
-        if not entitlement.is_pro:
-            return False
-
-        # If expires_at is set, verify it hasn't lapsed
-        if entitlement.expires_at:
-            try:
-                exp_dt = datetime.fromisoformat(entitlement.expires_at.replace("Z", "+00:00"))
-                if datetime.now(timezone.utc) > exp_dt:
-                    return False
-            except Exception:
-                pass
-
-        return entitlement.tier == SubscriptionTier.PRO.value
-
-    def require_pro_entitlement(self, user_id: str, feature_name: str = "Reco Pro") -> None:
-        """Guard method raising EntitlementGatingError if the user is not on Reco Pro."""
-        if not self.is_pro_user(user_id):
-            raise EntitlementGatingError(
-                f"Feature '{feature_name}' requires an active Reco Pro subscription ($9.00/month). "
-                f"Upgrade at /billing/checkout."
-            )
-
-    # ==========================================================================
-    # Private Helpers
-    # ==========================================================================
-
-    def _find_user_by_customer_id(self, customer_id: str) -> Optional[str]:
-        """Search repository for user associated with a given Dodo customer ID."""
-        if isinstance(self.repository, InMemoryRepository):
-            for uid, ent in self.repository._entitlements.items():
-                if ent.customer_id == customer_id:
-                    return uid
-        return None
-
-    def _update_user_entitlement(
-        self,
-        user_id: str,
-        tier: str,
-        status: str,
-        is_pro: bool,
-        customer_id: Optional[str] = None,
-        subscription_id: Optional[str] = None,
-        payment_id: Optional[str] = None,
-        expires_at: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> UserEntitlementRecord:
-        """Create or update a UserEntitlementRecord in the database."""
-        now = datetime.now(timezone.utc).isoformat()
-        existing = self.repository.get_user_entitlement(user_id)
-
-        record = UserEntitlementRecord(
-            user_id=user_id,
-            tier=tier,
-            status=status,
-            is_pro=is_pro,
-            customer_id=customer_id or (existing.customer_id if existing else None),
-            subscription_id=subscription_id or (existing.subscription_id if existing else None),
-            payment_id=payment_id or (existing.payment_id if existing else None),
-            created_at=existing.created_at if existing else now,
-            updated_at=now,
-            expires_at=expires_at or (existing.expires_at if existing else None),
-            metadata={**(existing.metadata if existing else {}), **(metadata or {})},
-        )
-        return self.repository.save_user_entitlement(record)
+# Global billing service instance
+default_billing_service = BillingService()

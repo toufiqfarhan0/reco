@@ -1,30 +1,25 @@
-"""Mutation Engine package for autonomous DAG architecture evolution."""
+"""Mutation and Optimization Engine module for Reco."""
 
-from reco.mutation.validator import CandidateValidator, CandidateDiff, ValidationResult
-from reco.mutation.engine import MutationEngine, MutationResult
-from reco.mutation.generator import CandidatePoolGenerator, CandidatePool, CandidateVariant
-from reco.mutation.mutators import (
-    BaseMutator,
-    PromptMutator,
-    VerifierNodeMutator,
-    ToolAssignmentMutator,
-    TopologyMutator,
-    RetryPolicyMutator,
+from reco.mutation.engine import MutationEngine
+from reco.mutation.generator import CandidateGenerator
+from reco.mutation.models import (
+    AgentVersionCandidate,
+    CandidateEvaluationRecord,
+    MutationCandidate,
+    OptimizationConfig,
+    OptimizationGeneration,
+    OptimizationResult,
 )
+from reco.mutation.validation import CandidateValidator
 
 __all__ = [
-    "CandidateValidator",
-    "CandidateDiff",
-    "ValidationResult",
-    "CandidatePoolGenerator",
-    "CandidatePool",
-    "CandidateVariant",
     "MutationEngine",
-    "MutationResult",
-    "BaseMutator",
-    "PromptMutator",
-    "VerifierNodeMutator",
-    "ToolAssignmentMutator",
-    "TopologyMutator",
-    "RetryPolicyMutator",
+    "MutationCandidate",
+    "AgentVersionCandidate",
+    "CandidateEvaluationRecord",
+    "OptimizationConfig",
+    "OptimizationGeneration",
+    "OptimizationResult",
+    "CandidateValidator",
+    "CandidateGenerator",
 ]

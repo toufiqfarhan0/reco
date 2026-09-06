@@ -126,21 +126,21 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
       {/* Hero Stack */}
       <div className="mx-auto w-full max-w-4xl text-center space-y-6">
         {/* Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3.5 py-1 text-xs font-mono font-medium text-zinc-600 shadow-2xs">
+        <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3.5 py-1 text-xs font-mono font-medium text-indigo-700 shadow-xs">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600" />
           </span>
           <span>TRACK 1: AUTOMATED AGENT ENGINEERING • SYNDICATE BY MAXIMOR</span>
         </div>
 
         {/* Headline */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-zinc-950 leading-tight">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-zinc-900 leading-tight">
           Autonomous Agent Engineering System
         </h1>
 
         {/* Subheadline */}
-        <p className="mx-auto max-w-2xl text-base sm:text-lg text-zinc-500 leading-relaxed font-normal">
+        <p className="mx-auto max-w-2xl text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
           From high-level natural language goals to self-improving, Pareto-optimized agent DAGs with closed-loop failure diagnostics, self-reflection memory, and air-gapped held-out verification.
         </p>
 
@@ -149,7 +149,7 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
           <button
             type="button"
             onClick={onLaunchConsole}
-            className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-xs transition-all hover:bg-zinc-800 active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-xs transition-all hover:bg-indigo-700 active:scale-[0.98] cursor-pointer"
           >
             <Terminal className="h-4 w-4" />
             <span>Launch Interactive Console</span>
@@ -159,7 +159,7 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
           <button
             type="button"
             onClick={onExploreLineage}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-950 shadow-2xs transition-all hover:bg-zinc-50 active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-xs transition-all hover:bg-zinc-50 active:scale-[0.98] cursor-pointer"
           >
             <GitBranch className="h-4 w-4 text-zinc-500" />
             <span>Explore Evolution Lineage</span>
@@ -175,11 +175,11 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
               5-Stage Closed-Loop Architecture
             </span>
             <span className="h-1 w-1 rounded-full bg-zinc-300" />
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-zinc-500">
               Select any stage to inspect live artifacts
             </span>
           </div>
-          <span className="font-mono text-xs font-semibold text-zinc-950">
+          <span className="font-mono text-xs font-semibold text-zinc-900">
             Self-Improving DAG Loop
           </span>
         </div>
@@ -197,37 +197,37 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
                     onLaunchConsole();
                   }
                 }}
-                className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200/90 bg-white p-4.5 transition-all hover:-translate-y-0.5 hover:border-zinc-400 hover:shadow-xs cursor-pointer shadow-2xs"
+                className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-4.5 transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-xs cursor-pointer shadow-xs"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200 group-hover:bg-zinc-950 group-hover:text-white transition-colors">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 border border-zinc-200 group-hover:bg-indigo-50 group-hover:text-indigo-700 group-hover:border-indigo-200 transition-colors">
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="font-mono text-xs font-bold text-zinc-400 group-hover:text-zinc-950 transition-colors">
+                    <span className="font-mono text-xs font-bold text-zinc-400 group-hover:text-zinc-900 transition-colors">
                       {stage.num}
                     </span>
                   </div>
 
                   <div className="mt-3.5">
                     <div className="flex items-center gap-1.5">
-                      <h2 className="text-sm font-semibold text-zinc-950">
+                      <h2 className="text-sm font-semibold text-zinc-900">
                         {stage.title}
                       </h2>
-                      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
+                      <span className="rounded-lg bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200 group-hover:bg-indigo-50/60 group-hover:text-indigo-700 group-hover:border-indigo-200 transition-colors">
                         {stage.tag}
                       </span>
                     </div>
                     <p className="mt-1 font-mono text-[11px] text-zinc-500 leading-snug">
                       {stage.subtitle}
                     </p>
-                    <p className="mt-2 text-xs text-zinc-400 leading-relaxed">
+                    <p className="mt-2 text-xs text-zinc-500 leading-relaxed">
                       {stage.summary}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-2.5 text-[11px] text-zinc-400 group-hover:text-zinc-950 transition-colors font-mono font-medium">
+                <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-2.5 text-[11px] text-zinc-400 group-hover:text-indigo-600 transition-colors font-mono font-medium">
                   <span>Enter Stage</span>
                   <ArrowRight className="h-3.5 w-3.5 transform group-hover:translate-x-1 transition-transform" />
                 </div>

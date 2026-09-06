@@ -1,1 +1,1 @@
-"""Test suite for Reco Autonomous Agent Engineering System."""
+"""Reco test suite."""
