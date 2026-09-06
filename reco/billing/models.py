@@ -10,7 +10,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 # Constants & Default Pricing
-DEFAULT_PRO_PRODUCT_ID = "pdt_reco_pro"
+DEFAULT_PRO_PRODUCT_ID = "pdt_0Nmvzbo4wJETkRyCMAEPt"
 DEFAULT_PRO_PRICE_CENTS = 900  # $9.00 / month
 DEFAULT_PRO_PRICE_USD = 9.00
 DEFAULT_PRO_PRODUCT_NAME = "Reco Pro"
@@ -67,7 +67,7 @@ class CheckoutRequest(BaseModel):
     email: str = Field(default="usr_demo@reco.ai", description="Customer billing email address")
     return_url: str = Field(default="https://app.reco.ai/console", description="URL to redirect user after payment completion")
     product_id: str = Field(
-        default_factory=lambda: os.getenv("DODO_PRO_PRODUCT_ID", DEFAULT_PRO_PRODUCT_ID),
+        default_factory=lambda: os.getenv("DODO_PAYMENTS_PRODUCT_ID") or os.getenv("DODO_PRO_PRODUCT_ID") or DEFAULT_PRO_PRODUCT_ID,
         description="Target Dodo Payments product ID (defaults to Reco Pro)"
     )
     quantity: int = Field(default=1, ge=1, description="Product quantity")

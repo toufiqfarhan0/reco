@@ -87,7 +87,6 @@ describe("BillingModal Component", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "usr_demo",
-          product_id: "prod_pro_monthly",
         }),
       });
     });

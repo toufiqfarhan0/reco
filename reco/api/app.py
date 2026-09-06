@@ -74,6 +74,18 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/config")
+async def get_public_config() -> Dict[str, Any]:
+    """Public runtime configuration for frontend client bootstrapping."""
+    return {
+        "dodo_product_id": os.getenv("DODO_PAYMENTS_PRODUCT_ID") or os.getenv("DODO_PRO_PRODUCT_ID") or "pdt_0Nmvzbo4wJETkRyCMAEPt",
+        "supabase_url": os.getenv("SUPABASE_URL", ""),
+        "supabase_anon_key": os.getenv("SUPABASE_ANON_KEY", ""),
+        "tensormux_model": os.getenv("TENSORMUX_MODEL", "glm-4-7-flash"),
+        "neatlogs_available": bool(os.getenv("NEATLOGS_API_KEY")),
+    }
+
+
 # ==============================================================================
 # 2. Billing & Monetization Endpoints (POST /billing/*)
 # ==============================================================================

@@ -83,6 +83,18 @@ def test_health_endpoints(client):
     assert r2.json()["status"] == "ok"
 
 
+def test_get_public_config_endpoint(client):
+    """Verify GET /api/config returns safe public config with default product ID."""
+    resp = client.get("/api/config")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["dodo_product_id"] == "pdt_0Nmvzbo4wJETkRyCMAEPt"
+    assert "supabase_url" in data
+    assert "supabase_anon_key" in data
+    assert "tensormux_model" in data
+    assert "neatlogs_available" in data
+
+
 def test_billing_checkout_endpoint(client):
     """Verify POST /billing/checkout dispatches to BillingService."""
     payload = {

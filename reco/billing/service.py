@@ -111,7 +111,7 @@ class BillingService:
             or os.getenv("DODO_PAYMENTS_WEBHOOK_KEY")
         )
         self.environment = environment or os.getenv("DODO_PAYMENTS_ENVIRONMENT", "test_mode")
-        self.pro_product_id = pro_product_id or os.getenv("DODO_PRO_PRODUCT_ID", DEFAULT_PRO_PRODUCT_ID)
+        self.pro_product_id = pro_product_id or os.getenv("DODO_PAYMENTS_PRODUCT_ID") or os.getenv("DODO_PRO_PRODUCT_ID") or DEFAULT_PRO_PRODUCT_ID
         self.repository = repository or get_repository()
         self.base_url = base_url
 

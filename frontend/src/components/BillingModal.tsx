@@ -23,6 +23,9 @@ export interface BillingModalProps {
   currentTier?: "free" | "pro";
   onTierChange?: (tier: "free" | "pro") => void;
   userId?: string;
+  productId?: string;
+  token?: string;
+  userEmail?: string;
 }
 
 export const BillingModal: React.FC<BillingModalProps> = ({
@@ -31,6 +34,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
   currentTier = "free",
   onTierChange,
   userId = "usr_demo",
+  productId,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"checkout" | "portal" | null>(null);
@@ -54,13 +58,17 @@ export const BillingModal: React.FC<BillingModalProps> = ({
     setSuccessUrl(null);
 
     try {
+      const checkoutBody: Record<string, any> = {
+        user_id: userId,
+      };
+      if (productId) {
+        checkoutBody.product_id = productId;
+      }
+
       const response = await fetch("/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          product_id: "prod_pro_monthly",
-        }),
+        body: JSON.stringify(checkoutBody),
       });
 
       const data = await response.json();

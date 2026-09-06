@@ -14,26 +14,36 @@ import {
   Compass,
   Terminal,
   ArrowLeft,
+  User,
+  LogIn,
+  LogOut,
+  FolderGit2,
 } from "lucide-react";
 import { CloudAuthPill } from "./CloudAuthPill";
 
 export interface HeaderProps {
-  currentStage: StageType;
-  onSelectStage: (stage: StageType) => void;
-  domain: DomainType;
-  onChangeDomain: (d: DomainType) => void;
-  mode: ExecutionMode;
-  onToggleMode: (m: ExecutionMode) => void;
+  currentStage?: StageType;
+  onSelectStage?: (stage: StageType) => void;
+  domain?: DomainType;
+  onChangeDomain?: (d: DomainType) => void;
+  mode?: ExecutionMode | "mock" | "tensormux";
+  onToggleMode?: (m: ExecutionMode) => void;
+  onModeChange?: (m: any) => void;
   isRunning?: boolean;
   viewMode?: "overview" | "console";
   onToggleViewMode?: (mode: "overview" | "console") => void;
   tier?: "free" | "pro";
+  billingPlan?: "FREE" | "PRO";
   onToggleTier?: (tier: "free" | "pro") => void;
   isCloudConnected?: boolean;
   sessionId?: string;
   tokenStatus?: string;
   onOpenBilling?: () => void;
   onGoToLanding?: () => void;
+  user?: any;
+  onOpenAuth?: () => void;
+  onOpenExperiments?: () => void;
+  onSignOut?: () => void;
 }
 
 const STAGES: { id: StageType; label: string; num: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -45,23 +55,36 @@ const STAGES: { id: StageType; label: string; num: string; icon: React.Component
 ];
 
 export const Header: React.FC<HeaderProps> = ({
-  currentStage,
-  onSelectStage,
-  domain,
-  onChangeDomain,
-  mode,
-  onToggleMode,
+  currentStage = "BUILD",
+  onSelectStage = () => {},
+  domain = "financial_reconciliation",
+  onChangeDomain = () => {},
+  mode = "demo",
+  onToggleMode = () => {},
+  onModeChange,
   isRunning = false,
   viewMode = "console",
   onToggleViewMode,
   tier = "free",
+  billingPlan,
   onToggleTier,
   isCloudConnected = true,
   sessionId = "usr_demo_anon_9f82c1",
   tokenStatus = "GoTrue JWT: Valid",
   onOpenBilling,
   onGoToLanding,
+  user,
+  onOpenAuth,
+  onOpenExperiments,
+  onSignOut,
 }) => {
+  const effectiveTier = billingPlan ? (billingPlan === "PRO" ? "pro" : "free") : tier;
+
+  const handleToggleMode = (m: ExecutionMode) => {
+    onToggleMode(m);
+    onModeChange?.(m);
+  };
+
   const handleStageClick = (stageId: StageType) => {
     onSelectStage(stageId);
     if (viewMode === "overview" && onToggleViewMode) {
@@ -175,7 +198,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <button
                 type="button"
-                onClick={() => onToggleMode("demo")}
+                onClick={() => handleToggleMode("demo")}
                 className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-all cursor-pointer ${
                   mode === "demo"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
@@ -189,13 +212,13 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => onToggleMode("live")}
+                onClick={() => handleToggleMode("live")}
                 className={`flex items-center gap-1.5 rounded px-2 py-1 font-medium transition-all cursor-pointer ${
-                  mode === "live"
+                  mode === "live" || mode === "tensormux"
                     ? "bg-white text-emerald-700 shadow-2xs font-semibold"
                     : "text-zinc-500 hover:text-zinc-900"
                 }`}
-                aria-checked={mode === "live"}
+                aria-checked={mode === "live" || mode === "tensormux"}
                 role="radio"
               >
                 <span className="relative flex h-2 w-2">
@@ -212,7 +235,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Supabase Cloud Auth Status */}
             <CloudAuthPill
-              tier={tier}
+              tier={effectiveTier}
               isCloudConnected={isCloudConnected}
               sessionId={sessionId}
               tokenStatus={tokenStatus}
@@ -225,11 +248,61 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenBilling}
-                className="flex items-center gap-1.5 rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
+                className="flex items-center gap-1.5 rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs font-mono"
                 aria-label="Open Dodo Payments Pricing and Billing"
+                data-testid="open-billing-modal-button"
               >
                 <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                <span>{tier === "pro" ? "Manage Pro" : "Upgrade $29/mo"}</span>
+                <span>{effectiveTier === "pro" ? "PRO" : "FREE"}</span>
+                <span className="text-zinc-400 font-normal hidden sm:inline">
+                  {effectiveTier === "pro" ? "($29/mo)" : "($0)"}
+                </span>
+              </button>
+            )}
+
+            {/* Supabase Authentication & User Controls */}
+            {user ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenExperiments}
+                  className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-cyan-700 hover:text-cyan-900 hover:bg-cyan-50/50 hover:border-cyan-300 transition-colors cursor-pointer shadow-2xs"
+                  title="View my persisted experiments"
+                  data-testid="open-my-experiments-button"
+                >
+                  <FolderGit2 className="h-3.5 w-3.5 text-cyan-600" />
+                  <span className="hidden sm:inline font-mono">My Experiments</span>
+                </button>
+
+                <div className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-mono">
+                  <User className="h-3.5 w-3.5 text-cyan-600" />
+                  <span className="text-zinc-800 font-semibold max-w-[120px] truncate" title={user.email || ""}>
+                    {user.user_metadata?.display_name || user.email?.split("@")[0] || "User"}
+                  </span>
+                  {onSignOut && (
+                    <button
+                      type="button"
+                      onClick={onSignOut}
+                      className="p-0.5 text-zinc-400 hover:text-rose-600 rounded transition ml-0.5 cursor-pointer"
+                      title="Sign Out"
+                      aria-label="Sign Out"
+                      data-testid="sign-out-button"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="flex items-center gap-1.5 rounded-md border border-cyan-500/50 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 text-xs font-bold text-cyan-800 transition-colors cursor-pointer shadow-2xs font-mono"
+                data-testid="open-auth-modal-button"
+                aria-label="Sign In to Reco"
+              >
+                <LogIn className="h-3.5 w-3.5 text-cyan-600" />
+                <span>Sign In</span>
               </button>
             )}
           </div>

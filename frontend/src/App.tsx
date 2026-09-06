@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   DomainType,
   ExecutionMode,
@@ -33,6 +33,9 @@ import { FailureExplorer } from "@/components/FailureExplorer";
 import { CandidateComparisonView } from "@/components/CandidateComparisonView";
 import { HeldOutValidationView } from "@/components/HeldOutValidationView";
 import { BillingModal } from "@/components/BillingModal";
+import { AuthModal } from "@/components/AuthModal";
+import { MyExperimentsModal } from "@/components/MyExperimentsModal";
+import { getSession, signOut, onAuthStateChange } from "@/lib/supabaseClient";
 
 export interface AppProps {
   initialViewMode?: "overview" | "console";
@@ -58,6 +61,49 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
   const [tier, setTier] = useState<"free" | "pro">("free");
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isCloudConnected] = useState(true);
+
+  // Supabase Cloud Auth & Session state
+  const [user, setUser] = useState<any>(null);
+  const [token, setToken] = useState<string | undefined>(undefined);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isExperimentsModalOpen, setIsExperimentsModalOpen] = useState(false);
+
+  useEffect(() => {
+    getSession().then(({ session, user }) => {
+      if (user) {
+        setUser(user);
+        setToken(session?.access_token);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      setToken(session?.access_token);
+    });
+
+    return () => {
+      subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+    setUser(null);
+    setToken(undefined);
+  };
+
+  const handleLoadExperiment = (expData: any) => {
+    if (expData.domain) {
+      handleDomainChange(expData.domain as DomainType);
+    }
+    if (expData.v0_scorecard) {
+      setCurrentScorecard(expData.v1_scorecard || expData.v0_scorecard);
+    }
+    setCurrentStage("RUN");
+    setViewMode("console");
+  };
 
   // Active architecture and scorecards
   const [currentDag, setCurrentDag] = useState<DAGArchitecture>(INITIAL_DAG_V0);
@@ -122,6 +168,10 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
             isCloudConnected={isCloudConnected}
             onOpenBilling={() => setIsBillingModalOpen(true)}
             onGoToLanding={() => setPage("landing")}
+            user={user}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenExperiments={() => setIsExperimentsModalOpen(true)}
+            onSignOut={handleSignOut}
           />
 
           {/* Main Container */}
@@ -232,7 +282,25 @@ export default function App({ initialViewMode = "overview", initialPage }: AppPr
             onClose={() => setIsBillingModalOpen(false)}
             currentTier={tier}
             onTierChange={setTier}
-            userId="usr_demo"
+            userId={user?.id || "usr_demo"}
+          />
+
+          {/* Supabase Cloud Auth Modal */}
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            onAuthSuccess={(authedUser, authToken) => {
+              setUser(authedUser);
+              setToken(authToken);
+            }}
+          />
+
+          {/* Supabase Persistent Experiments Repository Modal */}
+          <MyExperimentsModal
+            isOpen={isExperimentsModalOpen}
+            onClose={() => setIsExperimentsModalOpen(false)}
+            token={token}
+            onLoadExperiment={handleLoadExperiment}
           />
         </>
       )}
