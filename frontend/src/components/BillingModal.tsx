@@ -1,21 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
-  Check,
+  Lightning,
   CreditCard,
-  ExternalLink,
-  Sparkles,
+  ArrowSquareOut,
+  Sparkle,
   X,
   Copy,
-  CheckCheck,
+  CheckCircle,
   ShieldCheck,
   Database,
-  Zap,
-  Activity,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+  CircleNotch,
+  WarningCircle,
+  Check,
+} from "@phosphor-icons/react";
+import { getSession } from "@/lib/supabaseClient";
 
 export interface BillingModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
   onTierChange,
   userId = "usr_demo",
   productId,
+  token,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"checkout" | "portal" | null>(null);
@@ -48,6 +50,25 @@ export const BillingModal: React.FC<BillingModalProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // Helper to build headers with Supabase auth token
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    try {
+      const { session } = await getSession();
+      const activeToken = token || session?.access_token;
+      if (activeToken) {
+        headers["Authorization"] = `Bearer ${activeToken}`;
+      }
+    } catch {
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+    return headers;
   };
 
   // Handler for Upgrade to Pro (POST /billing/checkout)
@@ -65,9 +86,11 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         checkoutBody.product_id = productId;
       }
 
+      const headers = await getAuthHeaders();
+
       const response = await fetch("/billing/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(checkoutBody),
       });
 
@@ -79,7 +102,6 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
       if (data.checkout_url) {
         setSuccessUrl(data.checkout_url);
-        // Open checkout session in a new tab
         window.open(data.checkout_url, "_blank", "noopener,noreferrer");
         onTierChange?.("pro");
       }
@@ -99,9 +121,11 @@ export const BillingModal: React.FC<BillingModalProps> = ({
     setSuccessUrl(null);
 
     try {
+      const headers = await getAuthHeaders();
+
       const response = await fetch("/billing/portal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           user_id: userId,
         }),
@@ -132,19 +156,25 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       aria-modal="true"
       aria-labelledby="billing-modal-title"
     >
-      <div className="relative w-full max-w-4xl rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden text-zinc-900 my-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="relative w-full max-w-4xl rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden text-zinc-900 my-8"
+      >
         {/* Header Bar */}
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 bg-zinc-50">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-zinc-900 border border-zinc-200 shadow-xs">
-              <CreditCard className="h-5 w-5 text-indigo-600" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-indigo-600 border border-zinc-200 shadow-xs">
+              <CreditCard size={20} weight="duotone" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="billing-modal-title" className="text-lg font-semibold tracking-tight text-zinc-900">
+                <h2 id="billing-modal-title" className="text-lg font-semibold tracking-tight text-zinc-900 font-geist">
                   Dodo Payments Monetization & Tiers
                 </h2>
-                <span className="rounded-xl bg-indigo-50 px-2 py-0.5 text-xs font-sans font-medium text-indigo-700 border border-indigo-200">
+                <span className="rounded-xl bg-indigo-50 px-2 py-0.5 text-xs font-mono font-medium text-indigo-700 border border-indigo-200">
                   Track 1
                 </span>
               </div>
@@ -160,7 +190,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-pointer"
             aria-label="Close billing modal"
           >
-            <X className="h-5 w-5" />
+            <X size={18} weight="bold" />
           </button>
         </div>
 
@@ -169,14 +199,14 @@ export const BillingModal: React.FC<BillingModalProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
               <div className="mt-0.5 rounded-lg bg-amber-100 p-1 text-amber-800">
-                <ShieldCheck className="h-4 w-4" />
+                <ShieldCheck size={18} weight="duotone" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-amber-200/80 px-2 py-0.5 text-[11px] font-sans font-bold tracking-wide text-amber-900 border border-amber-300">
+                  <span className="rounded-md bg-amber-200/80 px-2 py-0.5 text-[11px] font-mono font-bold tracking-wide text-amber-900 border border-amber-300">
                     TEST MODE ACTIVE
                   </span>
-                  <span className="text-xs font-medium text-amber-900">
+                  <span className="text-xs font-semibold text-amber-900">
                     Judges & Evaluators Sandbox
                   </span>
                 </div>
@@ -199,26 +229,26 @@ export const BillingModal: React.FC<BillingModalProps> = ({
                   aria-label="Copy card number"
                 >
                   {copiedField === "card" ? (
-                    <CheckCheck className="h-3.5 w-3.5 text-emerald-700" />
+                    <CheckCircle size={14} weight="fill" className="text-emerald-600" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5" />
+                    <Copy size={14} />
                   )}
                 </button>
               </div>
               <span className="text-zinc-300 font-sans">|</span>
               <div className="flex items-center gap-1">
                 <span className="text-zinc-400 font-sans">Exp:</span>
-                <span className="text-zinc-900">12/28</span>
+                <span className="text-zinc-900 font-semibold">12/28</span>
               </div>
               <span className="text-zinc-300 font-sans">|</span>
               <div className="flex items-center gap-1">
                 <span className="text-zinc-400 font-sans">CVC:</span>
-                <span className="text-zinc-900">123</span>
+                <span className="text-zinc-900 font-semibold">123</span>
               </div>
               <span className="text-zinc-300 font-sans">|</span>
               <div className="flex items-center gap-1">
                 <span className="text-zinc-400 font-sans">ZIP:</span>
-                <span className="text-zinc-900">90210</span>
+                <span className="text-zinc-900 font-semibold">90210</span>
               </div>
             </div>
           </div>
@@ -227,7 +257,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         {/* Error / Success Feedback Banner */}
         {errorMessage && (
           <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+            <WarningCircle size={16} weight="fill" className="shrink-0 text-red-600" />
             <span className="flex-1">{errorMessage}</span>
           </div>
         )}
@@ -235,7 +265,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         {successUrl && (
           <div className="mx-6 mt-4 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-emerald-700" />
+              <CheckCircle size={16} weight="fill" className="shrink-0 text-emerald-600" />
               <span>Dodo Payments session generated successfully.</span>
             </div>
             <a
@@ -244,7 +274,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
               rel="noopener noreferrer"
               className="flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800 underline"
             >
-              Open Link <ExternalLink className="h-3.5 w-3.5" />
+              Open Link <ArrowSquareOut size={14} />
             </a>
           </div>
         )}
@@ -253,61 +283,59 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
           {/* Tier 1: Free Tier */}
           <div
-            className={`relative flex flex-col justify-between rounded-2xl border p-6 transition-all ${
-              currentTier === "free"
-                ? "border-zinc-300 bg-white ring-1 ring-zinc-300 shadow-sm"
-                : "border-zinc-200 bg-zinc-50/50"
+            className={`relative flex flex-col justify-between rounded-2xl border p-6 transition-all bg-zinc-50 border-zinc-200 ${
+              currentTier === "free" ? "ring-1 ring-zinc-300 shadow-sm" : ""
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600 font-sans">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600 font-mono">
                   Free Tier
                 </span>
                 {currentTier === "free" && (
-                  <span className="rounded-xl bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-700 font-sans">
+                  <span className="rounded-xl bg-zinc-200/80 border border-zinc-300 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
                     Current Plan
                   </span>
                 )}
               </div>
 
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-3xl font-extrabold text-zinc-900 tracking-tight">$0</span>
-                <span className="text-xs text-zinc-400 font-sans">/ forever</span>
+                <span className="text-3xl font-extrabold text-zinc-900 tracking-tight font-geist">$0</span>
+                <span className="text-xs text-zinc-500 font-sans">/ forever</span>
               </div>
-              <p className="mt-2 text-xs text-zinc-500 leading-relaxed font-sans">
+              <p className="mt-2 text-xs text-zinc-500 leading-relaxed">
                 Full console access with local in-memory storage. 100% non-blocking.
               </p>
 
               {/* Free Features List */}
-              <ul className="mt-6 space-y-3 text-xs text-zinc-600 font-sans">
+              <ul className="mt-6 space-y-3 text-xs text-zinc-600">
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-zinc-100 p-0.5 text-zinc-700">
-                    <Check className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-zinc-200 p-0.5 text-zinc-700">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">5 daily optimizations</strong> for DAG mutations
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-zinc-100 p-0.5 text-zinc-700">
-                    <Database className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-zinc-200 p-0.5 text-zinc-700">
+                    <Database size={12} weight="duotone" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">Local in-memory storage</strong> ($0 setup friction)
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-zinc-100 p-0.5 text-zinc-700">
-                    <Check className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-zinc-200 p-0.5 text-zinc-700">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">Community support</strong> & open docs
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-zinc-100 p-0.5 text-zinc-700">
-                    <Activity className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-zinc-200 p-0.5 text-zinc-700">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>4-axis benchmark scoring & 12-category diagnostics</span>
                 </li>
@@ -321,10 +349,10 @@ export const BillingModal: React.FC<BillingModalProps> = ({
                   onTierChange?.("free");
                 }}
                 disabled={currentTier === "free"}
-                className={`w-full rounded-xl px-4 py-2.5 text-xs font-medium font-sans transition-all cursor-pointer ${
+                className={`w-full rounded-xl px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                   currentTier === "free"
-                    ? "bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-default"
-                    : "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 hover:border-zinc-300"
+                    ? "bg-zinc-200 text-zinc-500 border border-zinc-300 cursor-default"
+                    : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100"
                 }`}
               >
                 {currentTier === "free" ? "Active Plan" : "Switch to Free Tier"}
@@ -334,68 +362,66 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
           {/* Tier 2: Pro Tier ($29/mo) */}
           <div
-            className={`relative flex flex-col justify-between rounded-2xl border-2 p-6 transition-all ${
-              currentTier === "pro"
-                ? "border-indigo-600 bg-indigo-50/30 shadow-md"
-                : "border-indigo-500/80 bg-indigo-50/30 shadow-md hover:border-indigo-600"
+            className={`relative flex flex-col justify-between rounded-2xl border-2 p-6 transition-all bg-white border-indigo-500 shadow-lg ${
+              currentTier === "pro" ? "ring-2 ring-indigo-500/20" : ""
             }`}
           >
             {/* Top Ribbon */}
             <div className="absolute -top-3 right-6">
-              <span className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-0.5 text-xs font-semibold text-white shadow-sm font-sans">
-                <Sparkles className="h-3 w-3" /> Recommended
+              <span className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
+                <Sparkle size={12} weight="fill" /> Recommended
               </span>
             </div>
 
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5 font-sans">
-                  <Zap className="h-4 w-4" /> Pro Tier
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5 font-mono">
+                  <Lightning size={14} weight="fill" /> Pro Tier
                 </span>
                 {currentTier === "pro" && (
-                  <span className="rounded-xl bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-medium text-emerald-700 font-sans">
+                  <span className="rounded-xl bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
                     Active
                   </span>
                 )}
               </div>
 
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-3xl font-extrabold text-zinc-900 tracking-tight">$29</span>
+                <span className="text-3xl font-extrabold text-zinc-900 tracking-tight font-geist">$29</span>
                 <span className="text-xs text-zinc-500 font-sans">/ month</span>
               </div>
-              <p className="mt-2 text-xs text-zinc-600 leading-relaxed font-sans">
+              <p className="mt-2 text-xs text-zinc-600 leading-relaxed">
                 Production-grade autonomous loop with Supabase cloud persistence & Neatlogs tracing.
               </p>
 
               {/* Pro Features List */}
-              <ul className="mt-6 space-y-3 text-xs text-zinc-600 font-sans">
+              <ul className="mt-6 space-y-3 text-xs text-zinc-600">
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-emerald-50 p-0.5 text-emerald-700 border border-emerald-200">
-                    <Check className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-indigo-50 p-0.5 text-indigo-600 border border-indigo-100">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">Unlimited autonomous mutations</strong> & tournaments
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-emerald-50 p-0.5 text-emerald-700 border border-emerald-200">
-                    <Check className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-indigo-50 p-0.5 text-indigo-600 border border-indigo-100">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">Full Supabase cloud lineage sync</strong> with RLS
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-emerald-50 p-0.5 text-emerald-700 border border-emerald-200">
-                    <Check className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-indigo-50 p-0.5 text-indigo-600 border border-indigo-100">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">Neatlogs distributed trace export</strong> & telemetry
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="mt-0.5 rounded-md bg-emerald-50 p-0.5 text-emerald-700 border border-emerald-200">
-                    <Check className="h-3.5 w-3.5" />
+                  <div className="mt-0.5 rounded-md bg-indigo-50 p-0.5 text-indigo-600 border border-indigo-100">
+                    <Check size={12} weight="bold" />
                   </div>
                   <span>
                     <strong className="text-zinc-900 font-medium">Priority inference</strong> on TensorMux GLM-4.7-Flash
@@ -405,22 +431,22 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             </div>
 
             {/* Interactive Actions */}
-            <div className="mt-8 pt-4 border-t border-zinc-200/80 flex flex-col gap-2">
+            <div className="mt-8 pt-4 border-t border-zinc-100 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleUpgradeToPro}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
               >
                 {isLoading && loadingAction === "checkout" ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Launching Dodo Checkout...
+                    <CircleNotch size={14} className="animate-spin" />
+                    <span>Launching Dodo Checkout...</span>
                   </>
                 ) : (
                   <>
-                    <CreditCard className="h-4 w-4" />
-                    Upgrade to Pro ($29/mo)
+                    <Lightning size={14} weight="fill" />
+                    <span>Upgrade to Pro ($29/mo)</span>
                   </>
                 )}
               </button>
@@ -429,17 +455,17 @@ export const BillingModal: React.FC<BillingModalProps> = ({
                 type="button"
                 onClick={handleManageSubscription}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-50 font-sans"
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isLoading && loadingAction === "portal" ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading Portal...
+                    <CircleNotch size={14} className="animate-spin" />
+                    <span>Loading Portal...</span>
                   </>
                 ) : (
                   <>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Manage Subscription
+                    <ArrowSquareOut size={14} />
+                    <span>Manage Subscription</span>
                   </>
                 )}
               </button>
@@ -448,9 +474,9 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         </div>
 
         {/* Footer / Demo Gating Info */}
-        <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs font-sans text-zinc-500">
+        <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
           <div className="flex items-center gap-2">
-            <span className="text-emerald-700">●</span>
+            <span className="text-emerald-600 font-bold">●</span>
             <span>Non-blocking console: Core synthesis & benchmarks remain 100% accessible</span>
           </div>
 
@@ -475,7 +501,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

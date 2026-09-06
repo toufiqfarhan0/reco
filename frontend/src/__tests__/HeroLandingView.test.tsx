@@ -52,14 +52,11 @@ describe("HeroLandingView Component", () => {
     expect(screen.getByText(/Dodo Payments/i)).toBeInTheDocument();
   });
 
-  it("renders all 5 interactive pipeline stage cards", () => {
-    const onSelectStage = vi.fn();
-
+  it("renders all 5 pipeline stage steps and animates the execution cycle", () => {
     render(
       <HeroLandingView
         onLaunchConsole={vi.fn()}
         onExploreLineage={vi.fn()}
-        onSelectStage={onSelectStage}
       />
     );
 
@@ -78,12 +75,8 @@ describe("HeroLandingView Component", () => {
     expect(screen.getByText(/05/)).toBeInTheDocument();
     expect(screen.getByText(/Air-gapped held-out promotion gate/i)).toBeInTheDocument();
 
-    // Clicking a stage card fires onSelectStage
-    const stage3Card = screen.getByText(/12-category diagnostic root cause analysis/i).closest("div");
-    if (stage3Card) {
-      fireEvent.click(stage3Card);
-      expect(onSelectStage).toHaveBeenCalledWith("UNDERSTAND");
-    }
+    // Verify autonomous pipeline cycle indicator is rendered
+    expect(screen.getByText(/Autonomous Pipeline Cycle:/i)).toBeInTheDocument();
   });
 
   it("fires action button triggers", () => {

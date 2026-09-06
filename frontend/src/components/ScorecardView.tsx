@@ -1,21 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion } from "motion/react";
 import { Scorecard, ScorecardComparison } from "@/lib/types";
 import {
   ShieldCheck,
-  Zap,
-  TrendingUp,
-  DollarSign,
+  Lightning,
+  Coins,
   Clock,
   ArrowRight,
-  CheckCircle2,
+  CheckCircle,
   XCircle,
-  HelpCircle,
-  Award,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  Trophy,
+  CaretDown,
+  CaretUp,
+  Target,
+  ChartLineUp,
+} from "@phosphor-icons/react";
 
 interface ScorecardViewProps {
   scorecard: Scorecard;
@@ -34,23 +35,28 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
     switch (verdict) {
       case "PARETO_DOMINANT":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 font-mono text-xs font-bold text-emerald-700 border border-emerald-200">
-            <Award className="h-3.5 w-3.5" />
-            PARETO DOMINANT
-          </span>
+          <motion.span
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 py-1.5 font-mono text-xs font-bold text-emerald-700 border border-emerald-300 shadow-2xs"
+          >
+            <Trophy size={16} weight="fill" className="text-emerald-600" />
+            <span>PARETO DOMINANT</span>
+          </motion.span>
         );
       case "TRADEOFF":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-mono text-xs font-bold text-amber-700 border border-amber-200">
-            <TrendingUp className="h-3.5 w-3.5" />
-            TRADEOFF IDENTIFIED
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3.5 py-1.5 font-mono text-xs font-bold text-amber-700 border border-amber-300 shadow-2xs">
+            <ChartLineUp size={16} weight="bold" />
+            <span>TRADEOFF IDENTIFIED</span>
           </span>
         );
       case "REGRESSION":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 font-mono text-xs font-bold text-red-700 border border-red-200">
-            <XCircle className="h-3.5 w-3.5" />
-            REGRESSION DETECTED
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3.5 py-1.5 font-mono text-xs font-bold text-red-700 border border-red-300 shadow-2xs">
+            <XCircle size={16} weight="fill" />
+            <span>REGRESSION DETECTED</span>
           </span>
         );
       default:
@@ -62,20 +68,60 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
     }
   };
 
+  // Helper for thin circular progress arc
+  const renderProgressArc = (percent: number, colorStroke: string) => {
+    const size = 52;
+    const strokeWidth = 3.5;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const clamped = Math.min(Math.max(percent, 0), 100);
+    const strokeDashoffset = circumference - (clamped / 100) * circumference;
+
+    return (
+      <svg width={size} height={size} className="transform -rotate-90 shrink-0">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#f4f4f5"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={colorStroke}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          fill="none"
+          className="transition-all duration-500 ease-out"
+        />
+      </svg>
+    );
+  };
+
   return (
-    <div className="space-y-5">
-      {/* Header & Pareto Verdict Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="space-y-8"
+    >
+      {/* Plain Section Header (No card wrapper) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-zinc-100">
         <div>
           <div className="flex items-center gap-2.5">
             <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-mono font-bold text-zinc-700 border border-zinc-200">
               STAGE 02
             </span>
-            <h2 className="text-lg font-bold tracking-tight text-zinc-950">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-950 font-geist">
               RUN: 4-Axis Scorecard & Empirical Evaluation
             </h2>
           </div>
-          <p className="text-xs text-zinc-500 mt-1 max-w-2xl">
+          <p className="text-xs text-zinc-500 mt-1 max-w-2xl font-geist">
             Evaluating on <span className="font-mono font-semibold text-zinc-900">{scorecard.split}</span> split ({scorecard.total_cases} test cases). Deterministic scoring across all 4 canonical axes.
           </p>
         </div>
@@ -85,22 +131,27 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
           <button
             type="button"
             onClick={onProceedToUnderstand}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all hover:bg-indigo-700 active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all active:scale-[0.98] cursor-pointer font-geist"
           >
             <span>Diagnose Failures (Stage 03)</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight size={14} weight="bold" />
           </button>
         </div>
       </div>
 
-      {/* 4 Canonical Axes Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 4 Canonical Axes: Clean table/grid with hairline row separators, not individual axis cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100 border-y border-zinc-100 py-6">
         {/* Axis 1: Accuracy */}
-        <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs transition hover:border-zinc-300">
+        <div className="py-4 sm:py-0 sm:px-5 first:pl-0 last:pr-0 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500">
-              1. Accuracy
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 font-mono text-xs font-bold">
+                1
+              </span>
+              <span className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-700">
+                1. Accuracy
+              </span>
+            </div>
             {comparison && (
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${
@@ -115,25 +166,36 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
               </span>
             )}
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono">
-              {(scorecard.accuracy * 100).toFixed(1)}%
-            </span>
-            <span className="text-xs font-mono text-zinc-400">
-              ({scorecard.accurate_cases}/{scorecard.total_cases} passed)
-            </span>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono font-geist">
+                  {(scorecard.accuracy * 100).toFixed(1)}%
+                </span>
+                <span className="text-xs font-mono text-zinc-400">
+                  ({scorecard.accurate_cases}/{scorecard.total_cases} passed)
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-500 font-geist">
+                Ground-truth match rate.
+              </p>
+            </div>
+            {renderProgressArc(scorecard.accuracy * 100, "#4F46E5")}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            Ground-truth match rate on partitioned cases.
-          </p>
         </div>
 
         {/* Axis 2: Reliability */}
-        <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs transition hover:border-zinc-300">
+        <div className="py-4 sm:py-0 sm:px-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500">
-              2. Reliability
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 font-mono text-xs font-bold">
+                2
+              </span>
+              <span className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-700">
+                2. Reliability
+              </span>
+            </div>
             {comparison && (
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${
@@ -146,25 +208,36 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
               </span>
             )}
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono">
-              {(scorecard.reliability * 100).toFixed(1)}%
-            </span>
-            <span className="text-xs font-mono text-zinc-400">
-              ({scorecard.reliable_cases}/{scorecard.total_cases} error-free)
-            </span>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono font-geist">
+                  {(scorecard.reliability * 100).toFixed(1)}%
+                </span>
+                <span className="text-xs font-mono text-zinc-400">
+                  ({scorecard.reliable_cases}/{scorecard.total_cases} error-free)
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-500 font-geist">
+                Error-free execution rate.
+              </p>
+            </div>
+            {renderProgressArc(scorecard.reliability * 100, "#10B981")}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            Error-free execution rate (zero exceptions/panics).
-          </p>
         </div>
 
         {/* Axis 3: Cost */}
-        <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs transition hover:border-zinc-300">
+        <div className="py-4 sm:py-0 sm:px-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500">
-              3. Cost (USD)
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-50 text-amber-600 font-mono text-xs font-bold">
+                3
+              </span>
+              <span className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-700">
+                3. Cost (USD)
+              </span>
+            </div>
             {comparison && (
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${
@@ -177,23 +250,34 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
               </span>
             )}
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono">
-              ${scorecard.cost_usd.toFixed(4)}
-            </span>
-            <span className="text-xs font-mono text-zinc-400">total</span>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono font-geist">
+                  ${scorecard.cost_usd.toFixed(4)}
+                </span>
+                <span className="text-xs font-mono text-zinc-400">total</span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-500 font-geist">
+                Exact inference & tool cost.
+              </p>
+            </div>
+            {renderProgressArc(75, "#F59E0B")}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            Exact token-derived inference and tool cost.
-          </p>
         </div>
 
-        {/* Axis 4: Speed / Latency */}
-        <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs transition hover:border-zinc-300">
+        {/* Axis 4: Speed */}
+        <div className="py-4 sm:py-0 sm:px-5 last:pr-0 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-500">
-              4. Speed (Wall-Clock)
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-50 text-violet-600 font-mono text-xs font-bold">
+                4
+              </span>
+              <span className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-700">
+                4. Speed (Wall-Clock)
+              </span>
+            </div>
             {comparison && (
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${
@@ -206,25 +290,31 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
               </span>
             )}
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono">
-              {scorecard.latency_ms.toFixed(1)} ms
-            </span>
-            <span className="text-xs font-mono text-zinc-400">
-              (~{scorecard.avg_latency_ms.toFixed(1)} ms/case)
-            </span>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold tracking-tight text-zinc-950 font-mono font-geist">
+                  {scorecard.latency_ms.toFixed(1)} ms
+                </span>
+                <span className="text-xs font-mono text-zinc-400">
+                  (~{scorecard.avg_latency_ms.toFixed(1)} ms/case)
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-500 font-geist">
+                Total wall-clock runtime.
+              </p>
+            </div>
+            {renderProgressArc(85, "#8B5CF6")}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            Total wall-clock runtime across test cases.
-          </p>
         </div>
       </div>
 
-      {/* Comparison Delta Badges Table if comparison exists */}
+      {/* Comparison Delta Badges Table (No outer card) */}
       {comparison && (
-        <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 font-mono">
               Multi-Axis Comparison: {comparison.candidate_name} vs {comparison.baseline_name}
             </h3>
             <span className="text-[10px] font-mono text-zinc-400">
@@ -232,9 +322,9 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-zinc-200/70">
+          <div className="overflow-x-auto rounded-lg border border-zinc-100">
             <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50/70 border-b border-zinc-200/70 font-mono uppercase text-[10px] text-zinc-500 tracking-wider">
+              <thead className="bg-zinc-50/50 border-b border-zinc-100 font-mono uppercase text-[10px] text-zinc-500 tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3.5">Axis</th>
                   <th className="py-2.5 px-3.5">Baseline</th>
@@ -278,25 +368,25 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
         </div>
       )}
 
-      {/* Per-Case Breakdown Table */}
-      <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-2xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+      {/* Per-Case Breakdown Table (No outer card) */}
+      <div className="space-y-3 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-100">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-950">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 font-mono">
               Partitioned Benchmark Case Results ({scorecard.case_results.length} cases)
             </h3>
-            <p className="text-[11px] text-zinc-400 mt-0.5">
+            <p className="text-[11px] text-zinc-400 mt-0.5 font-geist">
               Click any row to inspect expected ground truth vs actual agent telemetry
             </p>
           </div>
-          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
+          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600">
             Interactive Inspector
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-zinc-200/70">
+        <div className="overflow-x-auto rounded-lg border border-zinc-100">
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50/70 border-b border-zinc-200/70 font-mono uppercase text-[10px] text-zinc-500 tracking-wider">
+            <thead className="bg-zinc-50/50 border-b border-zinc-100 font-mono uppercase text-[10px] text-zinc-500 tracking-wider">
               <tr>
                 <th className="py-2.5 px-3.5">Case ID</th>
                 <th className="py-2.5 px-3.5">Description</th>
@@ -314,19 +404,19 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
                     <tr
                       onClick={() => setSelectedCaseId(isSelected ? null : c.case_id)}
                       className={`cursor-pointer transition-colors ${
-                        isSelected ? "bg-zinc-50/90 font-medium" : "hover:bg-zinc-50/50"
+                        isSelected ? "bg-zinc-50 font-medium" : "hover:bg-zinc-50/50"
                       }`}
                     >
                       <td className="py-2.5 px-3.5 font-semibold text-zinc-950">{c.case_id}</td>
-                      <td className="py-2.5 px-3.5 text-zinc-600 font-sans">{c.name}</td>
+                      <td className="py-2.5 px-3.5 text-zinc-600 font-geist">{c.name}</td>
                       <td className="py-2.5 px-3.5">
                         {c.is_accurate ? (
                           <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
-                            <CheckCircle2 className="h-3 w-3" /> MATCH
+                            <CheckCircle size={14} weight="fill" /> MATCH
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-red-700 font-medium">
-                            <XCircle className="h-3 w-3" /> MISMATCH
+                            <XCircle size={14} weight="fill" /> MISMATCH
                           </span>
                         )}
                       </td>
@@ -351,10 +441,10 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
 
                     {/* Expandable Case Details */}
                     {isSelected && (
-                      <tr className="bg-zinc-50/60">
+                      <tr className="bg-zinc-50/50">
                         <td colSpan={6} className="p-4 border-b border-zinc-100">
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-[11px]">
-                            <div className="rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-2xs">
+                            <div className="rounded-lg border border-zinc-100 bg-white p-3">
                               <span className="text-zinc-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">
                                 Expected Ground Truth:
                               </span>
@@ -362,7 +452,7 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
                                 {c.expected_output || "Ground truth match verified"}
                               </pre>
                             </div>
-                            <div className="rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-2xs">
+                            <div className="rounded-lg border border-zinc-100 bg-white p-3">
                               <span className="text-zinc-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">
                                 Actual Agent Output:
                               </span>
@@ -381,6 +471,6 @@ export const ScorecardView: React.FC<ScorecardViewProps> = ({
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

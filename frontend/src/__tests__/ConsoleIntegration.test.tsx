@@ -70,4 +70,17 @@ describe("Console Integration: 5-Stage Engineering Navigator", () => {
       screen.getByText(/Epistemic Memory Ledger: Generational Self-Reflection/i)
     ).toBeInTheDocument();
   });
+
+  it("renders dismissible onboarding guide banner and persists dismissal in localStorage", () => {
+    localStorage.removeItem("reco_onboarded");
+    render(<EngineeringConsolePage initialViewMode="console" />);
+
+    expect(screen.getByText(/Getting Started with Reco:/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\. Enter your goal below/i)).toBeInTheDocument();
+
+    const gotItBtn = screen.getByRole("button", { name: /Got it/i });
+    fireEvent.click(gotItBtn);
+
+    expect(localStorage.getItem("reco_onboarded")).toBe("true");
+  });
 });

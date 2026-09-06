@@ -14,8 +14,8 @@ export const MutationInspector: React.FC<MutationInspectorProps> = ({
   const [activeTab, setActiveTab] = useState<"prompt" | "config">("prompt");
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+    <div className="space-y-4 pt-6 border-t border-zinc-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-100">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
             <FileDiff className="h-4 w-4" />

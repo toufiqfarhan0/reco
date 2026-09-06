@@ -1,21 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
-  BrainCircuit,
-  CheckCircle2,
-  TrendingUp,
-  ShieldAlert,
-  ArrowRight,
-  Code2,
-  FileCode,
-  Layers,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
+  Brain,
+  CheckCircle,
+  TrendUp,
+  Code,
+  Sparkle,
+  CaretDown,
+  CaretUp,
   Cpu,
-  BookmarkCheck,
-} from "lucide-react";
+  ShieldCheck,
+} from "@phosphor-icons/react";
 
 export interface EpistemicLesson {
   id: string;
@@ -44,7 +41,7 @@ const EPISTEMIC_LESSONS: EpistemicLesson[] = [
     sourceCategory: "SCHEMA_VIOLATION",
     ruleTitle: "Tool Output Normalization",
     epistemicRule:
-      "Tool Output Normalization: Third-party API timestamps require ISO-8601 UTC coercion before line-item matching.",
+      "Do not rely on naive exact string match for transaction IDs. Tool Output Normalization: Third-party API timestamps require ISO-8601 UTC coercion before line-item matching.",
     targetNode: "normalize_timestamp (Node 02)",
     accuracyDelta: "+15.0%",
     cumulativeAccuracy: "75.0%",
@@ -68,7 +65,7 @@ export function normalizeTimestamp(raw: string | number): string {
     sourceCategory: "VERIFICATION_MISS",
     ruleTitle: "Tolerance Drift Guardrail",
     epistemicRule:
-      "Tolerance Drift Guardrail: Floating-point discrepancies in financial reconciliation drift by 0.001; synthesized dedicated Verifier node.",
+      "Always execute dual-pass currency amount validation. Tolerance Drift Guardrail: Floating-point discrepancies in financial reconciliation drift by 0.001; synthesized dedicated Verifier node.",
     targetNode: "verifier_tolerance_guard (Node 04)",
     accuracyDelta: "+10.0%",
     cumulativeAccuracy: "85.0%",
@@ -90,85 +87,78 @@ export function verifyFinancialBalance(amountA: number, amountB: number, epsilon
     sourceCategory: "TOOL_PARAMETER_ERROR",
     ruleTitle: "Parameter Strictness",
     epistemicRule:
-      "Parameter Strictness: Parameter 'record_id' must be integer, not string; injected schema validator.",
+      "Maintain immutable state transitions for reconciled entries. Parameter Strictness: Parameter 'record_id' must be integer, not string; injected schema validator.",
     targetNode: "schema_validator (Node 03)",
-    accuracyDelta: "+25.0% Cumulative",
+    accuracyDelta: "+25.0%",
     cumulativeAccuracy: "85.0%",
     derivationContext:
       "Derived from TOOL_PARAMETER_ERROR in V1; injected schema validator. Upstream LLM reasoning generated 'record_id': '4021' as string, triggering runtime database driver rejection.",
     codeSnippet: `// Epistemic Guardrail 03: Parameter Invariant Enforcer
 export function validateToolParams(params: { record_id: unknown }): { record_id: number } {
-  const id = typeof params.record_id === "string" ? parseInt(params.record_id, 10) : params.record_id;
-  if (typeof id !== "number" || isNaN(id)) {
-    throw new Error("Invalid record_id: must be integer");
+  const idNum = Number(params.record_id);
+  if (isNaN(idNum) || !Number.isInteger(idNum)) {
+    throw new TypeError("Parameter 'record_id' must be a valid integer");
   }
-  return { record_id: id };
+  return { record_id: idNum };
 }`,
-    impactVerdict: "Prevented parameter coercion errors and guaranteed deterministic database lookups.",
+    impactVerdict: "Guaranteed runtime parameter safety across downstream database driver invocations.",
   },
 ];
 
-export interface EpistemicMemoryLedgerProps {
+interface EpistemicMemoryLedgerProps {
   defaultExpanded?: boolean;
 }
 
 export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
   defaultExpanded = false,
 }) => {
-  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "V0 -> V1" | "V1 -> V2">("all");
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(
     defaultExpanded ? "epistemic-01" : null
   );
 
-  const filteredLessons = EPISTEMIC_LESSONS.filter((lesson) => {
+  const filteredLessons = EPISTEMIC_LESSONS.filter((l) => {
     if (selectedFilter === "all") return true;
-    return lesson.generationTransition === selectedFilter;
+    return l.generationTransition === selectedFilter;
   });
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
+    <div className="space-y-6 pt-6 border-t border-zinc-100">
       {/* Header Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-100 pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <BrainCircuit className="h-4 w-4" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200">
+            <Brain size={20} weight="duotone" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
+              <h3 className="text-base font-bold tracking-tight text-zinc-950 font-geist">
                 Epistemic Memory Ledger: Generational Self-Reflection
               </h3>
-              <span className="rounded-xl bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200">
-                Continuous Learning
+              <span className="rounded bg-emerald-50 px-2.5 py-0.5 text-[10px] font-mono font-bold text-emerald-700 border border-emerald-200">
+                ACTIVE MEMORY
               </span>
             </div>
-            <p className="text-xs text-zinc-500">
-              Cross-generational invariant retention preventing regression across agent iterations.
+            <p className="text-xs text-zinc-500 font-geist">
+              Persistent architectural invariants extracted across mutation cycles (V0 → V1 → V2)
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            +25.0% Cumulative Gain
+        {/* Judge Query Pill */}
+        <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5 text-xs text-indigo-900 max-w-md">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider block text-indigo-700 mb-0.5">
+            JUDGE QUERY:
           </span>
+          <p className="italic text-[11px] font-geist">
+            &quot;Can you show the outputs of the agent getting better over time?&quot;
+          </p>
         </div>
       </div>
 
-      {/* Judge Query Callout Banner */}
-      <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3.5 text-xs text-zinc-600">
-        <span className="rounded-md bg-zinc-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-zinc-800 shrink-0">
-          JUDGE QUERY:
-        </span>
-        <span className="font-mono">
-          "Can you show the outputs of the agent getting better over time? What failures did it fix, and what lessons were extracted?"
-        </span>
-      </div>
-
-      {/* Summary KPI Cards Strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3">
           <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Cumulative Accuracy Gain
           </span>
@@ -177,26 +167,26 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
               +25.0%
             </span>
             <span className="text-[11px] text-zinc-500 font-mono">
-              60% → 85%
+              60.0% → 85.0%
             </span>
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3">
           <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
-            Learned Invariants
+            Synthesized Invariants
           </span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-xl font-bold font-mono text-zinc-900">
               3 Rules
             </span>
-            <span className="text-[11px] text-zinc-500 font-mono">
-              V0 to V2
+            <span className="text-[11px] text-indigo-600 font-mono font-medium">
+              Zero Regression
             </span>
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3">
           <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Failure Taxonomies Handled
           </span>
@@ -210,7 +200,7 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3">
           <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block font-medium">
             Held-Out Verification
           </span>
@@ -225,16 +215,16 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
         </div>
       </div>
 
-      {/* Generation Filter Buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-        <div className="flex items-center gap-1.5" role="tablist" aria-label="Generational Filter">
+      {/* Generation Tabs with Indigo Underline Active Indicator */}
+      <div className="border-b border-zinc-200">
+        <div className="flex space-x-6 text-xs font-mono">
           <button
             type="button"
             onClick={() => setSelectedFilter("all")}
-            className={`rounded-xl px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`pb-2.5 transition-all cursor-pointer font-medium relative ${
               selectedFilter === "all"
-                ? "bg-indigo-600 text-white shadow-xs font-semibold"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                ? "text-indigo-600 font-bold border-b-2 border-indigo-600 -mb-px"
+                : "text-zinc-600 hover:text-zinc-900 border-b-2 border-transparent"
             }`}
           >
             All Lessons (3)
@@ -242,10 +232,10 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           <button
             type="button"
             onClick={() => setSelectedFilter("V0 -> V1")}
-            className={`rounded-xl px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`pb-2.5 transition-all cursor-pointer font-medium relative ${
               selectedFilter === "V0 -> V1"
-                ? "bg-indigo-600 text-white shadow-xs font-semibold"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                ? "text-indigo-600 font-bold border-b-2 border-indigo-600 -mb-px"
+                : "text-zinc-600 hover:text-zinc-900 border-b-2 border-transparent"
             }`}
           >
             V0 to V1 (Lesson 01)
@@ -253,134 +243,125 @@ export const EpistemicMemoryLedger: React.FC<EpistemicMemoryLedgerProps> = ({
           <button
             type="button"
             onClick={() => setSelectedFilter("V1 -> V2")}
-            className={`rounded-xl px-2.5 py-1 text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`pb-2.5 transition-all cursor-pointer font-medium relative ${
               selectedFilter === "V1 -> V2"
-                ? "bg-indigo-600 text-white shadow-xs font-semibold"
-                : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                ? "text-indigo-600 font-bold border-b-2 border-indigo-600 -mb-px"
+                : "text-zinc-600 hover:text-zinc-900 border-b-2 border-transparent"
             }`}
           >
             V1 to V2 (Lessons 02 & 03)
           </button>
         </div>
-
-        <span className="font-mono text-[10px] text-zinc-400">
-          Showing {filteredLessons.length} of {EPISTEMIC_LESSONS.length} Epistemic Records
-        </span>
       </div>
 
-      {/* Epistemic Ledger Detailed Cards */}
-      <div className="space-y-3">
+      {/* Epistemic Ledger Detailed Cards (white, border border-zinc-200 rounded-xl) */}
+      <div className="space-y-4">
         {filteredLessons.map((lesson) => {
           const isExpanded = expandedLessonId === lesson.id;
           return (
             <div
               key={lesson.id}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 shadow-xs space-y-3"
+              className="rounded-lg border border-zinc-200 bg-white p-5 space-y-4 transition-all hover:border-zinc-300"
             >
               {/* Top Row: Lesson Number, Generation, Target Node, and Impact */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-lg bg-zinc-900 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-xs">
+                  <span className="rounded-md bg-zinc-900 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-2xs">
                     {lesson.lessonNumber}
                   </span>
-                  <span className="rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-700 border border-zinc-200">
+                  <span className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-700 border border-zinc-200">
                     Generation: {lesson.generationTransition}
                   </span>
-                  <span className="rounded-lg bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-800 border border-amber-200">
+                  <span className="rounded-md bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-800 border border-amber-200">
                     Source Failure: {lesson.sourceCategory}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 font-mono text-xs font-semibold text-emerald-700">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    <span>{lesson.accuracyDelta}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpandedLessonId(isExpanded ? null : lesson.id)
-                    }
-                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-mono transition-colors cursor-pointer"
+                <div className="flex items-center gap-2 font-mono text-xs">
+                  <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Δ {lesson.accuracyDelta}
+                  </span>
+                  <span className="text-zinc-500">
+                    Cumulative: <strong className="text-zinc-900">{lesson.cumulativeAccuracy}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Lesson Invariant Rule Body */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-mono font-medium text-zinc-600">
+                    Target: {lesson.targetNode}
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-800 bg-indigo-50/40 p-3 rounded-lg border border-indigo-100/80 leading-relaxed font-mono">
+                  {lesson.epistemicRule}
+                </p>
+              </div>
+
+              {/* Derivation Context */}
+              <div className="text-xs text-zinc-600 bg-zinc-50/70 p-3 rounded-lg border border-zinc-200/80 space-y-1">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
+                  Root-Cause Derivation Context:
+                </span>
+                <p className="font-geist leading-relaxed">{lesson.derivationContext}</p>
+              </div>
+
+              {/* Inspect Invariant Toggle Button */}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setExpandedLessonId(isExpanded ? null : lesson.id)}
+                  className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                >
+                  <Code size={14} weight="bold" />
+                  <span>Inspect Invariant</span>
+                  {isExpanded ? (
+                    <CaretUp size={12} weight="bold" />
+                  ) : (
+                    <CaretDown size={12} weight="bold" />
+                  )}
+                </button>
+
+                <span className="text-[11px] font-geist text-zinc-500">
+                  {lesson.impactVerdict}
+                </span>
+              </div>
+
+              {/* Expandable Section: Synthesized Architectural Invariant & Code Diff Preview (bg-zinc-50 font-mono text-sm) */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="overflow-hidden space-y-3 pt-2"
                   >
-                    <span>{isExpanded ? "Hide Code" : "Inspect Invariant"}</span>
-                    {isExpanded ? (
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* 4 Required Technical Metrics Grid */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-1">
-                {/* Metric 1: Source Failure Category */}
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-2.5">
-                  <span className="text-[10px] font-mono text-zinc-500 uppercase block font-medium">
-                    Source Failure Category
-                  </span>
-                  <span className="font-mono text-xs font-semibold text-amber-800 mt-1 block">
-                    {lesson.sourceCategory}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 mt-0.5 block">
-                    Observed in {lesson.generationFrom} baseline
-                  </span>
-                </div>
-
-                {/* Metric 2: Extracted Epistemic Rule */}
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-2.5 sm:col-span-2">
-                  <span className="text-[10px] font-mono text-zinc-500 uppercase block font-medium">
-                    Extracted Epistemic Rule
-                  </span>
-                  <p className="text-xs text-zinc-900 mt-1 leading-snug font-medium">
-                    "{lesson.epistemicRule}"
-                  </p>
-                </div>
-
-                {/* Metric 3: Target Node & Impact */}
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-2.5">
-                  <span className="text-[10px] font-mono text-zinc-500 uppercase block font-medium">
-                    Target DAG Node
-                  </span>
-                  <span className="font-mono text-xs font-semibold text-zinc-900 mt-1 block">
-                    {lesson.targetNode}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-mono mt-0.5 block font-medium">
-                    Impact: {lesson.accuracyDelta}
-                  </span>
-                </div>
-              </div>
-
-              {/* Derivation Context & Empirical Outcome */}
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 text-xs space-y-1">
-                <div className="flex items-start gap-1.5 text-zinc-600">
-                  <span className="font-mono font-semibold text-zinc-900 shrink-0">
-                    Self-Reflection Derivation:
-                  </span>
-                  <span className="text-zinc-600">{lesson.derivationContext}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-700 font-mono text-[11px] pt-1 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <span>Empirical Outcome: {lesson.impactVerdict}</span>
-                </div>
-              </div>
-
-              {/* Expandable Synthesized Guardrail Code Snippet */}
-              {isExpanded && (
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 font-mono text-xs space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-500 border-b border-zinc-200 pb-2">
-                    <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
-                      <Code2 className="h-3.5 w-3.5 text-indigo-600" />
-                      <span>Synthesized Architectural Invariant</span>
+                    <div className="flex items-center justify-between border-t border-zinc-100 pt-3">
+                      <h4 className="text-xs font-semibold text-zinc-900 font-geist flex items-center gap-2">
+                        <Sparkle size={14} weight="fill" className="text-indigo-600" />
+                        <span>Synthesized Architectural Invariant: {lesson.ruleTitle}</span>
+                      </h4>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        Target: {lesson.targetNode}
+                      </span>
                     </div>
-                    <span>Applied to Generation {lesson.generationTo}</span>
-                  </div>
-                  <pre className="overflow-x-auto text-[11px] text-zinc-900 py-1 leading-relaxed bg-white p-3 rounded-xl border border-zinc-200 shadow-xs">
-                    <code>{lesson.codeSnippet}</code>
-                  </pre>
-                </div>
-              )}
+
+                    <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-4 font-mono text-sm text-zinc-800 space-y-2">
+                      <div className="flex items-center justify-between border-b border-zinc-200 pb-2 text-xs text-zinc-500">
+                        <span>Code Implementation / Guardrail Invariant</span>
+                        <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-bold text-zinc-700">
+                          TYPESCRIPT
+                        </span>
+                      </div>
+                      <pre className="overflow-x-auto whitespace-pre leading-relaxed text-xs text-zinc-900 font-mono">
+                        {lesson.codeSnippet}
+                      </pre>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}

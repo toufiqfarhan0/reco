@@ -1,17 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { NeatlogsTrace, NeatlogsSpan } from "@/lib/types";
+import { NeatlogsTrace } from "@/lib/types";
 import {
-  Activity,
-  CheckCircle2,
+  Broadcast,
   Clock,
   Coins,
   Cpu,
-  ExternalLink,
-  Layers,
-  Sparkles,
-} from "lucide-react";
+  CheckCircle,
+} from "@phosphor-icons/react";
 
 interface NeatlogsTraceCardProps {
   trace: NeatlogsTrace;
@@ -28,18 +25,18 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
     trace.spans.find((s) => s.span_id === selectedSpanId) || trace.spans[0];
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+    <div className="space-y-4 pt-6 border-t border-zinc-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-100">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <Activity className="h-4 w-4" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <Broadcast size={16} weight="duotone" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
+              <h3 className="text-sm font-semibold tracking-tight text-zinc-900 font-geist">
                 Neatlogs Production Execution Trace
               </h3>
-              <span className="rounded-xl bg-emerald-50 px-2 py-0.5 text-[10px] font-mono font-semibold text-emerald-700 border border-emerald-200">
+              <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-mono font-semibold text-emerald-700 border border-emerald-200">
                 VERIFIED TRACE
               </span>
             </div>
@@ -50,74 +47,77 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-          <div className="flex items-center gap-1 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-xl">
-            <Clock className="h-3.5 w-3.5 text-zinc-400" />
+          <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
+            <Clock size={13} className="text-zinc-400" />
             <span>{trace.total_duration_ms} ms</span>
           </div>
-          <div className="flex items-center gap-1 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-xl">
-            <Coins className="h-3.5 w-3.5 text-emerald-600" />
+          <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
+            <Coins size={13} className="text-emerald-600" />
             <span>${trace.total_cost_usd.toFixed(4)}</span>
           </div>
-          <div className="flex items-center gap-1 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-xl">
-            <Cpu className="h-3.5 w-3.5 text-zinc-400" />
+          <div className="flex items-center gap-1.5 text-zinc-600 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-lg">
+            <Cpu size={13} className="text-zinc-400" />
             <span>{trace.total_tokens} tokens</span>
           </div>
         </div>
       </div>
 
-      {/* Trace Span Waterfall */}
-      <div className="space-y-2">
+      {/* Trace Timeline with Indigo Dots and Zinc Lines */}
+      <div className="space-y-3">
         <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-400 block mb-2">
           Span Waterfall & Execution Latency Breakdown
         </span>
 
-        <div className="space-y-1.5 font-mono text-xs">
+        <div className="relative pl-6 space-y-3 border-l-2 border-zinc-200 ml-2">
           {trace.spans.map((span) => {
             const isSelected = selectedSpan?.span_id === span.span_id;
             const widthPct = Math.max(
               (span.duration_ms / trace.total_duration_ms) * 100,
-              6
+              8
             );
             const leftOffsetPct = (span.start_offset_ms / trace.total_duration_ms) * 100;
 
             return (
-              <div
-                key={span.span_id}
-                onClick={() => setSelectedSpanId(span.span_id)}
-                className={`relative flex items-center justify-between rounded-xl border p-2.5 transition-all cursor-pointer ${
-                  isSelected
-                    ? "border-indigo-600 bg-indigo-50/30 ring-1 ring-indigo-600 shadow-xs"
-                    : "border-zinc-200 bg-white hover:border-zinc-300"
-                }`}
-              >
-                <div className="flex items-center gap-2 z-10">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      span.status === "ok" ? "bg-emerald-500" : "bg-rose-500"
-                    }`}
-                  />
-                  <span className="font-semibold text-zinc-900">
-                    {span.name}
-                  </span>
-                  <span className="rounded-lg bg-zinc-100 border border-zinc-200 px-1.5 py-0.2 text-[10px] text-zinc-600">
-                    {span.kind}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 z-10">
-                  <span className="text-zinc-500 text-[11px]">
-                    {span.duration_ms.toFixed(1)} ms
-                  </span>
-                </div>
-
-                {/* Waterfall Visual Bar */}
-                <div
-                  className="absolute inset-y-1 bg-indigo-100/50 border border-indigo-200/60 rounded-md pointer-events-none"
-                  style={{
-                    left: `${leftOffsetPct}%`,
-                    width: `${widthPct}%`,
-                  }}
+              <div key={span.span_id} className="relative">
+                {/* Indigo Dot on the Zinc Line */}
+                <span
+                  className={`absolute -left-[31px] top-3.5 h-3 w-3 rounded-full border-2 border-white transition-transform ${
+                    isSelected ? "bg-indigo-600 ring-2 ring-indigo-300 scale-125" : "bg-indigo-500"
+                  }`}
                 />
+
+                <div
+                  onClick={() => setSelectedSpanId(span.span_id)}
+                  className={`relative flex items-center justify-between rounded-xl border p-3 transition-all cursor-pointer overflow-hidden ${
+                    isSelected
+                      ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600 shadow-xs"
+                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 z-10 font-mono text-xs">
+                    <span className="font-semibold text-zinc-900 font-geist">
+                      {span.name}
+                    </span>
+                    <span className="rounded-md bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 font-mono">
+                      {span.kind}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 z-10 font-mono">
+                    <span className="text-zinc-500 text-xs">
+                      {span.duration_ms.toFixed(1)} ms
+                    </span>
+                  </div>
+
+                  {/* Waterfall Latency Bar */}
+                  <div
+                    className="absolute inset-y-1.5 bg-indigo-100/60 border border-indigo-200/80 rounded-lg pointer-events-none transition-all"
+                    style={{
+                      left: `${leftOffsetPct}%`,
+                      width: `${widthPct}%`,
+                    }}
+                  />
+                </div>
               </div>
             );
           })}
@@ -126,8 +126,8 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
 
       {/* Selected Span Detail Card */}
       {selectedSpan && (
-        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-4 space-y-2 text-xs font-mono">
-          <div className="flex items-center justify-between border-b border-zinc-200/70 pb-2">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-2 text-xs font-mono">
+          <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
             <span className="text-zinc-950 font-bold">
               Span: {selectedSpan.span_id} ({selectedSpan.name})
             </span>
@@ -138,7 +138,7 @@ export const NeatlogsTraceCard: React.FC<NeatlogsTraceCardProps> = ({
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px]">
             {Object.entries(selectedSpan.attributes).map(([k, v]) => (
-              <div key={k} className="flex justify-between py-1 border-b border-zinc-200/40">
+              <div key={k} className="flex justify-between py-1 border-b border-zinc-200/50">
                 <span className="text-zinc-400">{k}:</span>
                 <span className="text-zinc-950 font-semibold">{String(v)}</span>
               </div>

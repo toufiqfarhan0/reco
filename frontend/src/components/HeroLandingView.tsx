@@ -1,27 +1,32 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { motion } from "motion/react";
 import { StageType } from "@/lib/types";
 import {
   Cpu,
-  PlayCircle,
-  Activity,
-  Sparkles,
+  Play,
+  Pulse,
+  Sparkle,
   ShieldCheck,
   ArrowRight,
   GitBranch,
   Terminal,
-  Zap,
-  CheckCircle2,
+  Lightning,
+  CheckCircle,
   Database,
-  Radio,
+  Broadcast,
   CreditCard,
-} from "lucide-react";
+  GithubLogo,
+  Graph,
+  ArrowUpRight,
+} from "@phosphor-icons/react";
 
 export interface HeroLandingViewProps {
   onLaunchConsole: () => void;
   onExploreLineage: () => void;
   onSelectStage?: (stage: StageType) => void;
+  onOpenBilling?: () => void;
 }
 
 interface PipelineStageCard {
@@ -30,7 +35,7 @@ interface PipelineStageCard {
   title: string;
   subtitle: string;
   summary: string;
-  icon: React.ComponentType<{ className?: string }>;
+  Icon: React.ElementType;
   tag: string;
 }
 
@@ -38,46 +43,46 @@ const PIPELINE_STAGES: PipelineStageCard[] = [
   {
     id: "BUILD",
     num: "01",
-    title: "Build",
+    title: "BUILD",
     subtitle: "Goal deconstruction & initial DAG synthesis",
-    summary: "Translates high-level natural language into typed DAG nodes, tool bindings, and execution graphs.",
-    icon: Cpu,
+    summary: "Define your goal in plain English. Reco synthesizes the tool DAG and sets evaluation criteria.",
+    Icon: Cpu,
     tag: "Synthesis",
   },
   {
     id: "RUN",
     num: "02",
-    title: "Run",
+    title: "RUN",
     subtitle: "Deterministic execution & 4-axis scorecard",
-    summary: "Executes topologically with runtime tracing, quantifying Accuracy, Reliability, Cost, and Speed.",
-    icon: PlayCircle,
+    summary: "Reco executes your agent against edge-case test suites, measuring accuracy, latency, and cost.",
+    Icon: Play,
     tag: "Evaluation",
   },
   {
     id: "UNDERSTAND",
     num: "03",
-    title: "Understand",
+    title: "UNDERSTAND",
     subtitle: "12-category diagnostic root cause analysis",
-    summary: "Dissects failure traces to isolate underlying root causes from observable surface symptoms.",
-    icon: Activity,
+    summary: "Deep failure analysis maps issues to a 12-category failure taxonomy automatically.",
+    Icon: Pulse,
     tag: "Diagnostics",
   },
   {
     id: "IMPROVE",
     num: "04",
-    title: "Improve",
+    title: "IMPROVE",
     subtitle: "Self-reflection, mutation tournament & Pareto frontier",
-    summary: "Autonomous mutations guided by epistemic memory ledger rules to find non-dominated architectures.",
-    icon: Sparkles,
+    summary: "Evolutionary search mutates prompts, tool configs, and verifies invariant rules.",
+    Icon: Sparkle,
     tag: "Optimization",
   },
   {
     id: "VALIDATE",
     num: "05",
-    title: "Validate",
+    title: "VALIDATE",
     subtitle: "Air-gapped held-out promotion gate",
-    summary: "Rigorous zero-leakage evaluation on held-out test splits before automated production promotion.",
-    icon: ShieldCheck,
+    summary: "Air-gapped held-out validation proves zero leakage before production deployment.",
+    Icon: ShieldCheck,
     tag: "Verification",
   },
 ];
@@ -86,7 +91,7 @@ interface TechBadge {
   label: string;
   provider: string;
   detail: string;
-  icon: React.ComponentType<{ className?: string }>;
+  Icon: React.ElementType;
 }
 
 const TECH_BADGES: TechBadge[] = [
@@ -94,25 +99,25 @@ const TECH_BADGES: TechBadge[] = [
     label: "Inference",
     provider: "TensorMux",
     detail: "GLM-4.7-Flash",
-    icon: Zap,
+    Icon: Lightning,
   },
   {
     label: "Observability",
     provider: "Neatlogs",
     detail: "Distributed Tracing",
-    icon: Radio,
+    Icon: Broadcast,
   },
   {
     label: "Persistence",
     provider: "Supabase",
     detail: "Cloud Ledger",
-    icon: Database,
+    Icon: Database,
   },
   {
     label: "Monetization",
     provider: "Dodo Payments",
     detail: "Pro Tier",
-    icon: CreditCard,
+    Icon: CreditCard,
   },
 ];
 
@@ -120,142 +125,229 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
   onLaunchConsole,
   onExploreLineage,
   onSelectStage,
+  onOpenBilling,
 }) => {
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveStep((prev) => (prev + 1) % PIPELINE_STAGES.length);
+    }, 2400);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="min-h-[85dvh] flex flex-col justify-between py-4 sm:py-8 space-y-8">
+    <div className="min-h-[90dvh] flex flex-col justify-between py-6 sm:py-10 space-y-12 bg-zinc-50">
       {/* Hero Stack */}
-      <div className="mx-auto w-full max-w-4xl text-center space-y-6">
-        {/* Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3.5 py-1 text-xs font-mono font-medium text-indigo-700 shadow-xs">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="mx-auto w-full max-w-4xl text-center space-y-6"
+      >
+        {/* Track 1 Pill Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3.5 py-1 text-xs font-mono font-medium text-indigo-700 shadow-2xs">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-75" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600" />
           </span>
           <span>TRACK 1: AUTOMATED AGENT ENGINEERING • SYNDICATE BY MAXIMOR</span>
         </div>
 
-        {/* Headline */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-zinc-900 leading-tight">
-          Autonomous Agent Engineering System
-        </h1>
+        {/* Large Headline */}
+        <div className="space-y-2">
+          <h1
+            className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-zinc-900 leading-[1.12] font-geist"
+            aria-label="Autonomous Agent Engineering System: Build Agents That Actually Improve Themselves"
+          >
+            Build Agents That Actually Improve Themselves
+            <span className="block text-xl sm:text-2xl font-semibold text-zinc-400 mt-2 font-geist">
+              Autonomous Agent Engineering System
+            </span>
+          </h1>
+        </div>
 
-        {/* Subheadline */}
-        <p className="mx-auto max-w-2xl text-base sm:text-lg text-zinc-600 leading-relaxed font-normal">
+        {/* Sub-headline */}
+        <p className="mx-auto max-w-2xl text-base sm:text-lg text-zinc-500 leading-relaxed font-normal font-geist">
           From high-level natural language goals to self-improving, Pareto-optimized agent DAGs with closed-loop failure diagnostics, self-reflection memory, and air-gapped held-out verification.
         </p>
 
         {/* CTAs */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          {/* Primary Filled CTA */}
           <button
             type="button"
             onClick={onLaunchConsole}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-xs transition-all hover:bg-indigo-700 active:scale-[0.98] cursor-pointer"
+            aria-label="Launch Interactive Console"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-xs transition-all hover:bg-indigo-700 active:scale-[0.98] cursor-pointer font-geist"
           >
-            <Terminal className="h-4 w-4" />
-            <span>Launch Interactive Console</span>
-            <ArrowRight className="h-4 w-4" />
+            <Terminal size={18} weight="bold" />
+            <span>Launch Console</span>
+            <ArrowRight size={16} weight="bold" />
           </button>
 
+          {/* GitHub Outlined CTA */}
+          <a
+            href="https://github.com/toufiqfarhan0/reco"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-3 text-sm font-semibold text-zinc-900 shadow-xs transition-all hover:bg-zinc-50 active:scale-[0.98] cursor-pointer font-geist"
+          >
+            <GithubLogo size={18} weight="bold" />
+            <span>View on GitHub</span>
+          </a>
+
+          {/* Explore Evolution Lineage CTA */}
           <button
             type="button"
             onClick={onExploreLineage}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-xs transition-all hover:bg-zinc-50 active:scale-[0.98] cursor-pointer"
+            aria-label="Explore Evolution Lineage"
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-3 text-sm font-semibold text-zinc-700 shadow-xs transition-all hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.98] cursor-pointer font-geist"
           >
-            <GitBranch className="h-4 w-4 text-zinc-500" />
+            <GitBranch size={18} weight="duotone" className="text-indigo-600" />
             <span>Explore Evolution Lineage</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* 5-Stage Closed-Loop Pipeline Interactive Grid */}
-      <div className="mx-auto w-full max-w-7xl pt-4">
-        <div className="mb-4 flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-600">
-              5-Stage Closed-Loop Architecture
-            </span>
-            <span className="h-1 w-1 rounded-full bg-zinc-300" />
-            <span className="text-xs text-zinc-500">
-              Select any stage to inspect live artifacts
+      {/* 5-Stage Closed-Loop Pipeline Animated Stepper (Non-clickable) */}
+      <section id="how-it-works" className="mx-auto w-full max-w-7xl pt-8 scroll-mt-20">
+        <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 font-geist">
+            How Reco Works — 5 Steps, Zero Configuration
+          </h2>
+          <p className="text-sm text-zinc-500 font-geist">
+            From natural language goal to production-grade agent in minutes
+          </p>
+
+          {/* Live Autonomous Pipeline Cycle Indicator */}
+          <div className="pt-2 flex items-center justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/70 px-3 py-1 text-[11px] font-mono text-indigo-700">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-600" />
+              </span>
+              <span>Autonomous Pipeline Cycle: Stage {activeStep + 1} of 5 &bull; {PIPELINE_STAGES[activeStep].title}</span>
             </span>
           </div>
-          <span className="font-mono text-xs font-semibold text-zinc-900">
-            Self-Improving DAG Loop
-          </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
-          {PIPELINE_STAGES.map((stage) => {
-            const Icon = stage.icon;
+        {/* Horizontal Step-Flow Layout (Stacked on Mobile, Horizontal on Desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 relative select-none">
+          {PIPELINE_STAGES.map((stage, i) => {
+            const isActive = i === activeStep;
+            const isPast = i < activeStep;
+
             return (
               <div
                 key={stage.id}
-                onClick={() => {
-                  if (onSelectStage) {
-                    onSelectStage(stage.id);
-                  } else {
-                    onLaunchConsole();
-                  }
-                }}
-                className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-4.5 transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-xs cursor-pointer shadow-xs"
+                className={`relative flex flex-col items-start text-left transition-all duration-300 ${
+                  isActive ? "opacity-100" : "opacity-75"
+                }`}
               >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 border border-zinc-200 group-hover:bg-indigo-50 group-hover:text-indigo-700 group-hover:border-indigo-200 transition-colors">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="font-mono text-xs font-bold text-zinc-400 group-hover:text-zinc-900 transition-colors">
-                      {stage.num}
-                    </span>
+                {/* Step Circle (32px) + Animated Connecting Line */}
+                <div className="relative flex items-center w-full mb-3">
+                  <div
+                    className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-xs font-mono font-bold transition-all duration-300 shrink-0 ${
+                      isActive
+                        ? "bg-indigo-600 text-white ring-4 ring-indigo-100 shadow-sm scale-110"
+                        : isPast
+                        ? "bg-indigo-100 text-indigo-700 border border-indigo-200"
+                        : "bg-zinc-200 text-zinc-500"
+                    }`}
+                  >
+                    {stage.num}
                   </div>
 
-                  <div className="mt-3.5">
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="text-sm font-semibold text-zinc-900">
-                        {stage.title}
-                      </h2>
-                      <span className="rounded-lg bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600 border border-zinc-200 group-hover:bg-indigo-50/60 group-hover:text-indigo-700 group-hover:border-indigo-200 transition-colors">
-                        {stage.tag}
-                      </span>
+                  {/* Connecting Line (Desktop) */}
+                  {i < PIPELINE_STAGES.length - 1 && (
+                    <div className="hidden md:block flex-1 h-[2px] bg-zinc-200 ml-3 mr-0 relative overflow-hidden rounded-full">
+                      {/* Animated Progress Line */}
+                      <div
+                        className={`absolute inset-0 bg-indigo-600 transition-all duration-500 rounded-full ${
+                          isPast
+                            ? "w-full"
+                            : isActive
+                            ? "w-full animate-pulse"
+                            : "w-0"
+                        }`}
+                      />
                     </div>
-                    <p className="mt-1 font-mono text-[11px] text-zinc-500 leading-snug">
-                      {stage.subtitle}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-500 leading-relaxed">
-                      {stage.summary}
-                    </p>
-                  </div>
+                  )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-2.5 text-[11px] text-zinc-400 group-hover:text-indigo-600 transition-colors font-mono font-medium">
-                  <span>Enter Stage</span>
-                  <ArrowRight className="h-3.5 w-3.5 transform group-hover:translate-x-1 transition-transform" />
+                {/* Step Body */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <h3
+                      className={`text-sm font-bold tracking-tight font-geist transition-colors duration-300 ${
+                        isActive ? "text-indigo-600" : "text-zinc-900"
+                      }`}
+                    >
+                      {stage.title}
+                    </h3>
+                    {isActive && (
+                      <span className="relative flex h-1.5 w-1.5 shrink-0">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] font-mono text-zinc-400">
+                    {stage.subtitle}
+                  </p>
+                  <p
+                    className={`text-xs mt-1 leading-relaxed font-geist transition-colors duration-300 ${
+                      isActive ? "text-zinc-800 font-medium" : "text-zinc-500"
+                    }`}
+                  >
+                    {stage.summary}
+                  </p>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
 
-      {/* Live Production Tech Rail */}
+        {/* Callout bar below steps */}
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg bg-indigo-50/60 border border-indigo-100 p-4 sm:px-6">
+          <div className="text-left">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-indigo-700 block">
+              Ready to see it in action?
+            </span>
+            <p className="text-xs text-zinc-700 font-geist mt-0.5">
+              Start with Stage 1: Build your agent
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onLaunchConsole}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-xs font-semibold shadow-xs transition-all cursor-pointer font-geist shrink-0"
+          >
+            <span>Launch Console &rarr;</span>
+          </button>
+        </div>
+      </section>
+
+      {/* Live Production Tech Rail (Single Line) */}
       <div className="mx-auto w-full max-w-7xl border-t border-zinc-200/80 pt-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span className="font-semibold uppercase tracking-wider text-zinc-950">
+        <div className="flex items-center justify-between gap-4 overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 shrink-0">
+            <CheckCircle size={16} weight="fill" className="text-emerald-600" />
+            <span className="font-semibold uppercase tracking-wider text-zinc-950 whitespace-nowrap">
               Live Production Stack:
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
             {TECH_BADGES.map((tech) => {
-              const Icon = tech.icon;
+              const Icon = tech.Icon;
               return (
                 <div
                   key={tech.label}
-                  className="flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-1.5 text-xs shadow-2xs"
+                  className="flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white px-3 py-1.5 text-xs shadow-2xs whitespace-nowrap shrink-0"
                 >
-                  <Icon className="h-3.5 w-3.5 text-zinc-500" />
+                  <Icon size={15} weight="duotone" className="text-indigo-600 shrink-0" />
                   <div className="flex items-center gap-1.5">
                     <span className="text-zinc-400 font-mono text-[11px]">
                       {tech.label}:
@@ -273,6 +365,41 @@ export const HeroLandingView: React.FC<HeroLandingViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Anchor Section: Pricing Overview */}
+      <section id="pricing" className="mx-auto w-full max-w-7xl pt-8 pb-4 scroll-mt-20 border-t border-zinc-200">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold uppercase tracking-wider text-indigo-600">
+              <CreditCard size={15} weight="duotone" />
+              <span>Hosted Billing &amp; Plans</span>
+            </div>
+            <h3 className="text-xl font-bold tracking-tight text-zinc-900 font-geist">
+              Simple, transparent pricing for agent engineers
+            </h3>
+            <p className="text-xs text-zinc-500 max-w-xl font-geist">
+              Start with Free local in-memory execution, or upgrade to Pro ($29/mo) for unlimited mutations, cloud lineage persistence, and distributed trace telemetry.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={onLaunchConsole}
+              className="px-4 py-2 rounded-lg border border-zinc-200 bg-white text-xs font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors cursor-pointer shadow-xs"
+            >
+              Start Free (Console)
+            </button>
+            <button
+              type="button"
+              onClick={onOpenBilling || onLaunchConsole}
+              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-colors cursor-pointer shadow-xs"
+            >
+              View Pricing Tiers &rarr;
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

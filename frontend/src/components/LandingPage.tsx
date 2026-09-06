@@ -10,6 +10,7 @@ import {
   List,
   X as XIcon,
   Check,
+  GithubLogo,
 } from '@phosphor-icons/react';
 
 interface LandingPageProps {
@@ -25,33 +26,66 @@ function Navbar({ onEnterConsole }: { onEnterConsole: () => void }) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-white/90 backdrop-blur-sm border-b border-[#e4e4e3]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-[#0a0a0a] text-lg leading-none">Reco</span>
-          <span className="text-xs text-[#525250] hidden sm:inline">AI Agent Engineering</span>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-zinc-200 shadow-xs overflow-hidden shrink-0">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 32 32"
+              width="22"
+              height="22"
+              fill="none"
+              aria-label="Reco Logomark"
+            >
+              <path
+                fill="#4F46E5"
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M4 4H24V15H17.2L25.5 28H18L10.5 16.5V28H4V4ZM10.5 8.5V12H18V8.5H10.5Z"
+              />
+            </svg>
+          </div>
+          <span className="font-semibold text-[#0a0a0a] text-lg leading-none font-geist">Reco</span>
+          <span className="text-xs text-[#525250] hidden sm:inline font-geist">AI Agent Engineering</span>
         </div>
 
         <ul className="hidden md:flex items-center gap-6">
-          {['How it works', 'Pricing', 'Docs'].map((link) => (
-            <li key={link}>
-              <a
-                href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
-                className="text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors"
-              >
-                {link}
-              </a>
-            </li>
-          ))}
+          <li>
+            <a
+              href="#how-it-works"
+              className="text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors font-geist"
+            >
+              How it works
+            </a>
+          </li>
+          <li>
+            <a
+              href="#pricing"
+              className="text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors font-geist"
+            >
+              Pricing
+            </a>
+          </li>
         </ul>
 
         <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/toufiqfarhan0/reco"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center h-8 w-8 rounded-lg border border-zinc-200 bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 transition-colors shadow-2xs"
+            title="View on GitHub"
+            aria-label="View on GitHub"
+          >
+            <GithubLogo size={18} weight="bold" />
+          </a>
           <button
             onClick={onEnterConsole}
-            className="hidden sm:inline-flex items-center bg-[#0a0a0a] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1a1a] transition-colors"
+            className="hidden sm:inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98] font-geist"
           >
             Open console
           </button>
           <button
-            className="md:hidden p-1.5 rounded-md text-[#525250] hover:text-[#0a0a0a] hover:bg-[#f4f4f3] transition-colors"
+            className="md:hidden p-1.5 rounded-md text-[#525250] hover:text-[#0a0a0a] hover:bg-[#f4f4f3] transition-colors cursor-pointer"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Toggle menu"
           >
@@ -62,19 +96,32 @@ function Navbar({ onEnterConsole }: { onEnterConsole: () => void }) {
 
       {menuOpen && (
         <div className="md:hidden bg-white border-b border-[#e4e4e3] px-4 pb-4 pt-2 flex flex-col gap-3">
-          {['How it works', 'Pricing', 'Docs'].map((link) => (
-            <a
-              key={link}
-              href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
-              className="text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors py-1"
-              onClick={() => setMenuOpen(false)}
-            >
-              {link}
-            </a>
-          ))}
+          <a
+            href="#how-it-works"
+            className="text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors py-1 font-geist"
+            onClick={() => setMenuOpen(false)}
+          >
+            How it works
+          </a>
+          <a
+            href="#pricing"
+            className="text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors py-1 font-geist"
+            onClick={() => setMenuOpen(false)}
+          >
+            Pricing
+          </a>
+          <a
+            href="https://github.com/toufiqfarhan0/reco"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm text-[#525250] hover:text-[#0a0a0a] transition-colors py-1 font-geist"
+          >
+            <GithubLogo size={16} weight="bold" />
+            <span>GitHub Repository</span>
+          </a>
           <button
             onClick={() => { setMenuOpen(false); onEnterConsole(); }}
-            className="mt-1 w-full bg-[#0a0a0a] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1a1a] transition-colors text-left"
+            className="mt-1 w-full bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all text-center cursor-pointer font-geist"
           >
             Open console
           </button>
