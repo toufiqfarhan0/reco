@@ -7,6 +7,10 @@
 [![Monetization](https://img.shields.io/badge/Monetization-Dodo%20Payments%20Pro%20Tier-cyan?style=flat-square)](#)
 [![Deployment](https://img.shields.io/badge/Deployment-Render%20Web%20Service%20%28Unified%20FastAPI%20%2B%20Vite%29-black?style=flat-square)](#)
 
+> 🌐 **Live Web Application**: [https://reco-b1ac.onrender.com/](https://reco-b1ac.onrender.com/)  
+> 📦 **GitHub Repository**: [https://github.com/toufiqfarhan0/reco](https://github.com/toufiqfarhan0/reco)  
+> 🏆 **Submitted to**: [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/) — **Track 1: Automated Agent Engineering**
+
 Autonomous agent engineering system that automatically designs, executes, benchmarks, diagnoses, and improves specialized AI agents.
 
 ---
@@ -240,12 +244,12 @@ Reco deeply integrates all hackathon sponsor technologies into its core architec
 
 ### 4. Dodo Payments (Monetization & Pro Entitlements)
 - **Merchant of Record**: Configured for `test_mode` billing and subscription management.
-- **Product ID**: Reco Pro tier (`pdt_0Nmvzbo4wJETkRyCMAEPt`, $9.00/mo or $29.00/mo).
+- **Product ID**: Reco Pro tier (`pdt_0Nmvzbo4wJETkRyCMAEPt`, $29.00/mo).
 - **Hosted Checkout & Customer Portal**: Hosted checkout via `POST /billing/checkout` and customer portal via `POST /billing/portal`.
-- **HMAC Webhook Verification**: Uses `standardwebhooks` to verify cryptographically signed webhooks at `POST /billing/webhook` with anti-replay timestamp validation and idempotent event processing (`payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`).
+- **HMAC Webhook Verification**: Uses `standardwebhooks` to verify cryptographically signed webhooks at `POST /billing/webhook` and `/api/v1/payments/webhook` with anti-replay timestamp validation and idempotent event processing (`payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`).
 - **Entitlement Tiers**:
   - **Free Tier**: Max 1 evolution generation, 2 candidates per pool, 3 total runs.
-  - **Pro Tier ($9/mo)**: Max 5 evolution generations, 5 candidates per pool, 100 total runs.
+  - **Pro Tier ($29/mo)**: Max 5 evolution generations, 5 candidates per pool, 100 total runs.
 - **Isolation**: Evaluation benchmarks and Demo Mode remain 100% free and unthrottled.
 
 ---
@@ -274,6 +278,8 @@ cp .env.example .env
 
 | Category | Environment Variable | Required | Description | Default / Example |
 |---|---|---|---|---|
+| **System** | `BILLING_ENABLED` | Optional | Enable Dodo Payments billing enforcement | `true` |
+| | `OBSERVABILITY_ENABLED` | Optional | Enable Neatlogs execution tracing | `true` |
 | **TensorMux** | `TENSORMUX_API_KEY` | Optional | TensorMux API token for live LLM inference | `tmx_...` |
 | | `TENSORMUX_BASE_URL` | Optional | TensorMux OpenAI-compatible API base URL | `https://api.tensormux.com/v1` |
 | | `TENSORMUX_MODEL` | Optional | Target model identifier | `glm-4-7-flash` |
@@ -319,10 +325,10 @@ cp .env.example .env
 In the [Dodo Payments Dashboard](https://app.dodopayments.com) (in **Test Mode**):
 - **Product Name**: `Reco Pro`
 - **Product ID**: `pdt_0Nmvzbo4wJETkRyCMAEPt`
-- **Type**: Recurring Subscription ($9.00/mo or $29.00/mo)
+- **Type**: Recurring Subscription ($29.00/mo)
 
 ### Step 2: Configure Webhook Delivery
-- **Endpoint URL**: `https://<your-service>.onrender.com/billing/webhook`
+- **Endpoint URL**: `https://<your-service>.onrender.com/api/v1/payments/webhook` (also supports `/billing/webhook`)
 - **Subscribed Events**: `payment.succeeded`, `subscription.active`, `subscription.cancelled`, `subscription.renewed`
 - **Secret**: Assign the generated webhook secret to `DODO_PAYMENTS_WEBHOOK_KEY`.
 
@@ -400,22 +406,26 @@ cp .env.example .env
 Open `.env` and configure your credentials. **Reco boots completely offline with mock providers if keys are omitted**, but configuring them activates live production features:
 
 ```env
-# 1. TensorMux (Live LLM Inference via GLM-4.7-Flash)
+# 1. System Integration Flags
+BILLING_ENABLED=true
+OBSERVABILITY_ENABLED=true
+
+# 2. TensorMux (Live LLM Inference via GLM-4.7-Flash)
 TENSORMUX_API_KEY=tmx_your_key_here
 TENSORMUX_BASE_URL=https://api.tensormux.com/v1
 TENSORMUX_MODEL=glm-4-7-flash
 
-# 2. Neatlogs (Distributed Execution Tracing & Observability)
+# 3. Neatlogs (Distributed Execution Tracing & Observability)
 NEATLOGS_API_KEY=your_neatlogs_api_key_here
 NEATLOGS_BASE_URL=https://ingest.neatlogs.com
 
-# 3. Supabase (Cloud Persistence & GoTrue Authentication)
+# 4. Supabase (Cloud Persistence & GoTrue Authentication)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_anon_public_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 SUPABASE_JWT_SECRET=your_jwt_secret_here
 
-# 4. Dodo Payments (Monetization & Customer Portal in Test Mode)
+# 5. Dodo Payments (Monetization & Customer Portal in Test Mode)
 DODO_PAYMENTS_API_KEY=your_dodo_api_key_here
 DODO_PAYMENTS_ENVIRONMENT=test_mode
 DODO_PAYMENTS_PRODUCT_ID=pdt_0Nmvzbo4wJETkRyCMAEPt
@@ -440,7 +450,7 @@ python -m pytest tests/ -q
 # 1. Install Node dependencies
 npm install --prefix frontend
 
-# 2. Verify frontend test suite (47 passed across 13 test files)
+# 2. Verify frontend test suite (51 passed across 13 test files)
 npm test --prefix frontend
 
 # 3. Build production Vite bundle
@@ -518,12 +528,15 @@ reco/
 
 ## 18. Hackathon Metadata
 
+- **Hackathon**: [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/)
 - **Track**: **Track 1 — Automated Agent Engineering**
-- **Repository**: [https://github.com/toufiqfarhan0/reco](https://github.com/toufiqfarhan0/reco)
-- **Active Model**: `glm-4-7-flash` on TensorMux
-- **Observability**: Neatlogs Distributed Tracing
-- **Persistence**: Supabase Cloud PostgreSQL & Auth
-- **Billing**: Dodo Payments (`pdt_0Nmvzbo4wJETkRyCMAEPt`)
+- **Live Deployed App**: [https://reco-b1ac.onrender.com/](https://reco-b1ac.onrender.com/)
+- **GitHub Repository**: [https://github.com/toufiqfarhan0/reco](https://github.com/toufiqfarhan0/reco)
+- **Active Model Provider**: `glm-4-7-flash` via TensorMux Gateway
+- **Observability Partner**: Neatlogs Distributed Execution Tracing
+- **Persistence Partner**: Supabase Cloud PostgreSQL & GoTrue Auth
+- **Monetization Partner**: Dodo Payments (`pdt_0Nmvzbo4wJETkRyCMAEPt`, Reco Pro)
+- **Built With**: AO (Agent Orchestrator) & `agy` CLI across 20+ milestone worktrees
 
 ---
 
