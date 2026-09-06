@@ -380,39 +380,95 @@ Reco deploys cleanly as a single unified Web Service where FastAPI serves both b
 
 ---
 
-## 15. Local Development & Testing
+## 15. Quickstart & Local Setup Guide
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+ and npm
-- Git
+Follow these exact steps to clone, configure, and run Reco locally in under 3 minutes:
 
-### Backend Setup & Test Suite
+### Step 1: Clone the Repository
 ```bash
-# 1. Install Python dependencies
+git clone https://github.com/toufiqfarhan0/reco.git
+cd reco
+```
+
+### Step 2: Configure Environment Variables
+Copy the template to `.env`:
+```bash
+cp .env.example .env
+```
+*(On Windows PowerShell: `Copy-Item .env.example .env`)*
+
+Open `.env` and configure your credentials. **Reco boots completely offline with mock providers if keys are omitted**, but configuring them activates live production features:
+
+```env
+# 1. TensorMux (Live LLM Inference via GLM-4.7-Flash)
+TENSORMUX_API_KEY=tmx_your_key_here
+TENSORMUX_BASE_URL=https://api.tensormux.com/v1
+TENSORMUX_MODEL=glm-4-7-flash
+
+# 2. Neatlogs (Distributed Execution Tracing & Observability)
+NEATLOGS_API_KEY=your_neatlogs_api_key_here
+NEATLOGS_BASE_URL=https://ingest.neatlogs.com
+
+# 3. Supabase (Cloud Persistence & GoTrue Authentication)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_public_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+SUPABASE_JWT_SECRET=your_jwt_secret_here
+
+# 4. Dodo Payments (Monetization & Customer Portal in Test Mode)
+DODO_PAYMENTS_API_KEY=your_dodo_api_key_here
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+DODO_PAYMENTS_PRODUCT_ID=pdt_0Nmvzbo4wJETkRyCMAEPt
+DODO_PAYMENTS_WEBHOOK_KEY=whsec_your_webhook_signing_secret_here
+```
+
+### Step 3: Set Up Python Virtual Environment & Backend
+```bash
+# 1. Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate       # On Windows: .venv\Scripts\Activate.ps1
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 2. Run deterministic test suite (571 passed, 1 skipped)
+# 3. Verify backend test suite (571 passed, 1 skipped)
 python -m pytest tests/ -q
 ```
 
-### Frontend Setup & Test Suite
+### Step 4: Set Up Frontend
 ```bash
 # 1. Install Node dependencies
 npm install --prefix frontend
 
-# 2. Run component tests (47 passed across 13 test files)
+# 2. Verify frontend test suite (47 passed across 13 test files)
 npm test --prefix frontend
 
-# 3. Build production bundle
+# 3. Build production Vite bundle
 npm run build --prefix frontend
 ```
 
-### Launch Unified Server Locally
+### Step 5: Start the Application
+
+You can run Reco in either **Unified Mode** (single port) or **Dual Dev Mode** (hot-reload):
+
+#### Option A: Unified Production Server (Recommended)
+FastAPI serves both the REST API and the compiled Vite SPA from a single port:
+```bash
+uvicorn reco.api.app:app --host 127.0.0.1 --port 8000
+```
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser. Interactive Swagger docs are available at `http://127.0.0.1:8000/docs`.
+
+#### Option B: Dual Development Server (Frontend Hot-Reload)
+In terminal 1 (Backend):
 ```bash
 uvicorn reco.api.app:app --host 127.0.0.1 --port 8000 --reload
 ```
-Open `http://127.0.0.1:8000` in your browser. Interactive Swagger docs are at `http://127.0.0.1:8000/docs`.
+In terminal 2 (Frontend):
+```bash
+npm run dev --prefix frontend
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
 
 ---
 
