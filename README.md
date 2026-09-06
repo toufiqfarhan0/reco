@@ -1,17 +1,50 @@
 # Reco: Autonomous Agent Engineering System
 
+[![Hackathon](https://img.shields.io/badge/Hackathon-Syndicate%20by%20Maximor-6366f1?style=flat-square&logo=star)](https://syndicate-by-maximor.devpost.com/)
 [![Track](https://img.shields.io/badge/Track%201-Automated%20Agent%20Engineering-blue?style=flat-square)](#)
-[![Model Provider](https://img.shields.io/badge/Model%20Provider-TensorMux%20%28GLM--4.7--Flash%29-orange?style=flat-square)](#)
-[![Observability](https://img.shields.io/badge/Observability-Neatlogs%20Distributed%20Tracing-purple?style=flat-square)](#)
-[![Persistence](https://img.shields.io/badge/Persistence-Supabase%20Cloud%20Ledger-emerald?style=flat-square)](#)
-[![Monetization](https://img.shields.io/badge/Monetization-Dodo%20Payments%20Pro%20Tier-cyan?style=flat-square)](#)
-[![Deployment](https://img.shields.io/badge/Deployment-Render%20Web%20Service%20%28Unified%20FastAPI%20%2B%20Vite%29-black?style=flat-square)](#)
+[![Built with AO](https://img.shields.io/badge/Built%20With-AO%20%28Agent%20Orchestrator%29-ef4444?style=flat-square)](https://aoagents.dev/)
+[![Model Provider](https://img.shields.io/badge/Model%20Provider-TensorMux%20%28GLM--4.7--Flash%29-orange?style=flat-square)](https://tensormux.com/)
+[![Observability](https://img.shields.io/badge/Observability-Neatlogs%20Distributed%20Tracing-purple?style=flat-square)](https://neatlogs.com/)
+[![Persistence](https://img.shields.io/badge/Persistence-Supabase%20Cloud%20Ledger-emerald?style=flat-square)](https://supabase.com/)
+[![Monetization](https://img.shields.io/badge/Monetization-Dodo%20Payments%20Pro%20Tier-cyan?style=flat-square)](https://dodopayments.com/)
+[![Deployment](https://img.shields.io/badge/Deployment-Render%20Web%20Service-black?style=flat-square)](https://reco-b1ac.onrender.com/)
 
+> 🎬 **Product Demo Video (YouTube)**: [https://youtu.be/4uHXeUosulU](https://youtu.be/4uHXeUosulU)  
+> 📁 **Product Demo Video (Google Drive Mirror)**: [https://drive.google.com/file/d/1kT5qXcMSpcBgRPA4fvbTp4D6s-INSNcj/view?usp=drive_link](https://drive.google.com/file/d/1kT5qXcMSpcBgRPA4fvbTp4D6s-INSNcj/view?usp=drive_link)  
 > 🌐 **Live Web Application**: [https://reco-b1ac.onrender.com/](https://reco-b1ac.onrender.com/)  
 > 📦 **GitHub Repository**: [https://github.com/toufiqfarhan0/reco](https://github.com/toufiqfarhan0/reco)  
-> 🏆 **Submitted to**: [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/) — **Track 1: Automated Agent Engineering**
+> 🏆 **Submitted to**: [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/) — **Track 1: Automated Agent Engineering**  
+> 🎫 **Syndicate Participant Pass**: [https://aoagents.dev/hackathons/syndicate/pass/](https://aoagents.dev/hackathons/syndicate/pass/)  
+> 💬 **Syndicate Discord**: [https://discord.gg/Sy3EwRBQX3](https://discord.gg/Sy3EwRBQX3)
 
 Autonomous agent engineering system that automatically designs, executes, benchmarks, diagnoses, and improves specialized AI agents.
+
+---
+
+## 🏆 Syndicate by Maximor Hackathon Submission
+
+**Reco** is officially submitted to [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/), a global hackathon hosted by [AO (Agent Orchestrator)](https://aoagents.dev/) focused on building practical autonomous agent systems ($10,000 total prize pool, September 5–7, 2026).
+
+### Submission Highlights
+- **Track**: **Track 1 — Automated Agent Engineering**
+- **Core Challenge**: Build an agentic system that can design, execute, evaluate, diagnose, and iteratively improve specialized AI agents across multiple domains, demonstrating empirical improvements in **Accuracy**, **Reliability**, **Cost**, and **Speed**.
+- **Live Deployed Application**: [https://reco-b1ac.onrender.com/](https://reco-b1ac.onrender.com/)
+- **Product Demo Video (YouTube)**: [https://youtu.be/4uHXeUosulU](https://youtu.be/4uHXeUosulU)
+- **Product Demo Video (Google Drive Mirror)**: [https://drive.google.com/file/d/1kT5qXcMSpcBgRPA4fvbTp4D6s-INSNcj/view?usp=drive_link](https://drive.google.com/file/d/1kT5qXcMSpcBgRPA4fvbTp4D6s-INSNcj/view?usp=drive_link)
+- **Devpost Submission Link**: [https://syndicate-by-maximor.devpost.com/](https://syndicate-by-maximor.devpost.com/)
+
+### Hackathon Partners & Infrastructure Matrix
+
+| Partner / Sponsor | Role in Reco Architecture | Deep Technical Integration |
+|---|---|---|
+| **[AO (Agent Orchestrator)](https://aoagents.dev/)** | **Hackathon Host & Build Engine** | Reco was built 100% end-to-end using `ao` worktrees and the `agy` CLI across 30 milestone sessions with branch isolation and 571 tests with zero regressions. |
+| **[Maximor](https://maximor.ai/)** | **Cash Prize Partner ($3,000 USD)** | Reco solves enterprise agent reliability by compiling self-healing compound AI agents for complex domain workflows like financial invoice reconciliation. |
+| **[Dodo Payments](https://dodopayments.com/)** | **Credits ($3,000) & Monetization** | Powers Reco Pro tier ($29/mo) via hosted checkout sessions, customer portal, 1-click seamless sandbox payment, and cryptographic HMAC webhooks (`standardwebhooks`). |
+| **[TensorMux](https://tensormux.com/)** | **Inference Partner (50M tokens)** | High-throughput gateway to `glm-4-7-flash` via OpenAI-compatible endpoint at `https://api.tensormux.com/v1`, extracting native reasoning tokens for epistemic failure postmortems. |
+| **[Neatlogs](https://neatlogs.com/)** | **Venue & Observability Partner** | Hierarchical 5-tier OpenTelemetry distributed tracing (`optimization_run` down to `tool_invocation`) exported non-blocking to `https://ingest.neatlogs.com` with deep-link flamegraph analysis. |
+| **[Supabase](https://supabase.com/)** | **Persistence Partner** | PostgreSQL cloud ledger solving the ephemeral container state crisis by persisting immutable versioned DAGs, multi-tenant Row-Level Security (`auth.uid() = user_id`), and cross-run epistemic memory with 1-Click Judge Auth. |
+| **[AI Grants India](https://aigrants.in/)** | **GPU / Voice Credits Partner ($4,000)** | Providing compute infrastructure credits backing intensive multi-candidate evolutionary optimization and held-out validation suites. |
+
 
 ---
 
@@ -241,6 +274,15 @@ Reco deeply integrates all hackathon sponsor technologies into its core architec
 - **Row-Level Security (RLS)**: Enforces multi-tenant data isolation via GoTrue JWT tokens (`auth.uid() = user_id`).
 - **Interactive UI Components**: Full `AuthModal` supporting Email/Password Sign Up, Sign In, and an instant **1-Click Judge / Evaluator Demo Sign In** with pre-configured session credentials. The `MyExperimentsModal` lets users browse, load, and inspect persisted optimization histories.
 - **Zero-Coupling Fallback**: Automatically falls back to local in-memory repositories if cloud credentials are unset.
+
+#### Why We Added Supabase (The Architectural Rationale)
+1. **The Ephemeral State Crisis in Autonomous Agents**: Most existing agent frameworks (LangGraph, CrewAI, AutoGen) rely on in-memory state or local SQLite files. In real-world enterprise deployments, when worker containers scale down, restart, or deploy new images, all evolutionary lineage, mutated DAG candidate versions, failure cluster categorizations, and validation scorecards are lost.
+2. **Immutable Versioned DAG Store & Lineage Auditing**: Supabase PostgreSQL acts as an immutable cloud ledger (`agent_versions`, `candidates`, `held_out_scorecards`). Every generational mutation is saved with exact code diffs and Pareto metrics, enabling mathematical rollback and verifiable provenance across $V_0 \to V_1 \to V_2$.
+3. **Multi-Tenant Row-Level Security (RLS)**: Enterprise teams deploying autonomous agents require strict data isolation. GoTrue JWT authentication (`auth.uid() = user_id`) guarantees that proprietary prompts, tool schemas, and epistemic memory invariants are isolated at the database engine level with zero cross-tenant leakage.
+4. **Cross-Run Epistemic Memory Preservation**: Discovered failure invariants (e.g., ISO-8601 UTC coercion, floating-point drift guards, schema normalization) survive process exits and container restarts, permanently re-injecting into future generation cycles so agents never repeat past failure modes.
+5. **Subscription & Entitlement Anchoring**: Ties Dodo Payments checkout sessions, customer IDs, and quota limits (`FREE` vs `PRO`) directly to authenticated user profiles, preventing client-side entitlement tampering.
+6. **Zero-Friction Judge & Evaluator Experience**: Includes an instant 1-Click Judge Demo login pre-seeded with test tokens, allowing hackathon evaluators to test true cloud persistence without typing credentials or configuring external OAuth providers.
+
 
 ### 4. Dodo Payments (Monetization & Pro Entitlements)
 - **Merchant of Record**: Configured for `test_mode` billing and subscription management.
@@ -526,17 +568,26 @@ reco/
 
 ---
 
-## 18. Hackathon Metadata
+## 18. Hackathon Submission Details (Syndicate by Maximor)
 
-- **Hackathon**: [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/)
+- **Hackathon**: [Syndicate by Maximor](https://syndicate-by-maximor.devpost.com/) — Global Autonomous Agent Hackathon ($10,000 Prize Pool)
+- **Host**: [AO (Agent Orchestrator)](https://aoagents.dev/)
 - **Track**: **Track 1 — Automated Agent Engineering**
+- **Submission Portal**: [Devpost](https://syndicate-by-maximor.devpost.com/)
 - **Live Deployed App**: [https://reco-b1ac.onrender.com/](https://reco-b1ac.onrender.com/)
+- **Product Demo Video (YouTube)**: [https://youtu.be/4uHXeUosulU](https://youtu.be/4uHXeUosulU)
+- **Product Demo Video (Google Drive Mirror)**: [https://drive.google.com/file/d/1kT5qXcMSpcBgRPA4fvbTp4D6s-INSNcj/view?usp=drive_link](https://drive.google.com/file/d/1kT5qXcMSpcBgRPA4fvbTp4D6s-INSNcj/view?usp=drive_link)
 - **GitHub Repository**: [https://github.com/toufiqfarhan0/reco](https://github.com/toufiqfarhan0/reco)
-- **Active Model Provider**: `glm-4-7-flash` via TensorMux Gateway
-- **Observability Partner**: Neatlogs Distributed Execution Tracing
-- **Persistence Partner**: Supabase Cloud PostgreSQL & GoTrue Auth
-- **Monetization Partner**: Dodo Payments (`pdt_0Nmvzbo4wJETkRyCMAEPt`, Reco Pro)
-- **Built With**: AO (Agent Orchestrator) & `agy` CLI across 20+ milestone worktrees
+- **Syndicate Participant Pass**: [https://aoagents.dev/hackathons/syndicate/pass/](https://aoagents.dev/hackathons/syndicate/pass/)
+- **Official Discord**: [https://discord.gg/Sy3EwRBQX3](https://discord.gg/Sy3EwRBQX3)
+- **Built With AO**: 100% orchestrated via `ao` worktrees and the `agy` CLI across 30 milestone sessions with branch isolation and 571 tests with zero regressions
+- **Cash Prize Partner**: [Maximor](https://maximor.ai/) ($3,000 USD Cash)
+- **Credits & Monetization Partner**: [Dodo Payments](https://dodopayments.com/) ($3,000 Credits, Reco Pro tier `pdt_0Nmvzbo4wJETkRyCMAEPt`)
+- **GPU / Voice Credits Partner**: [AI Grants India](https://aigrants.in/) ($4,000 Credits)
+- **Inference Partner**: [TensorMux](https://tensormux.com/) (GLM-4.7-Flash with native reasoning token capture)
+- **Venue & Observability Partner**: [Neatlogs](https://neatlogs.com/) (Distributed OTel Execution Tracing & Flamegraphs)
+- **Persistence Partner**: [Supabase](https://supabase.com/) (PostgreSQL Cloud Ledger & GoTrue Row-Level Security)
+
 
 ---
 

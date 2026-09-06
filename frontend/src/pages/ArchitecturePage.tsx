@@ -346,6 +346,7 @@ interface TopologyItem {
   color: string;
   badge: string;
   description: string;
+  whyAdded?: string;
   specs: { label: string; value: string }[];
   codeExample: string;
 }
@@ -415,6 +416,8 @@ await neatlogs.emitSpan({
     badge: "Immutable State Store",
     description:
       "Relational PostgreSQL persistence layer backing experiments, immutable agent version DAGs, candidate evaluations, failure diagnoses, and promotion records. Secured with GoTrue Row-Level Security (RLS) and instant 1-Click Judge Demo Auth.",
+    whyAdded:
+      "Autonomous agent engineering cannot rely on ephemeral container memory or local SQLite files that wipe on container restarts. In real-world enterprise deployments, worker autoscaling and redeployments destroy candidate mutation histories, Pareto metrics, and postmortems. We added Supabase as an immutable PostgreSQL cloud ledger to guarantee mathematical rollback across generations (V0 → V1 → V2), cryptographic multi-tenant RLS isolation (auth.uid() = user_id), cross-session epistemic memory preservation, and frictionless 1-Click Judge Demo evaluation.",
     specs: [
       { label: "Storage Engine", value: "PostgreSQL 16 + RLS" },
       { label: "Auth Isolation", value: "GoTrue JWT (auth.uid() = user_id)" },
@@ -1513,6 +1516,18 @@ export const ArchitecturePage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {currentTopology.whyAdded && (
+                <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-800 uppercase">
+                    <Database size={15} weight="fill" className="text-emerald-700" />
+                    <span>Architectural Rationale: Why We Added {currentTopology.name}</span>
+                  </div>
+                  <p className="text-xs text-emerald-950 font-geist leading-relaxed">
+                    {currentTopology.whyAdded}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -1614,6 +1629,17 @@ export const ArchitecturePage: React.FC = () => {
                   </td>
                   <td className="py-3.5 px-4 text-emerald-900 bg-emerald-50/20 font-medium">
                     Epistemic Memory Ledger preserving durable invariants across all future generations (+25.0% lift).
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-3.5 px-4 font-mono font-semibold text-zinc-950">
+                    State &amp; Lineage Persistence
+                  </td>
+                  <td className="py-3.5 px-4 text-rose-800 bg-rose-50/20">
+                    Ephemeral RAM or local scratch SQLite wiped on container restarts; zero multi-tenant security.
+                  </td>
+                  <td className="py-3.5 px-4 text-emerald-900 bg-emerald-50/20 font-medium">
+                    Supabase PostgreSQL cloud ledger storing immutable versioned DAGs with GoTrue Row-Level Security (RLS).
                   </td>
                 </tr>
               </tbody>

@@ -36,21 +36,21 @@ describe("ArchitecturePage Component", () => {
     ).toBeInTheDocument();
 
     expect(screen.getByText(/Definition 1: TaskSpecification T/i)).toBeInTheDocument();
-    expect(screen.getByText(/T = \(G, I, O, C\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/T = \(G, I, O, C\)/i)[0]).toBeInTheDocument();
 
     expect(screen.getByText(/Definition 2: Agent DAG G/i)).toBeInTheDocument();
-    expect(screen.getByText(/G = \(V, E, v₀, V_term\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/G = \(V, E, v₀, V_term\)/i)[0]).toBeInTheDocument();
   });
 
-  it("renders all 5 compilation engine stages with interactive switching", () => {
+  it("renders all 5 compilation engine stages with interactive switching", async () => {
     renderComponent();
 
     // All 5 stages
-    expect(screen.getByText(/STAGE 01/i)).toBeInTheDocument();
-    expect(screen.getByText(/STAGE 02/i)).toBeInTheDocument();
-    expect(screen.getByText(/STAGE 03/i)).toBeInTheDocument();
-    expect(screen.getByText(/STAGE 04/i)).toBeInTheDocument();
-    expect(screen.getByText(/STAGE 05/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/STAGE 01/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/STAGE 02/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/STAGE 03/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/STAGE 04/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/STAGE 05/i)[0]).toBeInTheDocument();
 
     // Click stage 2 tab
     const stage2Btn = screen.getByRole("button", { name: /STAGE 02/i });
@@ -58,7 +58,7 @@ describe("ArchitecturePage Component", () => {
 
     // Verify stage 2 details are visible
     expect(
-      screen.getByText(/Deterministic Topological Execution & Scorecard Formulation/i)
+      await screen.findByText(/Deterministic Topological Execution & Scorecard Formulation/i)
     ).toBeInTheDocument();
   });
 
