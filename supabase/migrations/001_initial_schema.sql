@@ -106,6 +106,24 @@ CREATE TABLE IF NOT EXISTS traces (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- ------------------------------------------------------------------------------
+-- 7. USER ENTITLEMENTS TABLE
+-- Tracks user subscription tiers, Dodo Payments customer and subscription IDs.
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_entitlements (
+    user_id UUID PRIMARY KEY,
+    tier TEXT NOT NULL DEFAULT 'free',
+    status TEXT NOT NULL DEFAULT 'none',
+    is_pro BOOLEAN NOT NULL DEFAULT false,
+    customer_id TEXT,
+    subscription_id TEXT,
+    payment_id TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    expires_at TIMESTAMPTZ
+);
+
 -- ==============================================================================
 -- INDEXES FOR QUERY OPTIMIZATION
 -- ==============================================================================
@@ -121,6 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_mutations_exp_id ON mutations(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_mutations_user_id ON mutations(user_id);
 CREATE INDEX IF NOT EXISTS idx_traces_exp_id ON traces(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_traces_user_id ON traces(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_entitlements_customer_id ON user_entitlements(customer_id);
 
 -- ==============================================================================
 -- ROW-LEVEL SECURITY (RLS) POLICIES
@@ -132,6 +151,7 @@ ALTER TABLE benchmark_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE evaluations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mutations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE traces ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_entitlements ENABLE ROW LEVEL SECURITY;
 
 -- 1. Experiments Policies (CRUD scoped to auth.uid())
 CREATE POLICY "Users can view own experiments" ON experiments
@@ -195,3 +215,14 @@ CREATE POLICY "Users can create own traces" ON traces
 
 CREATE POLICY "Deny updates on traces to preserve historical immutability" ON traces
     FOR UPDATE USING (false);
+
+-- 7. User Entitlements Policies
+CREATE POLICY "Users can view own entitlements" ON user_entitlements
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own entitlements" ON user_entitlements
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own entitlements" ON user_entitlements
+    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+

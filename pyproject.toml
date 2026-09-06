@@ -14,7 +14,9 @@ dependencies = [
     "httpx>=0.27.0",
     "numpy>=1.24.0",
     "python-dotenv>=1.0.0",
-    "pyjwt>=2.8.0"
+    "pyjwt>=2.8.0",
+    "standardwebhooks>=1.0.0",
+    "dodopayments>=0.1.0"
 ]
 
 [project.optional-dependencies]

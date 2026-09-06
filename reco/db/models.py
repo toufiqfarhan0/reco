@@ -118,3 +118,22 @@ class TraceRecord(BaseModel):
     spans: List[Dict[str, Any]] = Field(default_factory=list)
     deep_link_url: Optional[str] = Field(default=None)
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class UserEntitlementRecord(BaseModel):
+    """Persisted record representing a user's subscription entitlement tier."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    user_id: str = Field(description="GoTrue authenticated user UUID")
+    tier: str = Field(default="free", description="Entitlement tier: 'free' or 'pro'")
+    status: str = Field(default="none", description="Status: 'active', 'cancelled', 'expired', 'none'")
+    is_pro: bool = Field(default=False, description="Whether user has active Pro access")
+    customer_id: Optional[str] = Field(default=None, description="Dodo Payments customer ID")
+    subscription_id: Optional[str] = Field(default=None, description="Dodo Payments subscription ID")
+    payment_id: Optional[str] = Field(default=None, description="Last successful payment ID")
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    expires_at: Optional[str] = Field(default=None)
+
